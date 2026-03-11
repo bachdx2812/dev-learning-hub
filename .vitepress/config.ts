@@ -160,7 +160,22 @@ export default withMermaid(
         primaryBorderColor: '#bd93f9',
         secondaryColor: '#282a36',
         tertiaryColor: '#282a36',
-        fontFamily: 'JetBrains Mono, monospace',
+        // No fontFamily override — let Mermaid use its default for accurate node sizing
+      },
+      flowchart: {
+        padding: 20,
+        nodeSpacing: 50,
+        rankSpacing: 50,
+        useMaxWidth: true,
+        htmlLabels: true,
+      },
+      sequence: {
+        useMaxWidth: true,
+        boxMargin: 10,
+        noteMargin: 10,
+      },
+      stateDiagram: {
+        useMaxWidth: true,
       },
     },
 

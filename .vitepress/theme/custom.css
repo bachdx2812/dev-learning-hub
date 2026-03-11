@@ -487,23 +487,44 @@ a:hover {
   overflow-x: auto !important;
 }
 
+/* CRITICAL: Do NOT override fonts on Mermaid elements via CSS.
+   Mermaid calculates node sizes using its configured font at render time.
+   CSS font overrides apply AFTER size calculation, causing text to overflow boxes.
+   The Mermaid config in config.ts uses the default font for accurate sizing. */
 .mermaid svg {
-  font-family: 'JetBrains Mono', monospace !important;
   max-width: 100%;
   height: auto;
-}
-
-/* Ensure Mermaid node text doesn't get clipped */
-.mermaid .node rect,
-.mermaid .node polygon,
-.mermaid .node circle {
   overflow: visible !important;
 }
 
-.mermaid .nodeLabel {
-  font-family: 'JetBrains Mono', monospace !important;
-  white-space: pre-wrap !important;
-  overflow-wrap: break-word !important;
+/* Safety: ensure SVG elements can grow beyond calculated bounds */
+.mermaid .node rect,
+.mermaid .node polygon,
+.mermaid .node circle,
+.mermaid .node ellipse,
+.mermaid .cluster rect,
+.mermaid .statediagram-state rect,
+.mermaid .actor {
+  overflow: visible !important;
+}
+
+.mermaid .node foreignObject,
+.mermaid foreignObject {
+  overflow: visible !important;
+}
+
+.mermaid .nodeLabel,
+.mermaid .label {
+  overflow: visible !important;
+}
+
+/* Mindmap-specific: nodes use section elements with tight sizing */
+.mermaid .mindmap-node foreignObject {
+  overflow: visible !important;
+}
+
+.mermaid .mindmap-node .text-inner-tspan {
+  overflow: visible !important;
 }
 
 /* --------------------------------------------------------------------------
