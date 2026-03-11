@@ -440,6 +440,259 @@ Netflix's recommendation engine, encoding pipeline, and A/B testing infrastructu
 
 ---
 
+## Distributed Transaction Protocols
+
+Before the Saga pattern, engineers used database-level protocols to coordinate multi-node writes. Understanding their failure modes explains *why* Saga exists.
+
+### Two-Phase Commit (2PC)
+
+2PC uses a **coordinator** to drive N **participants** through two phases, ensuring all-or-nothing commit semantics across distributed nodes.
+
+```mermaid
+sequenceDiagram
+    participant CO as "Coordinator"
+    participant P1 as "Participant 1 (Orders DB)"
+    participant P2 as "Participant 2 (Inventory DB)"
+    participant P3 as "Participant 3 (Payments DB)"
+
+    Note over CO,P3: Phase 1 - Prepare
+    CO->>P1: Prepare
+    CO->>P2: Prepare
+    CO->>P3: Prepare
+    P1-->>CO: Vote YES (lock held)
+    P2-->>CO: Vote YES (lock held)
+    P3-->>CO: Vote NO (constraint violation)
+
+    Note over CO: Any NO → Abort
+    CO->>P1: Abort
+    CO->>P2: Abort
+    P1-->>CO: Ack
+    P2-->>CO: Ack
+    Note over P1,P2: Locks released
+```
+
+**The blocking problem:** Between Phase 1 vote and Phase 2 decision, participants hold locks. If the coordinator crashes after collecting YES votes but before sending Phase 2, participants are blocked indefinitely — they cannot commit or abort without the coordinator's decision.
+
+### Three-Phase Commit (3PC)
+
+3PC adds a **pre-commit** phase to eliminate the blocking window. Participants move to a pre-committed state, allowing recovery even if the coordinator fails.
+
+```mermaid
+sequenceDiagram
+    participant CO as "Coordinator"
+    participant P1 as "Participant 1"
+    participant P2 as "Participant 2"
+
+    Note over CO,P2: Phase 1 - CanCommit
+    CO->>P1: CanCommit?
+    CO->>P2: CanCommit?
+    P1-->>CO: Yes
+    P2-->>CO: Yes
+
+    Note over CO,P2: Phase 2 - PreCommit
+    CO->>P1: PreCommit
+    CO->>P2: PreCommit
+    P1-->>CO: Ack (pre-committed, can auto-commit on timeout)
+    P2-->>CO: Ack
+
+    Note over CO,P2: Phase 3 - DoCommit
+    CO->>P1: DoCommit
+    CO->>P2: DoCommit
+    P1-->>CO: Committed
+    P2-->>CO: Committed
+```
+
+**Why 3PC still loses in practice:** Pre-commit solves coordinator crash but is vulnerable to network partitions — a participant can auto-commit on timeout while another aborts, causing inconsistency. 3PC requires a synchronous network assumption that does not hold in real distributed systems.
+
+### 2PC vs 3PC Comparison
+
+| Protocol | Blocking on Coordinator Crash | Partition Tolerance | Message Rounds | Latency | Practical Use |
+|----------|------------------------------|--------------------|--------------:|---------|---------------|
+| **2PC** | Yes — participants block indefinitely | No | 4 (P+A per phase) | Low | Database XA transactions (rarely cross-service) |
+| **3PC** | No — auto-commit via timeout | No (partition splits brain) | 6 | Higher | Theoretical; almost never used in production |
+| **Saga** | No — compensations handle failure | Yes | Async | Variable | Microservices standard |
+
+**Bottom line:** 2PC works inside a single database cluster (e.g., PostgreSQL with XA). Across independent services with independent databases, 2PC is too fragile. Saga is the production-grade alternative.
+
+---
+
+## Saga Pattern — Deep Dive
+
+The Saga pattern (described at a high level in [Chapter 13](/system-design/part-3-architecture-patterns/ch13-microservices)) is the standard approach for long-running distributed transactions. Each local transaction publishes events or sends commands; compensating transactions undo completed steps on failure.
+
+### Orchestration-Based Saga
+
+A central **saga orchestrator** (often implemented as a state machine) drives every step and explicitly handles failure paths.
+
+```mermaid
+sequenceDiagram
+    participant C as "Client"
+    participant ORCH as "Order Saga Orchestrator"
+    participant OS as "Order Service"
+    participant IS as "Inventory Service"
+    participant PS as "Payment Service"
+    participant NS as "Notification Service"
+
+    C->>ORCH: PlaceOrder(items, userId)
+    ORCH->>OS: CreateOrder → PENDING
+    OS-->>ORCH: OrderCreated(orderId=42)
+
+    ORCH->>IS: ReserveInventory(orderId=42, items)
+    IS-->>ORCH: InventoryReserved
+
+    ORCH->>PS: ChargePayment(orderId=42, amount)
+    PS--xORCH: PaymentFailed (card declined)
+
+    Note over ORCH: Compensate in reverse order
+    ORCH->>IS: ReleaseInventory(orderId=42)
+    IS-->>ORCH: InventoryReleased
+    ORCH->>OS: CancelOrder(orderId=42)
+    OS-->>ORCH: OrderCancelled
+    ORCH-->>C: "Order failed: payment declined"
+```
+
+### Choreography-Based Saga
+
+No central coordinator. Each service emits events; downstream services react and either continue the flow or emit compensating events.
+
+```mermaid
+sequenceDiagram
+    participant OS as "Order Service"
+    participant Bus as "Event Bus"
+    participant IS as "Inventory Service"
+    participant PS as "Payment Service"
+    participant NS as "Notification Service"
+
+    OS->>Bus: OrderPlaced(orderId=42)
+    Bus->>IS: OrderPlaced
+    IS->>IS: Reserve inventory
+    IS->>Bus: InventoryReserved(orderId=42)
+    Bus->>PS: InventoryReserved
+    PS->>PS: Charge payment
+    PS->>Bus: PaymentFailed(orderId=42)
+
+    Note over IS,Bus: Compensation via events
+    Bus->>IS: PaymentFailed
+    IS->>IS: Release inventory
+    IS->>Bus: InventoryReleased(orderId=42)
+    Bus->>OS: InventoryReleased
+    OS->>OS: Cancel order
+    OS->>Bus: OrderCancelled(orderId=42)
+    Bus->>NS: OrderCancelled → send failure email
+```
+
+### Compensation Logic
+
+Compensating transactions must be **idempotent** — they may be retried if the compensating command itself fails. Design them as explicit reversal operations:
+
+| Forward Step | Compensating Transaction | Idempotency Key |
+|-------------|--------------------------|----------------|
+| CreateOrder (PENDING) | CancelOrder → CANCELLED | orderId |
+| ReserveInventory | ReleaseInventory | orderId + SKU |
+| ChargePayment | RefundPayment | orderId + paymentId |
+| SendShipment | (cannot compensate — issue return label instead) | orderId |
+
+Note: some steps are **non-compensatable** (shipping a physical parcel). Design your saga to attempt non-compensatable steps last, maximizing the chance all prior steps can be rolled back cleanly.
+
+### Saga Pattern Comparison
+
+| Dimension | Orchestration | Choreography |
+|-----------|--------------|-------------|
+| **Coupling** | Orchestrator knows all participants | Services know only event schemas |
+| **Visibility** | Full state in orchestrator — queryable | Distributed state — requires distributed tracing |
+| **Debugging** | Straightforward — one place to inspect state | Hard — events across many logs |
+| **Scalability** | Orchestrator can be a bottleneck | Fully distributed |
+| **Error handling** | Centralized compensation logic | Each service must handle its own compensations |
+| **Best For** | Complex flows, regulatory audit, many compensations | Simple stable flows, few participants |
+
+---
+
+## Change Data Capture (CDC)
+
+CDC captures row-level changes from a database's write-ahead log (WAL) and streams them as events to downstream consumers — without modifying application code.
+
+### How It Works
+
+```mermaid
+flowchart LR
+    App["Application"] -->|"INSERT / UPDATE / DELETE"| DB[("Postgres / MySQL")]
+    DB -->|"WAL (Write-Ahead Log)"| CDC["CDC Connector (Debezium)"]
+    CDC -->|"Change events"| Kafka[["Kafka Topics"]]
+    Kafka -->|Subscribe| Cache["Cache Invalidation Service"]
+    Kafka -->|Subscribe| Search["Search Index (Elasticsearch)"]
+    Kafka -->|Subscribe| Analytics["Analytics Pipeline (Flink)"]
+    Kafka -->|Subscribe| Audit["Audit Log Service"]
+```
+
+**Log-based CDC (Debezium):** Reads the database's replication slot / binary log. Zero impact on write path — no application changes required. Every INSERT, UPDATE, DELETE becomes a structured event with before/after values.
+
+### CDC Approaches Comparison
+
+| Approach | How It Works | Latency | DB Impact | Complexity | Best For |
+|----------|-------------|---------|-----------|------------|---------|
+| **Log-based** (Debezium, Maxwell) | Read WAL / binlog directly | Sub-second | Near zero | Medium (connector ops) | Production; low-latency, any throughput |
+| **Trigger-based** | DB triggers write to outbox table | Low | High (triggers on every write) | Low | Simple setups; low write volume |
+| **Polling** | App queries `WHERE updated_at > last_poll` | Seconds | Medium (full-table scan risk) | Low | Legacy systems without WAL access |
+| **Dual-write** | App writes to DB and publishes event | Low | Zero | High (must be atomic) | Avoid — risks inconsistency if app crashes between writes |
+
+**The outbox pattern (avoiding dual-write):** Write the event to an `outbox` table in the *same transaction* as the business write. A CDC connector reads the outbox and publishes to Kafka. Atomicity is guaranteed by the DB transaction; publishing is decoupled from the business write.
+
+### CDC Use Cases
+
+- **Cache invalidation**: Invalidate Redis entries when the source record changes, without polling
+- **Search index sync**: Keep Elasticsearch in sync with the primary database in near-real-time
+- **Analytics pipelines**: Stream operational data to data warehouses (Snowflake, BigQuery) without ETL batch jobs
+- **Audit logs**: Capture every data change with before/after values for compliance
+- **Microservice data sync**: Replicate a bounded subset of data to a downstream service's own database without shared schema coupling
+
+### The Outbox Pattern
+
+The outbox pattern solves the dual-write problem: ensuring a DB write and a message publish are atomic without distributed transactions.
+
+```mermaid
+sequenceDiagram
+    participant App as "Order Service"
+    participant DB as "Postgres (orders + outbox tables)"
+    participant CDC as "CDC Connector (Debezium)"
+    participant MQ as "Kafka"
+    participant Con as "Downstream Consumer"
+
+    Note over App,DB: Single DB transaction
+    App->>DB: BEGIN TRANSACTION
+    App->>DB: INSERT INTO orders (id=42, status=PLACED)
+    App->>DB: INSERT INTO outbox (aggregate_id=42, event=OrderPlaced, payload=...)
+    App->>DB: COMMIT
+
+    Note over CDC: CDC reads outbox table from WAL
+    CDC->>DB: Read WAL (outbox INSERT)
+    CDC->>MQ: Publish OrderPlaced to kafka topic
+    MQ-->>Con: OrderPlaced event delivered
+
+    Note over DB: Outbox row marked processed / deleted
+```
+
+**Guarantees:**
+- The order row and outbox row are written atomically — if the app crashes between write and publish, the CDC connector will eventually pick up the outbox row and publish
+- CDC provides at-least-once delivery to Kafka — consumers must be idempotent
+- No two-phase commit required; consistency comes from single-DB transaction + eventual CDC processing
+
+**Outbox table schema (minimal):**
+```sql
+CREATE TABLE outbox (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  occurred_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  aggregate_type TEXT NOT NULL,        -- e.g. 'Order'
+  aggregate_id   TEXT NOT NULL,        -- e.g. '42'
+  event_type     TEXT NOT NULL,        -- e.g. 'OrderPlaced'
+  payload        JSONB NOT NULL,
+  processed_at   TIMESTAMPTZ           -- NULL = pending
+);
+```
+
+> Cross-reference: [Chapter 11 — Message Queues](/system-design/part-2-building-blocks/ch11-message-queues) covers Kafka internals (topics, partitions, consumer groups) that CDC pipelines rely on. [Chapter 15 — Data Replication](/system-design/part-3-architecture-patterns/ch15-data-replication-consistency) covers consensus protocols used by distributed transaction coordinators.
+
+---
+
 ## Practice Questions
 
 1. **Order fulfillment workflow**: Design an order fulfillment system using event-driven architecture. An order must trigger inventory reservation, payment charging, and shipping label creation — but if payment fails, inventory must be released. Model this with both choreography and orchestration. Which would you choose and why?

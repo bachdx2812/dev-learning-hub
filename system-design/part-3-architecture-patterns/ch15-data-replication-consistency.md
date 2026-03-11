@@ -499,6 +499,249 @@ Amazon's leaderless, Dynamo-style system (production evolution of the 2007 paper
 
 ---
 
+## Raft Consensus Algorithm — Deep Dive
+
+The existing section introduced Raft's leader election and log replication. This section provides the complete state machine, sequence diagrams, and safety guarantees needed to reason about production Raft-based systems (etcd, CockroachDB, Consul).
+
+### Node State Machine
+
+```mermaid
+stateDiagram-v2
+    [*] --> Follower : "Node starts"
+    Follower --> Candidate : "Election timeout fires (no heartbeat from leader)"
+    Candidate --> Leader : "Receives majority votes"
+    Candidate --> Follower : "Discovers higher term or another node wins"
+    Leader --> Follower : "Discovers node with higher term"
+    Follower --> Follower : "Receives valid heartbeat — reset timer"
+```
+
+**Election timeout** is randomized (150–300ms in etcd) to prevent all followers from starting an election simultaneously. The first follower to time out becomes a candidate and usually wins before others wake up.
+
+### Leader Election — Full Sequence
+
+```mermaid
+sequenceDiagram
+    participant N1 as "Node 1 (Candidate)"
+    participant N2 as "Node 2 (Follower)"
+    participant N3 as "Node 3 (Follower)"
+    participant N4 as "Node 4 (Follower)"
+    participant N5 as "Node 5 (Follower)"
+
+    Note over N1,N5: Leader crashes. Election timers running.
+    Note over N1: Timer fires first (150ms)
+    N1->>N1: Increment term to T+1. Vote for self.
+    N1->>N2: RequestVote(term=T+1, lastLogIndex=10, lastLogTerm=T)
+    N1->>N3: RequestVote(term=T+1, lastLogIndex=10, lastLogTerm=T)
+    N1->>N4: RequestVote(term=T+1, lastLogIndex=10, lastLogTerm=T)
+    N1->>N5: RequestVote(term=T+1, lastLogIndex=10, lastLogTerm=T)
+
+    N2-->>N1: VoteGranted (log is at least as up-to-date)
+    N3-->>N1: VoteGranted
+    N4--xN1: (network partition - no response)
+    N5-->>N1: VoteGranted
+
+    Note over N1: 4 votes including self = majority of 5. Becomes Leader.
+    N1->>N2: AppendEntries(term=T+1, heartbeat)
+    N1->>N3: AppendEntries(term=T+1, heartbeat)
+    N1->>N5: AppendEntries(term=T+1, heartbeat)
+    Note over N2,N5: Reset election timers on heartbeat receipt
+```
+
+**Vote grant condition:** A voter grants a vote only if:
+1. The candidate's term ≥ voter's current term
+2. The voter has not yet voted in this term
+3. The candidate's log is at least as up-to-date (higher last log term, or same term + longer log)
+
+Condition 3 is the **election safety** guarantee — it prevents a node missing committed entries from becoming leader.
+
+### Log Replication
+
+```mermaid
+sequenceDiagram
+    participant C as "Client"
+    participant L as "Leader (N1)"
+    participant F1 as "Follower (N2)"
+    participant F2 as "Follower (N3)"
+
+    C->>L: Write x=5
+    L->>L: Append to log (index=11, term=T+1, x=5) - UNCOMMITTED
+    L->>F1: AppendEntries(index=11, entry=[x=5], commitIndex=10)
+    L->>F2: AppendEntries(index=11, entry=[x=5], commitIndex=10)
+    F1->>F1: Append to local log
+    F1-->>L: Success (matchIndex=11)
+    F2->>F2: Append to local log
+    F2-->>L: Success (matchIndex=11)
+
+    Note over L: Majority (2 of 2 followers) acked → COMMIT
+    L->>L: Advance commitIndex to 11. Apply x=5 to state machine.
+    L-->>C: Write success
+
+    L->>F1: AppendEntries(heartbeat, commitIndex=11)
+    L->>F2: AppendEntries(heartbeat, commitIndex=11)
+    F1->>F1: Apply x=5 to state machine
+    F2->>F2: Apply x=5 to state machine
+```
+
+**Commit rule:** An entry is committed when stored on a majority of nodes. Committed entries are guaranteed to survive any future leader election (election safety + log matching property together ensure this).
+
+### Raft Safety Guarantees
+
+| Property | Guarantee |
+|----------|-----------|
+| **Election Safety** | At most one leader per term |
+| **Leader Append-Only** | Leader never overwrites or deletes its log entries |
+| **Log Matching** | If two logs contain an entry with the same index and term, they are identical up to that index |
+| **Leader Completeness** | If an entry is committed in a term, it is present in all future leaders' logs |
+| **State Machine Safety** | If a server applies an entry at index i, no other server applies a different entry at index i |
+
+### Raft vs Paxos
+
+| Dimension | Raft | Paxos (Multi-Paxos) |
+|-----------|------|---------------------|
+| **Understandability** | Designed for clarity; strong leader simplifies reasoning | Notoriously hard to understand and implement correctly |
+| **Leader model** | Explicit, single leader per term | Implicit leader in Multi-Paxos (requires extra mechanism) |
+| **Log ordering** | Leader enforces strict ordering | Requires careful implementation to maintain ordering |
+| **Membership changes** | Joint consensus (two-phase config changes) | Complex; implementation-specific |
+| **Implementations** | etcd, CockroachDB, TiKV, Consul | Google Spanner (Multi-Paxos), Apache ZooKeeper (ZAB) |
+| **Paper** | 2014 (Ongaro & Ousterhout) | 1998 (Lamport) |
+
+**Why Raft won adoption:** Ongaro's dissertation explicitly decomposed consensus into understandable sub-problems. Engineers implementing etcd and CockroachDB chose Raft specifically because they could reason about correctness. Paxos's gap between paper and complete protocol made production implementations error-prone.
+
+> Cross-reference: [Chapter 3 — Core Trade-offs](/system-design/part-1-fundamentals/ch03-core-tradeoffs) covers CAP Theorem; Raft is a CP system — it sacrifices availability during leader election to maintain consistency. [Chapter 14 — Event-Driven Architecture](/system-design/part-3-architecture-patterns/ch14-event-driven-architecture) covers distributed transactions (2PC/Saga) that rely on consensus for coordination.
+
+---
+
+## Distributed Locks
+
+Distributed locks prevent concurrent access to a shared resource across multiple nodes or processes. Unlike single-process mutexes, distributed locks must handle network failures, process crashes, and clock skew.
+
+**Why locks are hard in distributed systems:** A lock holder can crash after acquiring the lock but before releasing it. The lock must expire automatically (TTL-based) to avoid permanent deadlock — but TTL expiry while the holder is still processing causes the "stale lock" problem.
+
+### Redis-Based Locking (Redlock)
+
+Single-node Redis lock: acquire with `SET key value NX PX ttl`. Fast but fails if the Redis node crashes — the lock is lost.
+
+**Redlock** extends this to N independent Redis nodes (N=5 recommended) to tolerate single-node failures:
+
+```mermaid
+sequenceDiagram
+    participant C as "Client"
+    participant R1 as "Redis 1"
+    participant R2 as "Redis 2"
+    participant R3 as "Redis 3"
+    participant R4 as "Redis 4"
+    participant R5 as "Redis 5"
+
+    Note over C: t0 = current time. Attempt lock on all 5 nodes.
+    C->>R1: SET lock:resource token NX PX 30000
+    C->>R2: SET lock:resource token NX PX 30000
+    C->>R3: SET lock:resource token NX PX 30000
+    C->>R4: SET lock:resource token NX PX 30000
+    C->>R5: SET lock:resource token NX PX 30000
+    R1-->>C: OK
+    R2-->>C: OK
+    R3-->>C: OK
+    R4--xC: (timeout)
+    R5-->>C: OK
+
+    Note over C: 4 of 5 = majority. elapsed < TTL. Lock acquired.
+    Note over C: ... do critical section work ...
+    C->>R1: DEL lock:resource (if value == token)
+    C->>R2: DEL lock:resource (if value == token)
+    C->>R3: DEL lock:resource (if value == token)
+    C->>R5: DEL lock:resource (if value == token)
+    Note over C: Lock released on all reachable nodes.
+```
+
+**Lock validity:** `validity_time = TTL - elapsed_acquisition_time - clock_drift`. If validity_time ≤ 0, the lock was not acquired fast enough — release all and retry with backoff.
+
+**Redlock controversy:** Martin Kleppmann argued that Redlock is unsafe under process pauses (GC, swapping) — a lock holder can be paused past TTL, another client acquires the lock, and both believe they hold it. The solution: **fencing tokens** (see below).
+
+### ZooKeeper-Based Locking
+
+ZooKeeper uses **ephemeral sequential znodes** for distributed locking. An ephemeral znode is automatically deleted when the client session ends (crash, disconnect) — eliminating the TTL problem.
+
+**Acquire:**
+1. Create `EPHEMERAL_SEQUENTIAL` node at `/locks/resource-000001`
+2. List children. If you have the lowest number → you hold the lock.
+3. Otherwise, watch the node with the next-lowest number (not all nodes — avoids herd effect).
+
+**Release:** Delete your znode. ZooKeeper notifies the next-in-line watcher.
+
+**Advantage over Redlock:** Ephemeral znodes guarantee automatic release on crash without TTL expiry races. ZooKeeper's CP model ensures consistency — all clients see the same lock state.
+
+### etcd-Based Locking
+
+etcd uses **leases** with TTL. The lock holder must periodically renew the lease (keep-alive). If the holder crashes, the lease expires and the lock is released.
+
+```
+# Acquire
+lease_id = etcd.lease(ttl=30)         # create 30s lease
+etcd.put(key="/locks/resource",
+         value=token,
+         lease=lease_id)               # atomically associate
+
+# Hold - renew in background
+start_background_keepalive(lease_id)
+
+# Release
+etcd.delete(key="/locks/resource")
+etcd.revoke(lease_id)
+```
+
+### Distributed Lock Comparison
+
+| Implementation | Availability | Safety | Auto-release on Crash | Complexity | Best For |
+|----------------|-------------|--------|----------------------|------------|---------|
+| **Redlock (Redis)** | High (AP topology) | Weak without fencing | Via TTL (race window) | Low | Best-effort locks, cache coordination |
+| **ZooKeeper** | Medium (CP, leader required) | Strong (ephemeral znodes) | Instant (session expiry) | Medium | Strong safety guarantees, existing ZK infra |
+| **etcd** | High (CP via Raft) | Strong (lease-based) | Via lease TTL + keepalive | Low | Kubernetes-native; modern CP systems |
+
+### Fencing Tokens
+
+A fencing token is a **monotonically increasing number** returned by the lock service when a lock is granted. Every operation on the protected resource must include the fencing token. The resource rejects requests with a token lower than the last seen.
+
+```
+Client A acquires lock → token=33
+Client A pauses (GC, slow network)
+Lock expires. Client B acquires lock → token=34
+Client B writes to resource with token=34 → accepted
+
+Client A resumes. Sends write with token=33
+Resource rejects: "token 33 < last seen 34"
+```
+
+**Why fencing is necessary:** TTL-based locks (Redlock, etcd leases) have a race window where a slow lock holder resumes after TTL expiry but before it knows the lock is gone. Without fencing, both the old and new holder can corrupt the resource. With fencing, the resource enforces the ordering.
+
+**Fencing token sources:** etcd's revision number (monotonically increasing per key), ZooKeeper's zxid, or a custom sequence number from the lock service.
+
+### Lock Failure Modes and Mitigations
+
+| Failure Mode | Description | Mitigation |
+|-------------|-------------|-----------|
+| **Lock holder crash** | Process dies while holding lock; resource stays locked | TTL-based expiry (Redis, etcd lease) or ephemeral znode (ZooKeeper) |
+| **GC pause past TTL** | JVM GC pauses holder for > TTL; another client acquires lock; both now "hold" it | Fencing tokens; short TTL + keepalive in separate thread |
+| **Network partition** | Lock holder cannot renew lease; lock expires; holder resumes unaware lock is gone | Fencing tokens; resource-side validation |
+| **Clock skew (Redlock)** | System clock jumps forward on lock node; TTL expires prematurely | Use monotonic clock for elapsed time; avoid wall-clock-based TTL math |
+| **Split-brain (Redlock)** | Majority Redis nodes see different state after partition | Require majority (N/2 + 1) for acquire AND release; quorum-strict mode |
+
+### Choosing a Lock Implementation
+
+```mermaid
+flowchart TD
+    A["Need distributed lock?"] -->|Yes| B{"Strong safety required?"}
+    B -->|No - best effort OK| C["Redis single-node\nSET NX PX — simplest"]
+    B -->|Yes - must not corrupt data| D{"Using Kubernetes / etcd already?"}
+    D -->|Yes| E["etcd lease-based lock\n+ fencing token"]
+    D -->|No| F{"Need instant release on crash?"}
+    F -->|Yes| G["ZooKeeper ephemeral znode\n+ sequential watch"]
+    F -->|Lease TTL is acceptable| H["Redlock (N=5 Redis nodes)\n+ fencing token on resource side"]
+```
+
+> Cross-reference: [Chapter 9 — Databases: SQL](/system-design/part-2-building-blocks/ch09-databases-sql) covers row-level database locks and advisory locks as single-node alternatives when a shared database is available. [Chapter 14 — Event-Driven Architecture](/system-design/part-3-architecture-patterns/ch14-event-driven-architecture) covers distributed transaction patterns (2PC, Saga) that rely on distributed locking at the protocol level.
+
+---
+
 ## Practice Questions
 
 1. **Quorum math**: A Cassandra cluster has N=5 replicas. You configure W=3, R=2. Is this a valid quorum? Does W+R>N hold? What is the minimum number of nodes that can be down before reads may return stale data?

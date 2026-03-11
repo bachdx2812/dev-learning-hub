@@ -165,6 +165,117 @@ At 10,000 req/sec, storing every trace is prohibitively expensive. Two approache
 
 Production recommendation: sample 1% normally, 100% of errors and traces > p99 latency threshold.
 
+### W3C TraceContext: Trace Propagation Standard
+
+Distributed tracing requires trace and span IDs to flow across service boundaries via HTTP headers. W3C TraceContext (RFC 2019) defines the standard:
+
+```
+traceparent: 00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01
+             ^^  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ ^^^^^^^^^^^^^^^^ ^^
+          version       trace-id (128-bit)         parent-span-id   flags
+```
+
+Every service reads this header, creates a child span with the parent-span-id, and propagates the same trace-id to downstream calls. No proprietary vendor format needed.
+
+### Tracing Tools Comparison
+
+| | Jaeger | Zipkin | Grafana Tempo |
+|---|--------|--------|---------------|
+| **Storage backends** | Cassandra, Elasticsearch, in-memory | MySQL, Cassandra, Elasticsearch | Object storage (S3, GCS, Azure Blob) |
+| **UI** | Full-featured: trace timeline, service dependency graph | Simpler: trace list + timeline | Minimal native UI; relies on Grafana |
+| **Sampling** | Head-based and adaptive (remote controlled) | Head-based | Delegated to OTel Collector |
+| **OpenTelemetry** | Native OTLP support | Via adapter | Native OTLP (primary protocol) |
+| **Integration** | CNCF project, Kubernetes-native | Widely adopted, many client libs | Grafana stack (pairs with Prometheus + Loki) |
+| **Scale** | Medium-large | Medium | Very large (object storage = cheap at scale) |
+| **Deployment** | Moderate complexity | Simple | Simple (no search index needed) |
+| **Cost** | Free (Elasticsearch costs extra) | Free | Free (storage cost only) |
+| **Best for** | Kubernetes microservices, CNCF stack | Existing Zipkin instrumentation | Grafana-centric observability stacks |
+
+---
+
+## OpenTelemetry
+
+OpenTelemetry (OTel) is a CNCF project that provides a **vendor-neutral standard** for instrumentation, collection, and export of telemetry data — traces, metrics, and logs — under a single unified API and SDK.
+
+Before OTel, each observability vendor required its own SDK. Switching from Jaeger to Datadog meant re-instrumenting every service. OpenTelemetry solves this with a single instrumentation layer and pluggable exporters.
+
+### Three Pillars Unified
+
+```mermaid
+flowchart TD
+    APP["Application\n(any language)"]
+    SDK["OTel SDK\n(auto + manual instrumentation)"]
+    COLL["OTel Collector\n(receive, process, export)"]
+    JAE["Jaeger\n(traces)"]
+    PROM["Prometheus\n(metrics)"]
+    LOKI["Loki\n(logs)"]
+    DD["Datadog\n(all-in-one)"]
+
+    APP -->|"traces + metrics + logs"| SDK
+    SDK -->|"OTLP\n(gRPC or HTTP)"| COLL
+    COLL -->|"traces"| JAE
+    COLL -->|"metrics"| PROM
+    COLL -->|"logs"| LOKI
+    COLL -->|"all signals"| DD
+```
+
+**OTLP** (OpenTelemetry Protocol) is the wire format. It runs over gRPC (port 4317) or HTTP/protobuf (port 4318). Any backend that speaks OTLP can receive OTel data.
+
+### OTel Collector Architecture
+
+The Collector is an optional but recommended middle tier. It decouples instrumented apps from backend destinations:
+
+```mermaid
+flowchart LR
+    subgraph apps["Instrumented Services"]
+        S1["Service A\n(OTel SDK)"]
+        S2["Service B\n(OTel SDK)"]
+        S3["Service C\n(OTel SDK)"]
+    end
+
+    subgraph collector["OTel Collector"]
+        RCV["Receivers\n(OTLP, Prometheus, Zipkin, Jaeger)"]
+        PROC["Processors\n(batch, filter, sample, enrich)"]
+        EXP["Exporters\n(OTLP, Jaeger, Prometheus, Datadog)"]
+        RCV --> PROC --> EXP
+    end
+
+    subgraph backends["Observability Backends"]
+        B1["Jaeger / Tempo"]
+        B2["Prometheus / Mimir"]
+        B3["Loki / Elasticsearch"]
+    end
+
+    S1 & S2 & S3 -->|"OTLP"| RCV
+    EXP --> B1 & B2 & B3
+```
+
+**Collector benefits:**
+- **Tail-based sampling** at the Collector level (buffer spans, sample on outcome)
+- **Data transformation:** filter PII from logs, rename labels, add resource attributes
+- **Multi-backend export:** send same data to two backends simultaneously (migration, redundancy)
+- **Decoupled upgrades:** swap backends without touching application code
+
+### Auto-Instrumentation vs Manual Instrumentation
+
+| Dimension | Auto-Instrumentation | Manual Instrumentation |
+|-----------|---------------------|----------------------|
+| **How** | Agent/bytecode injection at startup, no code changes | Developer adds `tracer.start_span()` calls in code |
+| **Effort** | Zero code changes | Per-operation instrumentation required |
+| **Coverage** | HTTP clients, DB drivers, frameworks (Spring, Express, Django) | Any custom business logic, critical paths |
+| **Span quality** | Generic (framework-level, missing business context) | Rich (custom attributes: user_id, order_id, feature flags) |
+| **Latency** | Slight overhead from agent | Minimal (only instrumented operations) |
+| **Maintenance** | Agent version updates | Code changes when logic changes |
+| **Best for** | Getting started, standardizing infrastructure calls | High-value business operations, SLO-critical paths |
+
+**Recommendation:** Use auto-instrumentation as the baseline (catches all HTTP and DB calls), then add manual spans around critical business operations (payment processing, fraud check, recommendation engine) where custom attributes are needed for debugging.
+
+### OTel Language Support
+
+OTel provides SDKs for all major languages: Java, Python, Go, JavaScript/Node, .NET, Ruby, Rust, C++, PHP. Auto-instrumentation is most mature for Java (via Java agent) and Node.js (via `@opentelemetry/auto-instrumentations-node`).
+
+Cross-reference: [Chapter 16: Reliability Patterns](/system-design/part-3-architecture-patterns/ch16-security-reliability) for SLO-driven reliability engineering. [Chapter 23: Cloud-Native Architecture](/system-design/part-5-modern-mastery/ch23-cloud-native-serverless) for OTel in Kubernetes.
+
 ---
 
 ## Log Aggregation Pipeline
@@ -224,19 +335,34 @@ Google's Site Reliability Engineering introduced the SLI → SLO → SLA hierarc
 
 ```mermaid
 graph TD
-    SLI["SLI - Service Level Indicator\nActual measurement\ne.g., fraction of requests under 200ms"]
-    SLO["SLO - Service Level Objective\nInternal reliability target\ne.g., 99.9% of requests under 200ms"]
-    SLA["SLA - Service Level Agreement\nExternal contract with consequences\ne.g., 99.5% uptime or credit issued"]
+    SLI["SLI - Service Level Indicator\nActual measurement\ne.g. fraction of requests under 200ms"]
+    SLO["SLO - Service Level Objective\nInternal reliability target\ne.g. 99.9% of requests under 200ms"]
+    SLA["SLA - Service Level Agreement\nExternal contract with consequences\ne.g. 99.5% uptime or credit issued"]
 
-    SLI -->|Measured against| SLO
-    SLO -->|Weaker version of, with penalties| SLA
+    SLI -->|"Measured against"| SLO
+    SLO -->|"Weaker version of, with penalties"| SLA
 ```
+
+### Definitions
 
 | Concept | Owner | Consequence of breach | Example |
 |---------|-------|-----------------------|---------|
 | **SLI** | Engineering | None — it is a measurement | 99.92% of requests succeeded this month |
 | **SLO** | Engineering | Internal alert, error budget consumed | Target: 99.9% success rate |
 | **SLA** | Business/Legal | Financial penalty, contract clause | Guarantee: 99.5% or credit issued |
+
+**SLO is always stricter than SLA.** The gap between SLO (internal target) and SLA (contractual guarantee) is the safety buffer — if engineering hits 99.8% and the SLO was 99.9%, the team is alerted and investigates before breaching the 99.5% SLA.
+
+### Common SLI Examples by Metric Type
+
+| Metric Type | Example SLI | Example SLO | Measurement Method |
+|-------------|------------|-------------|-------------------|
+| **Availability** | Fraction of successful HTTP requests (2xx/3xx) | 99.9% success rate over 30 days | Synthetic probes + real traffic |
+| **Latency** | p99 response time | p99 < 500ms over 1-hour window | Histogram (Prometheus `histogram_quantile`) |
+| **Error rate** | Fraction of 5xx responses | < 0.1% error rate | Error counter / total request counter |
+| **Throughput** | Requests processed per second | > 1,000 RPS sustained | Gauge metric on queue consumer |
+| **Freshness** | Age of most recent data ingested | Data lag < 5 minutes | Timestamp comparison metric |
+| **Durability** | Fraction of written objects successfully retrieved | 99.999999% (11 nines) | Periodic read-back verification |
 
 ### Error Budgets
 
@@ -248,9 +374,56 @@ Error budget = 1 − SLO target
 99.99% SLO → 0.01% budget → 4.38 minutes/month
 ```
 
+### The Nines: Downtime Allowance per SLO Target
+
+| SLO Target | Downtime per Month | Downtime per Year | Downtime per Week | Common Name |
+|-----------|-------------------|-------------------|-------------------|-------------|
+| **99%** | 7.3 hours | 3.65 days | 1.68 hours | Two nines |
+| **99.5%** | 3.65 hours | 1.83 days | 50.4 minutes | — |
+| **99.9%** | 43.8 minutes | 8.77 hours | 10.1 minutes | Three nines |
+| **99.95%** | 21.9 minutes | 4.38 hours | 5.04 minutes | — |
+| **99.99%** | 4.38 minutes | 52.6 minutes | 60.5 seconds | Four nines |
+| **99.999%** | 26.3 seconds | 5.26 minutes | 6.05 seconds | Five nines |
+| **99.9999%** | 2.63 seconds | 31.6 seconds | 0.605 seconds | Six nines |
+
+**Cost of an additional nine:** Each additional nine of availability roughly doubles infrastructure cost and operational complexity. Going from 99.9% to 99.99% is not a 10× improvement — it requires eliminating every planned maintenance window, active-active multi-region deployment, and sub-minute failover. Most SaaS products target 99.9% (43 min/month), which is achievable with a single region + good health checks. Five nines (26s/month) requires active-active multi-region with automated failover in under 10 seconds.
+
 **Error budget policy:** When the budget is exhausted, new feature deployments halt and reliability work takes priority. This creates a natural feedback loop: engineering teams that want to ship features are incentivized to keep the service reliable.
 
 **Real-World — Google SRE:** Google's SRE teams hold joint ownership of error budgets with product teams. If a service exhausts its error budget, the SRE team can unilaterally halt launches. This removes the "reliability vs. velocity" organizational conflict by making reliability a shared engineering metric.
+
+---
+
+### Connecting SLOs to Observability Signals
+
+SLOs require SLIs, which require the right observability signals:
+
+```mermaid
+flowchart LR
+    subgraph signals["Observability Signals"]
+        M["Metrics\n(Prometheus counter/histogram)"]
+        L["Logs\n(structured JSON)"]
+        T["Traces\n(Jaeger / Tempo)"]
+    end
+
+    subgraph sli["SLI Computation"]
+        AV["Availability SLI\nsuccessful_requests / total_requests"]
+        LAT["Latency SLI\nhistogram_quantile(0.99, ...)"]
+        ERR["Error Rate SLI\nerror_count / total_count"]
+    end
+
+    subgraph slo["SLO Evaluation"]
+        EB["Error Budget\n= 1 - SLO target"]
+        ALERT["Alert when budget\n< 5% remaining"]
+    end
+
+    M --> AV & LAT & ERR
+    AV & LAT & ERR --> EB --> ALERT
+    T -->|"Diagnose why\nSLI is breaching"| ALERT
+    L -->|"Find affected\nusers/requests"| ALERT
+```
+
+**Burn rate alerts:** Rather than alerting when the budget is fully exhausted, alert when the consumption rate predicts exhaustion. A burn rate of 14.4× means you will exhaust a 30-day budget in 2 days. Alert at 2× burn rate (14-day warning) and 14.4× burn rate (2-hour warning). This is the multi-window, multi-burn-rate alerting pattern from Google's SRE Workbook.
 
 ---
 

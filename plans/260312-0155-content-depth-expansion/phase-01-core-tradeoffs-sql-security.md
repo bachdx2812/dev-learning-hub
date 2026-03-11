@@ -12,7 +12,7 @@
 
 ## Overview
 - **Priority**: HIGH
-- **Status**: pending
+- **Status**: completed
 - **Description**: Expand 3 most critical chapters with missing theoretical depth
 
 ## Key Insights
@@ -61,11 +61,11 @@
 6. Verify Mermaid syntax (quote labels with special chars)
 
 ### Success Criteria
-- [ ] PACELC theorem explained with state diagram
-- [ ] DB classification table with 8+ databases
-- [ ] Decision flowchart Mermaid diagram
-- [ ] Cross-references to ch09, ch10
-- [ ] ~200 new lines
+- [x] PACELC theorem explained with state diagram
+- [x] DB classification table with 8+ databases (10 databases)
+- [x] Decision flowchart Mermaid diagram
+- [x] Cross-references to ch09, ch10
+- [x] ~200 new lines (+167 actual)
 
 ---
 
@@ -96,12 +96,12 @@
 7. Cross-reference ch03 (PACELC), ch10 (NoSQL), ch15 (replication)
 
 ### Success Criteria
-- [ ] Isolation levels table with anomaly matrix
-- [ ] MVCC explanation with Mermaid diagram
-- [ ] B-Tree vs LSM-Tree comparison table + diagram
-- [ ] Locking strategies comparison
-- [ ] Advanced index types table
-- [ ] ~300 new lines
+- [x] Isolation levels table with anomaly matrix
+- [x] MVCC explanation with Mermaid diagram
+- [x] B-Tree vs LSM-Tree comparison table + diagram
+- [x] Locking strategies comparison
+- [x] Advanced index types table
+- [x] ~300 new lines (+249 actual)
 
 ---
 
@@ -130,12 +130,12 @@
 5. Cross-reference ch13 (API gateway rate limiting), ch06 (load balancer)
 
 ### Success Criteria
-- [ ] OAuth 2.0 flows with 2+ sequence diagrams
-- [ ] JWT anatomy + validation flow diagram
-- [ ] Session vs Token comparison table
-- [ ] 5 rate limiting algorithms with comparison table
-- [ ] 1+ rate limiting Mermaid flowchart
-- [ ] ~280 new lines
+- [x] OAuth 2.0 flows with 2+ sequence diagrams (Authorization Code + PKCE, Client Credentials, Device Code)
+- [x] JWT anatomy + validation flow diagram
+- [x] Session vs Token comparison table
+- [x] 5 rate limiting algorithms with comparison table
+- [x] 2 rate limiting Mermaid flowcharts (Token Bucket + Leaky Bucket)
+- [x] ~280 new lines (+256 actual)
 
 ---
 

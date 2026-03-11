@@ -11,7 +11,7 @@
 
 ## Overview
 - **Priority**: MEDIUM
-- **Status**: pending
+- **Status**: completed
 - **Description**: Add mini case studies to ch16 and ch23 based on BBG reference material
 
 ## Key Insights
@@ -46,11 +46,11 @@
 3. Cross-reference ch14 (event-driven), ch11 (message queues for async processing)
 
 ### Success Criteria
-- [ ] Payment flow sequence diagram
-- [ ] Idempotency + circuit breaker patterns explained
-- [ ] Pattern comparison table
-- [ ] Reinforces reliability patterns from ch16
-- [ ] ~120 new lines
+- [x] Payment flow sequence diagram
+- [x] Idempotency + circuit breaker patterns explained
+- [x] Pattern comparison table
+- [x] Reinforces reliability patterns from ch16
+- [x] ~120 new lines (+108 actual)
 
 ---
 
@@ -74,11 +74,11 @@
 3. Cross-reference ch17 (monitoring for canary analysis), ch13 (microservices)
 
 ### Success Criteria
-- [ ] Netflix deployment pipeline diagram
-- [ ] Tool comparison table
-- [ ] Progressive delivery flow explained
-- [ ] Reinforces deployment strategies from Phase 4
-- [ ] ~120 new lines
+- [x] Netflix deployment pipeline diagram
+- [x] Tool comparison table
+- [x] Progressive delivery flow explained
+- [x] Reinforces deployment strategies from Phase 4
+- [x] ~120 new lines (+100 actual)
 
 ---
 

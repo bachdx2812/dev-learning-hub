@@ -297,6 +297,209 @@ Cloudflare operates the world's fastest public DNS resolver (1.1.1.1) and manage
 
 ---
 
+## DNS Security Threats
+
+DNS was designed in 1983 for a trusted academic network. Security was not a requirement. The result is a protocol that is unauthenticated, unencrypted by default, and a persistent attack surface.
+
+### DNS Cache Poisoning (Kaminsky Attack)
+
+An attacker injects a forged DNS response into a resolver's cache. Once poisoned, every client using that resolver receives the attacker's IP for the target domain — redirecting traffic to a phishing site or an attacker-controlled server.
+
+```mermaid
+sequenceDiagram
+    participant C as Client
+    participant R as Recursive Resolver
+    participant ATK as Attacker
+    participant AUTH as Authoritative Server
+
+    C->>R: Resolve bank.example.com
+    R->>AUTH: Query bank.example.com
+    ATK->>R: Flood forged responses with random Tx IDs
+    Note over ATK,R: Attacker races to match 16-bit Transaction ID
+    ATK-->>R: Forged A record: bank.example.com = 1.2.3.4 (attacker IP)
+    R->>R: Cache poisoned response (TTL hours)
+    AUTH-->>R: Legitimate response (arrives too late or ignored)
+    R-->>C: 1.2.3.4 (attacker IP)
+    C->>ATK: Client connects to attacker server
+```
+
+**Mitigation:** DNSSEC (authenticates records), source port randomization (increases entropy beyond 16-bit Tx ID), DNS-over-TLS/HTTPS (prevents interception).
+
+### DNS Amplification (DDoS Vector)
+
+DNS amplification exploits the asymmetry between small query size and large response size, combined with UDP spoofing:
+
+1. Attacker sends a small DNS query (e.g., `ANY example.com` — 40 bytes) with the **victim's IP spoofed** as the source
+2. Open DNS resolvers send large responses (up to 4,096 bytes) to the victim
+3. Amplification factor: up to **100×** — 1 Gbps of outbound attacker traffic generates 100 Gbps at the victim
+
+**Mitigations:**
+- Disable open resolvers (only allow recursive queries from trusted clients)
+- Rate-limit DNS responses per source IP (Response Rate Limiting / RRL)
+- Drop DNS `ANY` queries (RFC 8482)
+
+### DNS Tunneling
+
+DNS tunneling encodes arbitrary data (commands, file exfiltration) inside DNS query/response packets to bypass firewalls. Since DNS (port 53 UDP) is almost always permitted outbound, it is used as a covert channel:
+
+```
+exfiltrated_data.attacker-c2.com  → encodes data in subdomains
+TXT response                      → encodes command responses
+```
+
+Tools like `iodine` and `dnscat2` implement full TCP-over-DNS tunnels. Detection requires monitoring for:
+- Unusually long subdomain labels (>50 characters)
+- High query rate to a single domain
+- High entropy in subdomain strings (base64/hex encoded data)
+- Large TXT record responses
+
+**Mitigation:** DNS filtering (Cisco Umbrella, Cloudflare Gateway), anomaly detection on query patterns.
+
+---
+
+## DNSSEC (DNS Security Extensions)
+
+DNSSEC adds **cryptographic signatures** to DNS records, allowing resolvers to verify that a response came from the legitimate authoritative server and was not tampered with in transit. It does **not** encrypt queries — it only authenticates them.
+
+### Chain of Trust
+
+DNSSEC establishes a chain of trust from the DNS root downward:
+
+```mermaid
+flowchart TD
+    ROOT["Root Zone\n(ICANN)\nSigned by Root KSK"]
+    COM["TLD: .com\n(Verisign)\nDS record signed by root"]
+    EXAMPLE["example.com\n(Registrar/Route 53)\nDS record signed by .com"]
+    RECORD["A record: 93.184.216.34\nSigned by example.com ZSK"]
+
+    ROOT -->|"Delegates trust via DS record"| COM
+    COM -->|"Delegates trust via DS record"| EXAMPLE
+    EXAMPLE -->|"Signs all records with"| RECORD
+```
+
+A DNSSEC-validating resolver starts at the root (whose public key is hardcoded) and verifies each delegation link until it can verify the final record's signature.
+
+### DNSSEC Record Types
+
+| Record | Purpose |
+|--------|---------|
+| **RRSIG** | Cryptographic signature over a DNS record set. Every signed record has an RRSIG. |
+| **DNSKEY** | Public key used to verify RRSIG records. Two types: ZSK (Zone Signing Key) and KSK (Key Signing Key). |
+| **DS** | Delegation Signer — a hash of the child zone's KSK, stored in the parent zone. Links the chain of trust across zone boundaries. |
+| **NSEC / NSEC3** | Authenticated denial of existence — proves that a queried name does not exist, preventing enumeration attacks. |
+
+### DNSSEC Limitations
+
+| Limitation | Detail |
+|-----------|--------|
+| **No query encryption** | DNSSEC authenticates responses but queries are still plaintext UDP — ISPs can still log your DNS queries |
+| **Zone enumeration (NSEC)** | NSEC records allow walking the entire zone to enumerate all names. NSEC3 mitigates with hashing but adds complexity. |
+| **Operational complexity** | Key rotation, signing infrastructure, and DS record publishing require careful management. Misconfiguration breaks the domain. |
+| **Not universally validated** | ~30% of resolvers validate DNSSEC signatures; many ignore signatures entirely |
+| **Large response sizes** | RRSIG and DNSKEY records increase response size significantly, worsening amplification risk |
+
+---
+
+## DNS-over-HTTPS (DoH) and DNS-over-TLS (DoT)
+
+Traditional DNS sends queries as plaintext UDP on port 53. Anyone on the network path (ISP, router, coffee shop Wi-Fi) can see every domain you query. DoH and DoT encrypt the DNS transport layer.
+
+### How They Work
+
+**DNS-over-TLS (DoT):** Wraps DNS messages in TLS on TCP port **853**. The DNS wire format is preserved; only the transport changes.
+
+**DNS-over-HTTPS (DoH):** Sends DNS queries as HTTPS POST or GET requests to a URL like `https://cloudflare-dns.com/dns-query`. Port **443** — indistinguishable from regular HTTPS traffic.
+
+### Comparison Table
+
+| Dimension | Traditional DNS | DNSSEC | DoT | DoH |
+|-----------|---------------|--------|-----|-----|
+| **Transport** | UDP/TCP port 53 | UDP/TCP port 53 | TLS port 853 | HTTPS port 443 |
+| **Encrypts queries** | No | No | Yes | Yes |
+| **Authenticates responses** | No | Yes | No (relies on TLS cert of resolver) | No (relies on TLS cert of resolver) |
+| **Privacy from ISP** | None | None | Yes | Yes |
+| **Network visibility** | Full (ISP can log all) | Full | Port 853 visible (can be blocked) | Invisible (mixed with HTTPS) |
+| **Browser support** | Native | Transparent | No | Yes (Firefox, Chrome built-in) |
+| **Enterprise inspection** | Easy (port 53) | Easy | Possible (intercept port 853) | Difficult (blends with HTTPS) |
+| **Latency overhead** | Low | Low (adds signature validation) | Medium (TLS handshake) | Medium (HTTPS overhead) |
+| **IETF RFC** | RFC 1035 | RFC 4033 | RFC 7858 | RFC 8484 |
+
+### Trade-off: Privacy vs. Operator Visibility
+
+DoH in particular is controversial for enterprise and ISP network operators:
+
+- **Privacy advocates:** DoH prevents ISPs from monetizing/logging DNS traffic; protects users on untrusted networks
+- **Enterprise operators:** DNS is used for security filtering, malware domain blocking, data loss prevention — DoH bypasses corporate DNS resolvers if browsers use their own DoH server
+- **ISPs:** Lose ability to offer parental controls, regional content filtering, compliance logging
+
+**Resolution pattern:** Enterprises deploy internal DoH/DoT resolvers that respect corporate policy while still encrypting to the stub resolver. Browsers are configured to use the enterprise DoH resolver.
+
+---
+
+## Advanced DNS Failover Patterns
+
+DNS-based failover uses health checks and automatic record updates to redirect traffic when primary endpoints fail. This section expands the failover overview above with specific patterns and timing analysis.
+
+### Pattern 1: Active-Passive Failover
+
+The simplest pattern. One primary endpoint receives all traffic; a standby secondary is only activated on primary failure.
+
+```mermaid
+flowchart TD
+    HC["Health Check Agent\n(Route 53 / Cloudflare)\nHTTP GET /health every 30s"]
+    PRIMARY["Primary Endpoint\n10.0.1.10\n(us-east-1)"]
+    SECONDARY["Secondary Endpoint\n10.0.2.10\n(us-west-2)"]
+    DNS_OK["DNS returns\nPrimary IP\n(TTL 60s)"]
+    DNS_FAIL["DNS returns\nSecondary IP\n(TTL 60s)\n+ alert fired"]
+
+    HC -->|"200 OK"| DNS_OK
+    HC -->|"3x failure\n90s detection"| DNS_FAIL
+    DNS_OK --> PRIMARY
+    DNS_FAIL --> SECONDARY
+    SECONDARY -->|"Primary recovers\n3x success"| DNS_OK
+```
+
+**Failover time analysis:**
+- Health check interval: 30s
+- Failure threshold: 3 consecutive failures = **90s to detect**
+- TTL: 60s = **60s for resolvers to expire stale record**
+- Total worst-case: ~150 seconds (~2.5 minutes)
+
+### Pattern 2: Latency-Based Routing with Failover
+
+Combine latency routing with health checks to achieve both performance and resilience:
+
+1. Route 53 measures latency from each AWS region to the resolver's location
+2. Normally: users in Tokyo → Tokyo endpoint; users in London → London endpoint
+3. On Tokyo endpoint failure: Tokyo users fall back to nearest healthy region (e.g., Singapore)
+
+This is the standard pattern for global SaaS with regional redundancy.
+
+### Pattern 3: Weighted Failover (Traffic Shifting)
+
+Use weighted DNS routing for controlled traffic migration — a gradual version of failover:
+
+| Phase | Primary Weight | Secondary Weight | Use Case |
+|-------|--------------|-----------------|---------|
+| Normal | 100 | 0 | All traffic to primary |
+| Canary | 95 | 5 | Test secondary with 5% traffic |
+| Migration | 50 | 50 | Parallel validation |
+| Cutover | 0 | 100 | Full migration to secondary |
+| Emergency rollback | 100 | 0 | Restore previous state |
+
+### Failover Pattern Comparison
+
+| Pattern | Failover Time | Complexity | Best For |
+|---------|-------------|------------|---------|
+| **Active-Passive (DNS)** | ~2–5 minutes | Low | Disaster recovery, cost-sensitive |
+| **Active-Active (latency)** | ~30–90 seconds | Medium | Global performance + resilience |
+| **Weighted shift** | Manual / gradual | Low | Planned migrations, blue-green |
+| **Dedicated LB health check** | ~5–30 seconds | Higher | High-availability production services |
+
+Cross-reference: [Chapter 6: Load Balancing](/system-design/part-2-building-blocks/ch06-load-balancing) for sub-second failover within a region. [Chapter 8: CDN](/system-design/part-2-building-blocks/ch08-cdn) for edge-level failover.
+
+---
+
 ## Practice Questions
 
 1. Your team is planning to migrate `api.example.com` from IP `10.0.1.10` to `10.0.2.10`. The current A record TTL is 24 hours. Walk through the migration process, including what you would do 48 hours before the cutover, at cutover, and after.

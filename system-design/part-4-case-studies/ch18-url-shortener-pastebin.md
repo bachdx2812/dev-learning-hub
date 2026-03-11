@@ -671,6 +671,150 @@ graph TB
 
 ---
 
+## Unique ID Generation Strategies
+
+The URL shortener's short code is a globally unique identifier. The strategy you choose for generating it affects throughput, collision probability, sortability, and operational complexity. Five production-proven strategies cover the design space.
+
+### UUID v4
+
+A **Universally Unique Identifier** (version 4) is a randomly generated 128-bit value expressed as 32 hex characters (`550e8400-e29b-41d4-a716-446655440000`). No coordination required — any server generates one independently.
+
+- **128 bits** of randomness → collision probability is astronomically low (~1 in 10³⁸ per pair)
+- **Not sortable** — random distribution means no time ordering
+- **Long** — 36 characters as a string; even encoded as base62 yields 22 characters (too long for a 7-char short code without truncation, which reintroduces collision risk)
+- **Use case:** unique object IDs in distributed systems where sortability is not needed
+
+### Snowflake ID (Twitter / X)
+
+Twitter's **Snowflake** generates 64-bit integers that are time-ordered and globally unique across datacenters and machines — with no coordination between machines at generation time.
+
+```mermaid
+graph LR
+    subgraph SnowflakeID["Snowflake ID — 64 bits total"]
+        S0["Sign bit\n1 bit\nalways 0"]
+        S1["Timestamp\n41 bits\nms since epoch\n~69 years"]
+        S2["Datacenter ID\n5 bits\n32 datacenters"]
+        S3["Machine ID\n5 bits\n32 machines per DC"]
+        S4["Sequence\n12 bits\n4096 IDs per ms per machine"]
+    end
+
+    S0 --- S1 --- S2 --- S3 --- S4
+```
+
+**Throughput:** `32 DCs × 32 machines × 4,096 seq/ms = 4,194,304 IDs/ms` — far exceeding any realistic URL shortener write rate.
+
+**Sortable:** IDs increase monotonically with time. You can extract the creation timestamp from any ID without a DB lookup.
+
+**No coordination:** Each machine is pre-assigned a datacenter ID + machine ID. Generation is pure arithmetic — no locks, no network calls.
+
+**Used by:** Twitter, Instagram (variant), Discord, LinkedIn (variant).
+
+### ULID — Universally Unique Lexicographically Sortable Identifier
+
+**ULID** (`01ARZ3NDEKTSV4RRFFQ69G5FAV`) is a 128-bit ID with a 48-bit millisecond timestamp prefix and 80 bits of randomness. It is designed to be encoded in 26 base32 characters and to sort lexicographically in creation order.
+
+- **Sortable** as a string — no special parsing required; standard string sort gives time order
+- **Monotonic** within the same millisecond — the random component increments to guarantee ordering
+- **No coordination** — random component eliminates machine ID requirement
+- **URL-safe** — base32 encoding uses only uppercase letters and digits
+- **Use case:** event IDs, log entries, database primary keys where string-sort == time-sort
+
+### Database Auto-Increment
+
+The database assigns IDs sequentially: 1, 2, 3, … The application converts the integer to base62 for the short code.
+
+- **Simple** — zero infrastructure beyond the primary DB
+- **No collision** — DB enforces uniqueness atomically
+- **Sequential** — IDs (and short codes) are predictable; an attacker can enumerate all URLs by trying `aaaaaa1`, `aaaaaa2`, etc.
+- **Single point of failure** — the DB is the only ID source; it becomes a write bottleneck at high throughput
+- **Mitigation:** XOR the integer with a secret constant before base62 encoding to obfuscate sequential patterns
+
+### Database Ticket Server (Flickr Pattern)
+
+Flickr's approach: a dedicated MySQL database whose sole purpose is to generate globally unique auto-increment IDs via `REPLACE INTO Tickets64 (stub) VALUES ('a')`.
+
+```mermaid
+sequenceDiagram
+    participant App1 as "App Server 1"
+    participant App2 as "App Server 2"
+    participant T1 as "Ticket DB 1 (odd IDs)"
+    participant T2 as "Ticket DB 2 (even IDs)"
+
+    App1->>T1: REPLACE INTO Tickets SET stub='a'
+    T1-->>App1: ID = 1001 (odd)
+    App2->>T2: REPLACE INTO Tickets SET stub='a'
+    T2-->>App2: ID = 1002 (even)
+    App1->>T1: REPLACE INTO Tickets SET stub='a'
+    T1-->>App1: ID = 1003 (odd)
+```
+
+Two ticket DBs with alternating auto-increment offsets (`auto_increment_increment=2`, `auto_increment_offset=1` for DB1, `offset=2` for DB2) eliminate the SPOF. Each DB generates only odd or only even IDs — globally unique, never colliding.
+
+- **Centralized coordination** with high availability
+- **Sequential** (same enumeration risk as auto-increment)
+- **Simple operational model** — just MySQL
+- **Used by:** Flickr, early Pinterest
+
+### Comparison Table
+
+| Strategy | Sortable | Size | Coordination Needed | Collision Risk | Throughput | Best For |
+|---|---|---|---|---|---|---|
+| **UUID v4** | No | 128-bit / 22 chars base62 | None | Negligible | Unlimited | Distributed object IDs |
+| **Snowflake** | Yes (time-ordered) | 64-bit / 11 chars base62 | Machine ID assignment | None | 4M+/ms | High-throughput, sortable IDs |
+| **ULID** | Yes (lex sort) | 128-bit / 26 chars base32 | None | Negligible | Unlimited | Sortable string IDs |
+| **Auto-increment** | Yes (sequential) | 64-bit / 11 chars base62 | DB lock | None | DB write limit | Simple, low-scale systems |
+| **Ticket Server** | Yes (sequential) | 64-bit | Ticket DB (HA pair) | None | ~10K/s per DB | Medium-scale, avoid SPOF |
+
+---
+
+## Choosing an ID Strategy
+
+```mermaid
+flowchart TD
+    START(["Need a unique ID for URL shortener"])
+    Q1{"Need time-sorted IDs\nfor range queries or\npagination?"}
+    Q2{"Need fully distributed\n(no machine ID assignment)?"}
+    Q3{"Acceptable to have\nsequential (guessable) IDs?"}
+    Q4{"Need compact\n64-bit integer?"}
+
+    R_ULID["ULID\nSortable, distributed,\n128-bit"]
+    R_SNOW["Snowflake ID\nSortable, 64-bit,\npre-assign machine IDs"]
+    R_UUID["UUID v4\nSimplest, not sortable,\n128-bit"]
+    R_AUTO["Auto-increment\nSimplest of all,\nobfuscate before encoding"]
+    R_TICKET["Ticket Server\nHA auto-increment,\nno app changes needed"]
+
+    START --> Q1
+    Q1 -->|"Yes"| Q2
+    Q1 -->|"No"| R_UUID
+
+    Q2 -->|"Yes — no ops overhead for machine IDs"| R_ULID
+    Q2 -->|"No — can assign machine IDs"| R_SNOW
+
+    R_UUID --> Q3
+    Q3 -->|"Yes — low security concern"| Q4
+    Q3 -->|"No — must prevent enumeration"| R_UUID
+
+    Q4 -->|"Yes"| R_AUTO
+    Q4 -->|"No"| R_TICKET
+```
+
+### Real-World Adoption
+
+| Company | Strategy | Notes |
+|---|---|---|
+| **Twitter / X** | Snowflake | Original inventors; open-sourced the design |
+| **Instagram** | Snowflake variant | Postgres-generated, 64-bit, shard-aware |
+| **Discord** | Snowflake | Uses epoch of 2015-01-01 instead of Twitter epoch |
+| **Flickr** | Ticket Server | Two MySQL DBs, alternating odd/even IDs |
+| **Stripe** | Random prefix + UUID | `ch_` prefix for charges, `cus_` for customers |
+| **MongoDB** | ObjectID | 12-byte: timestamp(4) + machineID(3) + pid(2) + seq(3) |
+
+**For a URL shortener at interview scale (100M URLs/day = 1,200 writes/s):** Snowflake is the correct answer. It eliminates collision risk, is sortable for analytics, needs no coordination at generation time (only at machine ID assignment), and compresses to an 11-character base62 string — shorter than the 7-character short code requirement, meaning you use only the lower bits for the short code namespace.
+
+**Cross-reference:** The KGS approach in Section 4.2 is effectively a ticket server variant. For distributed ID generation without a centralized key store, replace KGS with a Snowflake implementation on each app server. See [Chapter 15 — Distributed Coordination](/system-design/part-3-architecture-patterns/ch15-data-replication-consistency) for leader election and coordination patterns.
+
+---
+
 ## Practice Questions
 
 1. **ID Generation:** You have 10 app servers generating short codes using MD5 truncation. Two servers simultaneously hash different long URLs that produce the same 7-character prefix. Walk through exactly how your system detects and resolves this collision without serving the wrong redirect.

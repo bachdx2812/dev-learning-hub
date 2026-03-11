@@ -616,6 +616,304 @@ Airbnb built `OneTouch`, an internal developer platform abstracting Kubernetes c
 
 ---
 
+## Deployment Strategies
+
+Choosing how to release new software is as important as the software itself. A deployment strategy determines downtime, rollback speed, resource cost, and risk. Cloud-native environments — where services are containerized and orchestrated — make all five strategies practical.
+
+### Rolling Update
+
+Replace old instances gradually, one batch at a time. Kubernetes Deployments use this strategy by default.
+
+```mermaid
+graph LR
+    subgraph Before["Before: v1 running"]
+        A1["Pod v1"]
+        A2["Pod v1"]
+        A3["Pod v1"]
+        A4["Pod v1"]
+    end
+
+    subgraph During["During: rolling (50% done)"]
+        B1["Pod v2"]
+        B2["Pod v2"]
+        B3["Pod v1"]
+        B4["Pod v1"]
+    end
+
+    subgraph After["After: v2 fully deployed"]
+        C1["Pod v2"]
+        C2["Pod v2"]
+        C3["Pod v2"]
+        C4["Pod v2"]
+    end
+
+    Before -->|"Batch 1 replaced"| During
+    During -->|"Batch 2 replaced"| After
+```
+
+**Kubernetes rolling update config:**
+```yaml
+strategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxSurge: 1        # allow 1 extra pod during update
+    maxUnavailable: 0  # never reduce below desired count
+```
+
+### Blue-Green Deployment
+
+Maintain two identical environments (blue = current, green = new). Cut over all traffic at once via a load balancer or DNS change. Blue stays running as instant rollback target.
+
+```mermaid
+graph TB
+    LB["Load Balancer"]
+
+    subgraph Blue["Blue Environment (v1 - standby)"]
+        B1["Pod v1"]
+        B2["Pod v1"]
+        B3["Pod v1"]
+    end
+
+    subgraph Green["Green Environment (v2 - live)"]
+        G1["Pod v2"]
+        G2["Pod v2"]
+        G3["Pod v2"]
+    end
+
+    LB -->|"100% traffic"| Green
+    LB -.->|"standby (instant rollback)"| Blue
+```
+
+**Rollback:** flip load balancer back to blue — sub-second, no re-deploy needed.
+
+**Cost:** 2× resource cost during the switch window. Acceptable for stateless services; tricky for stateful (database migrations must be backward-compatible with both versions simultaneously).
+
+### Canary Deployment
+
+Route a small percentage of traffic to the new version. Monitor error rates and latency. Gradually expand the canary percentage if metrics hold, or roll back if they degrade.
+
+```mermaid
+sequenceDiagram
+    participant LB as "Load Balancer"
+    participant V1 as "v1 (95% traffic)"
+    participant V2 as "v2 canary (5%)"
+    participant Mon as "Monitoring"
+
+    LB->>V1: Route 95% of requests
+    LB->>V2: Route 5% of requests
+    V2-->>Mon: Emit metrics (error rate, p99 latency)
+    Mon-->>LB: Metrics OK — expand canary to 25%
+    LB->>V2: Route 25% of requests
+    Mon-->>LB: Metrics stable — expand to 100%
+    LB->>V2: Route 100% of requests
+```
+
+**Service mesh advantage:** Istio and Linkerd implement canary weights at the proxy layer — no DNS changes, no dual deployments required. See the Service Mesh section above.
+
+**Canary signals to watch:** HTTP 5xx error rate, P99 latency, business metrics (conversion rate, checkout success). See [Chapter 17 — Monitoring](/system-design/part-3-architecture-patterns/ch17-monitoring-observability) for alerting setup.
+
+### A/B Testing
+
+Like canary, but the split is by **user segment** rather than random percentage. Route users to version A or B based on user ID, feature flag, geography, or account type. Measure **business outcomes** (click-through rate, revenue per session), not just technical metrics.
+
+Key differences from canary:
+
+| Dimension | Canary | A/B Testing |
+|---|---|---|
+| **Split basis** | Random percentage | User segment / cohort |
+| **Success metric** | Technical (error rate, latency) | Business (conversion, engagement) |
+| **Duration** | Hours to days | Days to weeks (statistical significance) |
+| **Rollback trigger** | Error spike | Business metric regression |
+| **Primary purpose** | Risk reduction | Product experimentation |
+
+Both versions must run simultaneously for the full experiment duration. Use a feature flag service (LaunchDarkly, Unleash) to manage segment assignment without code deployments.
+
+### Shadow / Dark Launch
+
+Mirror 100% of production traffic to the new version but **discard all responses**. The new version processes real requests without any user impact. Validates correctness and performance under real load before any traffic is shifted.
+
+```mermaid
+graph LR
+    Client["Client"]
+    LB["Load Balancer"]
+    V1["v1 (live)\nresponse served"]
+    V2["v2 (shadow)\nresponse discarded"]
+    Log["Shadow Log\n(compare outputs)"]
+
+    Client --> LB
+    LB -->|"100% — serves response"| V1
+    LB -.->|"100% mirrored — silently"| V2
+    V2 --> Log
+    V1 --> Client
+```
+
+**Use cases:** validating a rewritten payment service before it touches real money; testing a new ML model against production traffic; load-testing a new DB layer at full scale.
+
+**Caution:** shadow traffic causes real side effects if the new version writes to databases or sends emails. Use read-only shadow environments or intercept at the network layer.
+
+### Strategy Comparison
+
+| Strategy | Downtime | Rollback Speed | Resource Cost | Risk | Best For |
+|---|---|---|---|---|---|
+| **Rolling Update** | Zero | Minutes (re-roll) | 1× + surge buffer | Low | Stateless services, default choice |
+| **Blue-Green** | Zero | Seconds (LB flip) | 2× during switch | Very Low | Stateful migrations, critical services |
+| **Canary** | Zero | Minutes (weight back to 0) | 1.05–1.5× | Very Low | High-traffic services, risk-averse teams |
+| **A/B Testing** | Zero | Hours (experiment end) | 2× for duration | Medium | Product experiments, feature flags |
+| **Shadow** | Zero | N/A (no user traffic) | 2× | None | Validating rewrites, pre-production load tests |
+
+---
+
+## GitOps
+
+**GitOps** applies Git's version control model to infrastructure and application deployment. The Git repository becomes the **single source of truth** for what should be running in the cluster — not a deployment script, not a team's memory, not a CI server's state.
+
+### Push Model vs Pull Model
+
+| Model | How It Works | Tools | Problem |
+|---|---|---|---|
+| **Push (traditional CI/CD)** | CI pipeline runs `kubectl apply` or `helm upgrade` to push changes to the cluster | Jenkins, GitHub Actions, CircleCI | CI server needs cluster credentials; state can drift if someone runs `kubectl` manually |
+| **Pull (GitOps)** | An agent inside the cluster watches the Git repo and pulls + applies changes automatically | ArgoCD, Flux | Cluster initiates; no external credential exposure; self-healing against drift |
+
+### ArgoCD GitOps Flow
+
+```mermaid
+flowchart TD
+    Dev["Developer"]
+    PR["Pull Request\n(code + K8s manifests)"]
+    Repo["Git Repository\n(source of truth)"]
+    CI["CI Pipeline\nBuild image, run tests\nPush to registry"]
+    Registry["Container Registry\n(ECR / GCR / Docker Hub)"]
+    Argo["ArgoCD\n(in-cluster agent)\nPolls Git every 3 min"]
+    Cluster["Kubernetes Cluster\nDeployments, Services, ConfigMaps"]
+    Monitor["Monitoring\n(Grafana / Prometheus)"]
+
+    Dev -->|"git push"| PR
+    PR -->|"merge"| Repo
+    Repo --> CI
+    CI --> Registry
+    Argo -->|"git pull -- detects diff"| Repo
+    Argo -->|"kubectl apply"| Cluster
+    Cluster --> Monitor
+    Monitor -.->|"alert on drift"| Argo
+```
+
+**How drift detection works:** ArgoCD continuously compares the **live state** of the cluster (what Kubernetes is actually running) against the **desired state** in Git. If someone manually runs `kubectl edit deployment` in production, ArgoCD detects the drift and either alerts or auto-corrects back to Git state.
+
+### GitOps Benefits
+
+| Benefit | How Git Provides It |
+|---|---|
+| **Audit trail** | Every cluster change is a Git commit with author, timestamp, and diff |
+| **Rollback** | `git revert` restores the previous desired state; ArgoCD syncs within minutes |
+| **Declarative** | The cluster state is described, not scripted — no "click history" |
+| **Pull Request reviews** | Infrastructure changes go through the same code review as application code |
+| **Multi-environment promotion** | Merge to `staging` branch → staging cluster syncs; merge to `main` → production syncs |
+
+**Cross-reference:** GitOps pairs with the deployment strategies above — canary weights, blue-green switch configs, and feature flags are all expressed as Git-tracked YAML. Rollback of a failed canary is a `git revert`. See [Chapter 16 — Reliability](/system-design/part-3-architecture-patterns/ch16-security-reliability.md) for disaster recovery planning.
+
+---
+
+## Case Study: Netflix CI/CD and Deployment
+
+Netflix deploys thousands of times per day across hundreds of microservices. Every deploy must be safe enough to run without a dedicated deployment team reviewing each release — the tooling must enforce safety automatically. This case study maps the deployment strategies and GitOps patterns from this chapter to Netflix's production architecture.
+
+### Context
+
+| Fact | Implication |
+|---|---|
+| 200+ microservices | No single team can review every deploy manually |
+| 1,000s of deploys/day | Automated safety gates are non-negotiable |
+| Global streaming to 260M subscribers | A bad deploy causing 0.1% errors = 260K users impacted |
+| AWS-only infrastructure | Immutable AMI-based deployments, not container-first |
+
+### Tool: Spinnaker (Open-Source CD Platform)
+
+Netflix built and open-sourced **Spinnaker**, the continuous delivery platform that orchestrates deployments across cloud providers. Spinnaker is pipeline-based: each pipeline stage (bake, deploy, analyze, promote) is a reusable building block that can be composed into deployment workflows.
+
+Key Spinnaker concepts:
+
+| Concept | What It Does | Equivalent Pattern |
+|---|---|---|
+| **Pipeline** | Ordered sequence of stages (bake → canary → promote) | The deployment workflow itself |
+| **Bake** | Build an immutable AMI from the artifact and base image | Immutable infrastructure (never patch in place) |
+| **Deploy** | Create a new server group from the baked AMI | Blue-green / rolling update |
+| **Canary Analysis** | Automated metric comparison of canary vs baseline | Automated canary (see below) |
+| **Manual Judgment** | Optional human gate before promotion | Approval workflow |
+
+### Tool: Zuul (Edge Gateway for Traffic Routing)
+
+**Zuul** is Netflix's edge gateway, also open-sourced. During deployments, Zuul manages traffic routing between old and new versions — incrementally shifting weight without requiring DNS changes or load balancer reconfiguration. This is the same traffic-splitting capability that Istio provides in Kubernetes environments (see Service Mesh section above).
+
+Zuul also provides request routing, authentication offload, and rate limiting at the edge — the same concerns covered in [Chapter 16 — Security](/system-design/part-3-architecture-patterns/ch16-security-reliability.md).
+
+### Philosophy: Immutable Infrastructure
+
+Netflix never patches running servers. Every code change produces a new AMI (Amazon Machine Image) via the **bake** step. Deployments create new server groups from the new AMI; old server groups are destroyed after traffic is shifted.
+
+**Why immutable:**
+- Eliminates configuration drift — all instances in a server group are identical by construction
+- Rollback is trivial: redirect traffic to the previous server group (it still exists until explicitly deleted)
+- No SSH access to production servers — if something is wrong, you bake a fix and redeploy
+- Audit trail: every running AMI traces to a specific Git commit and build
+
+This is a more extreme version of the container immutability model covered in the Docker section above.
+
+### Progressive Delivery Pipeline
+
+Netflix's standard deployment pipeline implements automated canary analysis with progressive traffic shifting — the same canary pattern described in this chapter's Deployment Strategies section, automated end-to-end.
+
+```mermaid
+flowchart TD
+    Commit["Developer merges\nto main branch"]
+    Build["CI: Build JAR\nRun unit tests\nPublish artifact"]
+    Bake["Spinnaker: Bake AMI\nInject artifact into\nbase image"]
+    Canary["Deploy Canary\n1% of traffic to new AMI\nBaseline: 1% to old AMI\n(for fair comparison)"]
+    ACA["Automated Canary Analysis\nKayenta compares:\n- Error rate\n- P99 latency\n- Business metrics\nover 30 minutes"]
+    Gate{{"ACA Score\n>= threshold?"}}
+    Expand["Expand: 5% → 25% → 100%\nRepeat ACA at each step"]
+    Promote["Promote: shift 100% to new\nDelete old server group"]
+    Rollback["Rollback: shift 100% back to old\nPage on-call engineer\nMark pipeline failed"]
+
+    Commit --> Build --> Bake --> Canary --> ACA --> Gate
+    Gate -->|"Pass"| Expand --> Promote
+    Gate -->|"Fail"| Rollback
+```
+
+**Kayenta** is the automated canary analysis service Netflix built and open-sourced. It fetches metrics from both the canary and baseline server groups from Atlas (Netflix's time-series metrics system), runs a statistical comparison, and produces a score between 0 and 100. Pipelines configure a minimum passing score — typically 80.
+
+### Tool: Chaos Engineering (Chaos Monkey)
+
+Netflix's Chaos Engineering practice intentionally injects failures into production systems during business hours.
+
+| Tool | Scope | What It Terminates |
+|---|---|---|
+| **Chaos Monkey** | Single instance | Random EC2 instance in a service's server group |
+| **Chaos Kong** | Entire region | All traffic from an AWS region (simulates region failure) |
+| **Latency Monkey** | Network | Injects artificial latency between services |
+| **Conformity Monkey** | Configuration | Terminates instances not conforming to best practices |
+
+**The philosophy:** If failures happen randomly during business hours when engineers are awake and monitoring dashboards, teams are forced to build genuine resilience. A service that survives Chaos Monkey in production was actually designed to tolerate instance failure — not just assumed to be resilient.
+
+This directly reinforces the reliability patterns in [Chapter 16 — Security & Reliability](/system-design/part-3-architecture-patterns/ch16-security-reliability.md): bulkheads, circuit breakers, and retry logic are tested continuously under real load, not just in pre-production exercises.
+
+For monitoring canary analysis and observability during deployments, see [Chapter 17 — Monitoring](/system-design/part-3-architecture-patterns/ch17-monitoring-observability).
+
+### Tool Comparison
+
+| Tool | Purpose | Open Source | Primary Alternative |
+|---|---|---|---|
+| **Spinnaker** | Multi-cloud CD pipeline orchestration | Yes (Netflix, Google) | ArgoCD (K8s-native), Jenkins X |
+| **Zuul** | Edge gateway, dynamic traffic routing | Yes (Netflix) | Istio, Kong, AWS API Gateway |
+| **Kayenta** | Automated canary metric analysis | Yes (Netflix, Google) | Flagger (K8s), AWS CloudWatch Canary |
+| **Chaos Monkey** | Random instance termination | Yes (Netflix) | AWS Fault Injection Simulator |
+| **Atlas** | Time-series metrics at scale | Yes (Netflix) | Prometheus, Datadog, CloudWatch |
+
+### Key Takeaway
+
+Netflix's deployment philosophy is: **investment in deployment tooling enables fearless releases.** The cost of building Spinnaker, Kayenta, and Chaos Monkey is amortized across thousands of daily deploys. Each deploy is small (microservice-scoped), safe (automated canary gates), and reversible (immutable infrastructure means the old server group still exists). Teams ship confidently because the pipeline enforces safety — engineers do not need to manually monitor every canary. The lesson for system design interviews: deployment strategy is not an afterthought; it is a first-class architectural concern.
+
+---
+
 ## Practice Questions
 
 1. **Container Optimization:** A team's Docker image for their Python API is 1.4 GB and takes 4 minutes to build in CI. Describe three specific changes to the Dockerfile and build process that would reduce both image size and build time. Explain why each change helps, referencing the layer caching model.

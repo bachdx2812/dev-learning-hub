@@ -349,6 +349,129 @@ flowchart LR
 
 ---
 
+## Case Study: Stack Overflow — Scale Vertically First
+
+Stack Overflow is one of the most visited developer resources in the world — and one of the most counterintuitive infrastructure stories. While most companies at similar traffic levels operate hundreds of servers across multiple cloud regions, Stack Overflow serves over **1.3 billion page views per month** from approximately **9 web servers** and a handful of database machines. As of 2021, the primary SQL Server database runs on a single powerful on-premises machine.
+
+This is not a legacy accident. It is a deliberate architectural philosophy: **optimize the machine you have before adding machines you don't need**.
+
+> *"We're not in the business of scaling infrastructure. We're in the business of serving Stack Overflow."*
+> — Nick Craver, Stack Overflow Infrastructure Lead
+
+### Infrastructure Overview
+
+```mermaid
+graph TB
+    subgraph Edge["Edge Layer"]
+        HAP["HAProxy\n(load balancer, 2× active-passive)"]
+    end
+
+    subgraph Web["Web Tier (New York DC)"]
+        W1["IIS Web Server 1\n(64-core, 256 GB RAM)"]
+        W2["IIS Web Server 2"]
+        W3["Web Servers 3-9"]
+    end
+
+    subgraph Data["Data Tier (same DC, low-latency)"]
+        SQL["SQL Server Primary\n(Dell PowerEdge\n384 GB RAM, NVMe RAID)"]
+        SQLR["SQL Server Read Replica"]
+        Redis1["Redis 1\n(L1 cache — HTML fragments)"]
+        Redis2["Redis 2\n(L2 cache — question data)"]
+        ES["Elasticsearch Cluster\n(full-text search)"]
+    end
+
+    subgraph CDN["CDN (Fastly)"]
+        FCDN["Static assets\nJS, CSS, images"]
+    end
+
+    HAP --> W1 & W2 & W3
+    W1 & W2 & W3 --> SQL
+    W1 & W2 & W3 --> SQLR
+    W1 & W2 & W3 --> Redis1 & Redis2
+    W1 & W2 & W3 --> ES
+    FCDN -.->|"cached static content"| W1
+```
+
+### Why So Few Servers?
+
+The answer is aggressive, multi-layer caching combined with vertical investment in the database tier.
+
+**Layer 1 — HTTP cache (Fastly CDN):** Static assets (JavaScript, CSS, images) are served from edge nodes globally. Anonymous page views are cached at the CDN level — Stack Overflow serves millions of anonymous users who never hit the origin.
+
+**Layer 2 — Application-level Redis:** Two Redis instances cache rendered HTML fragments, user data, and question metadata. A page with 40 questions is assembled from Redis-cached components, not fresh DB queries. Cache hit rates consistently exceed 90%.
+
+**Layer 3 — SQL Server with massive RAM:** The primary SQL Server has 384 GB of RAM. The entire working dataset of the most active questions, answers, and user profiles fits in the database's buffer pool — in-memory reads. Disk I/O is rarely the bottleneck.
+
+**Layer 4 — Compiled, efficient .NET:** Stack Overflow runs ASP.NET MVC (now ASP.NET Core). Each web server handles thousands of concurrent requests efficiently. The JIT-compiled code paths for common page renders are highly optimized.
+
+### Key Metrics
+
+| Metric | Stack Overflow | "Typical" at This Scale | Difference |
+|---|---|---|---|
+| Page views / month | 1.3 billion+ | 1.3 billion+ | Same |
+| Web servers | ~9 (on-premises) | 50–200+ (cloud) | 5–20× fewer |
+| Database servers | 1 primary + 1 replica | 5–20+ (sharded) | 5–10× fewer |
+| Infrastructure cost / month | ~$5K–10K (own hardware) | ~$200K–$500K (cloud at scale) | 20–50× cheaper |
+| Average SQL query time | < 1ms (all in buffer pool) | varies | Extreme optimization |
+| Redis cache hit rate | > 90% | 70–85% typical | High intentional caching |
+| Deployment servers | ASP.NET IIS on Windows | Polyglot microservices | Monolith discipline |
+
+*Note: Stack Overflow cost estimates are approximate, based on public engineering blog posts circa 2019–2021. Exact figures vary with hardware refresh cycles.*
+
+### Architecture Timeline
+
+Stack Overflow launched in 2008 on a single server. Rather than immediately decomposing into microservices as traffic grew, the team systematically profiled and optimized:
+
+1. **2008–2010:** Single server, grew to a few web servers + SQL Server. Profile first, scale second.
+2. **2011–2014:** Added Redis caching aggressively. Reduced DB load by 90%+ on read paths.
+3. **2015–2018:** Upgraded SQL Server hardware instead of sharding. Bought more RAM, NVMe SSDs.
+4. **2019–present:** Added Elasticsearch for search. Maintained monolith discipline. ~9 web servers.
+
+The team publicly documented that they deliberately avoided Kubernetes, microservices decomposition, and cloud migration because **the existing architecture, properly optimized, continued to meet the SLA**.
+
+---
+
+## Lessons from Stack Overflow
+
+The Stack Overflow story challenges several common assumptions in system design. These lessons apply to any team deciding when and how to scale.
+
+### 1. Profile Before You Scale
+
+Stack Overflow's team ran extensive profiling before every scaling decision. They identified that most latency came from N+1 SQL queries and unoptimized ORM calls — not hardware limits. Fixing the queries cost nothing. Adding servers would have cost thousands per month while leaving the root cause in place.
+
+**Lesson:** Measure your actual bottleneck. CPU? Memory? DB query time? Network? The answer determines the intervention.
+
+### 2. A Single Powerful Database Can Go Far
+
+The conventional wisdom is that you must shard your database horizontally as traffic grows. Stack Overflow demonstrates that a single, well-tuned SQL Server with sufficient RAM can serve billions of page views when:
+- Queries are indexed correctly
+- The working dataset fits in buffer pool memory
+- The application uses caching to avoid redundant queries
+
+**Lesson:** Vertical scaling of the database is often the right first move. Sharding introduces distributed transactions, cross-shard query complexity, and operational burden. Delay it until you have clear evidence of the bottleneck.
+
+### 3. Caching Multiplies Capacity
+
+Redis transformed Stack Overflow's capacity. With > 90% cache hit rates on the most active content, each database query effectively serves thousands of users. The relationship is not linear — a 90% cache hit rate means the database serves 10× fewer queries, not 1.1×.
+
+**Lesson:** Before scaling the database, aggressively cache. Identify the hottest 20% of data that serves 80% of requests. Cache it. Measure the impact before adding hardware.
+
+### 4. Monoliths Can Scale With Discipline
+
+Stack Overflow runs a monolithic .NET application. They have not decomposed into microservices because the monolith is well-structured, has clear internal module boundaries, and does not have the team coordination problems that motivate microservice adoption (hundreds of teams working independently).
+
+**Lesson:** Microservices solve **organizational** and **deployment independence** problems, not primarily throughput problems. A disciplined monolith can scale to enormous traffic if the data access patterns are optimized.
+
+### 5. Own Your Hardware When the Numbers Work
+
+Stack Overflow co-locates servers in a data center rather than running on AWS or Azure. At their scale, the economics favor owned hardware: they pay once for servers that run for 5+ years, rather than paying per-hour cloud rates indefinitely.
+
+**Lesson:** Cloud is not always cheaper. For stable, predictable workloads with consistent utilization, owned or co-located hardware can be 5–10× more cost-effective. Cloud's value proposition is elasticity — if you don't need elasticity, weigh the total cost carefully.
+
+**Cross-reference:** See [Chapter 7 — Caching](/system-design/part-2-building-blocks/ch07-caching.md) for cache invalidation strategies that make high hit rates sustainable. See [Chapter 9 — SQL Databases](/system-design/part-2-building-blocks/ch09-databases-sql.md) for buffer pool sizing, indexing, and query optimization that enable Stack Overflow's single-DB approach.
+
+---
+
 ## Practice Questions
 
 1. You are designing the backend for a photo-sharing app. The app is currently running on a single $500/month server at 70% CPU capacity, and the team expects 5× growth in the next year. Walk through the scaling strategy you would recommend, step by step.

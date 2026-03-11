@@ -431,6 +431,197 @@ The **CLB** is AWS's first-generation load balancer from 2009. It is feature-lim
 
 ---
 
+## Consistent Hashing Deep Dive
+
+The brief overview in the Algorithms section above introduced consistent hashing conceptually. This section covers the mechanics in depth: how the hash ring works, why virtual nodes are necessary, and when to choose consistent hashing over modulo hashing.
+
+### The Problem: Modulo Hashing Is Fragile
+
+Naive key-to-server assignment uses modulo arithmetic:
+
+```
+server_index = hash(key) % num_servers
+```
+
+This works while the server count is stable. The moment a server is added or removed, `num_servers` changes and every key remaps to a different server index. In a distributed cache with 4 servers, adding a 5th server causes ~80% of all cache keys to map to new servers — a near-total cache invalidation that triggers a thundering herd against the origin database.
+
+| Event | Modulo Hashing | Consistent Hashing |
+|-------|---------------|-------------------|
+| **Normal operation** | O(1) lookup | O(log N) lookup (binary search on ring) |
+| **Add 1 server (N→N+1)** | ~N/(N+1) keys remapped (most keys) | ~1/N keys remapped (only that server's segment) |
+| **Remove 1 server (N→N-1)** | ~(N-1)/N keys remapped (most keys) | ~1/N keys remapped (only that server's segment) |
+| **Cache invalidation on resize** | Near-total | Minimal |
+| **Complexity** | Simple | Moderate |
+
+### The Hash Ring
+
+Consistent hashing maps both servers and keys onto a circular keyspace (e.g., 0 to 2^32-1). Each server is placed at a position on the ring determined by `hash(server_id)`. Each key is placed at `hash(key)`. A key is assigned to the first server found by walking clockwise from the key's position.
+
+```mermaid
+flowchart TD
+    subgraph ring["Hash Ring (0 to 2^32)"]
+        N0["0 / 2^32\n(wrap point)"]
+        A["Server A\nhash=90"]
+        B["Server B\nhash=180"]
+        C["Server C\nhash=270"]
+        K1["Key 'user:42'\nhash=45\n→ routes to A"]
+        K2["Key 'order:7'\nhash=150\n→ routes to B"]
+        K3["Key 'session:9'\nhash=300\n→ routes to A\n(wraps past C)"]
+        N0 --> A --> B --> C --> N0
+    end
+```
+
+**Add Server D at position 220:** Only keys between 180° and 220° (previously going to C) now go to D. All other keys are unaffected.
+
+**Remove Server B at position 180:** Only keys that were going to B (between 90° and 180°) now route to C. All other keys are unaffected.
+
+### Virtual Nodes: Solving Uneven Distribution
+
+With only 3 physical servers on the ring, the distribution of keys depends entirely on where the hash function places each server. By chance, Server A might own 60% of the ring while Server B owns 10%. This is uneven and worsens as servers have different capacities.
+
+**Virtual nodes** solve this by placing each physical server at multiple positions on the ring — typically 100–200 virtual nodes per server. Each virtual node is hashed using a different identifier (e.g., `hash("ServerA:1")`, `hash("ServerA:2")`, ..., `hash("ServerA:150")`).
+
+```mermaid
+flowchart LR
+    subgraph vnode["Virtual Node Distribution"]
+        direction TB
+        A1["A-vn1\n(15°)"]
+        B1["B-vn1\n(45°)"]
+        C1["C-vn1\n(90°)"]
+        A2["A-vn2\n(130°)"]
+        B2["B-vn2\n(175°)"]
+        C2["C-vn2\n(220°)"]
+        A3["A-vn3\n(280°)"]
+        B3["B-vn3\n(330°)"]
+        A1 --> B1 --> C1 --> A2 --> B2 --> C2 --> A3 --> B3 --> A1
+    end
+    A1 & A2 & A3 -->|"all owned by"| PA["Physical Server A"]
+    B1 & B2 & B3 -->|"all owned by"| PB["Physical Server B"]
+    C1 & C2 -->|"all owned by"| PC["Physical Server C"]
+```
+
+With 150 virtual nodes per server, each server owns approximately 1/N of the ring in expectation regardless of the hash function's placement — statistical averaging across many positions cancels out any clustering.
+
+**Weighted virtual nodes:** Assign more virtual nodes to higher-capacity servers. A server with 3× the RAM gets 3× the virtual nodes and receives ~3× the keys. This allows heterogeneous hardware pools without manual key range management.
+
+### Real-World Usage
+
+| System | How Consistent Hashing Is Used |
+|--------|-------------------------------|
+| **Amazon DynamoDB** | Partitions data across storage nodes; virtual nodes per node |
+| **Apache Cassandra** | Token ring with virtual nodes; each node owns token ranges |
+| **Memcached (libketama)** | Client-side consistent hashing for cache shard selection |
+| **Riak** | 160-bit SHA1 ring with configurable virtual nodes |
+| **CDN edge routing** | Route requests for a given URL to the nearest/consistent edge PoP |
+| **AWS ElastiCache** | Cluster mode uses consistent hashing for Redis shard mapping |
+
+Cross-reference: [Chapter 7: Caching](/system-design/part-2-building-blocks/ch07-caching) covers how consistent hashing underpins distributed cache cluster topology. [Chapter 8: CDN](/system-design/part-2-building-blocks/ch08-cdn) covers edge routing.
+
+---
+
+## Proxy Patterns
+
+A **proxy** is an intermediary that sits between two communicating parties. The direction of the proxy — which side it represents — determines whether it is a forward proxy or a reverse proxy. These are fundamentally different architectures with different purposes, despite sharing the word "proxy."
+
+### Forward Proxy
+
+A forward proxy sits on the **client side** and forwards requests on behalf of clients to external destinations. The destination server sees the proxy's IP, not the client's IP.
+
+**Use cases:**
+- **Corporate internet filtering:** Block social media, malware domains; enforce company policy
+- **Geo-unblocking / VPN:** Client traffic appears to originate from the proxy's country
+- **Anonymity:** Mask client IP from destination servers
+- **Caching for egress:** Cache common external resources (OS updates, Docker images) to reduce egress bandwidth
+
+### Reverse Proxy
+
+A reverse proxy sits on the **server side** and forwards requests to backend servers on behalf of clients. The client sees the proxy's IP, not the backend server's IP.
+
+**Use cases:**
+- SSL/TLS termination
+- Caching and compression
+- Rate limiting and DDoS protection
+- Static file serving
+- Request routing to multiple backends
+
+### Forward vs Reverse Proxy Flow
+
+```mermaid
+flowchart LR
+    CLIENT["Client\n(Corporate Laptop)"]
+    FP["Forward Proxy\n(Corporate Gateway)"]
+    INTERNET["Internet"]
+    RP["Reverse Proxy\n(Nginx / Cloudflare)"]
+    S1["Backend Server 1"]
+    S2["Backend Server 2"]
+
+    CLIENT -->|"All outbound\ntraffic"| FP
+    FP -->|"Filtered,\nanonymized"| INTERNET
+    INTERNET --> RP
+    RP -->|"Route by path\nor header"| S1
+    RP -->|"Route by path\nor header"| S2
+```
+
+### Forward vs Reverse Proxy Comparison
+
+| Dimension | Forward Proxy | Reverse Proxy |
+|-----------|--------------|---------------|
+| **Represents** | Clients | Servers |
+| **Client awareness** | Client is configured to use it | Client is unaware (sees only the proxy) |
+| **Server awareness** | Server sees proxy IP, not client | Server sees proxy IP, not client |
+| **Protects** | Client identity from servers | Server identity and infrastructure from clients |
+| **Primary use** | Access control, anonymity, caching egress | SSL termination, load balancing, caching ingress |
+| **Examples** | Squid, corporate VPN, Tor exit nodes | Nginx, HAProxy, Cloudflare, AWS ALB |
+| **Config location** | Client browser / OS network settings | DNS points to proxy; backend is internal |
+
+### Reverse Proxy vs Load Balancer vs API Gateway
+
+All three sit in front of backend servers, but they solve different scopes of problems:
+
+```mermaid
+flowchart TD
+    subgraph rp["Reverse Proxy"]
+        direction LR
+        RP_IN["Client"] --> RP_P["Nginx / Apache"]
+        RP_P --> RP_OUT["1 or more backends\n(simple forwarding)"]
+    end
+
+    subgraph lb["Load Balancer"]
+        direction LR
+        LB_IN["Client"] --> LB_P["AWS ALB / HAProxy"]
+        LB_P -->|"health-aware\ndistribution"| LB_OUT["Backend pool\n(multiple instances)"]
+    end
+
+    subgraph gw["API Gateway"]
+        direction LR
+        GW_IN["API Consumer"] --> GW_P["Kong / AWS API GW"]
+        GW_P -->|"auth + rate limit\n+ transform"| GW_OUT["Microservices"]
+    end
+```
+
+| Feature | Reverse Proxy | Load Balancer | API Gateway |
+|---------|--------------|---------------|-------------|
+| **SSL termination** | Yes | Yes (L7) | Yes |
+| **Health-aware routing** | Basic | Yes (primary function) | Yes |
+| **Path-based routing** | Basic (location blocks) | Yes | Yes |
+| **Authentication** | No | No | Yes (OAuth, JWT, API keys) |
+| **Rate limiting** | Basic (per IP) | No | Yes (per consumer plan) |
+| **Request transformation** | No | No | Yes (header rewrite, payload transform) |
+| **Analytics / developer portal** | No | No | Yes |
+| **Protocol translation** | No | No | Yes (REST → gRPC, etc.) |
+| **Typical product** | Nginx, Apache, Caddy | AWS ALB, AWS NLB, HAProxy | Kong, AWS API Gateway, Apigee |
+| **When to use** | Single-service SSL + static files | Multi-instance traffic distribution | Multi-consumer API management |
+
+**Decision rule:**
+- Need to distribute traffic across identical backend instances? → **Load Balancer**
+- Need to manage external API consumers with auth/rate limits/plans? → **API Gateway**
+- Need SSL termination and simple request forwarding? → **Reverse Proxy**
+- In practice, modern systems layer all three: DNS → CDN/WAF → Load Balancer → Reverse Proxy sidecar → App
+
+Cross-reference: API Gateway patterns are covered in [Chapter 13: Microservices Architecture](/system-design/part-3-architecture-patterns/ch13-microservices).
+
+---
+
 ## Practice Questions
 
 1. You are designing the backend for a multi-tenant SaaS application. You need requests to `/api/v1/*` to go to your API cluster, `/uploads/*` to go to a file processing cluster, and all other requests to the main web cluster. What type of load balancer would you use and why? Describe the routing rules.

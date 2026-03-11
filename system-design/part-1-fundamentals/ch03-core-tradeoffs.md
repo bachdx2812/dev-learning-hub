@@ -531,6 +531,173 @@ deliver strong consistency (ACID) and high availability through primary-replica 
 
 ---
 
+## PACELC Theorem
+
+CAP describes behavior **during a partition**. But networks are not partitioned most of the time. PACELC extends CAP by asking: what trade-off do you make during **normal operation**?
+
+> **PACELC**: If there is a **P**artition, choose between **A**vailability and **C**onsistency; **E**lse (normal operation), choose between **L**atency and **C**onsistency.
+
+### Why PACELC Matters
+
+A database that replicates synchronously is strongly consistent even when there is no partition — but every write pays a latency penalty waiting for replicas to confirm. A database that replicates asynchronously has lower write latency — but reads may see stale data. PACELC names this second trade-off explicitly.
+
+```mermaid
+flowchart TD
+    Start(["System receives a request"])
+    Start --> PartQ{"Is there a\nnetwork partition?"}
+
+    PartQ -->|"Yes"| PartChoice{"P branch:\nChoose A or C"}
+    PartChoice -->|"Choose Availability"| PA["PA: Serve stale data\nKeep accepting writes"]
+    PartChoice -->|"Choose Consistency"| PC["PC: Reject requests\nUntil partition heals"]
+
+    PartQ -->|"No (normal operation)"| ElseChoice{"E branch:\nChoose L or C"}
+    ElseChoice -->|"Choose Low Latency"| EL["EL: Async replication\nFast writes, possible stale reads"]
+    ElseChoice -->|"Choose Consistency"| EC["EC: Sync replication\nSlow writes, always fresh reads"]
+
+    PA --> PAExample["Cassandra, DynamoDB\nCouchDB"]
+    PC --> PCExample["HBase, ZooKeeper\nMongoDB (w/writeConcern:majority)"]
+    EL --> ELExample["Most AP systems\nCassandra, DynamoDB"]
+    EC --> ECExample["Most CP systems\nPostgreSQL sync replication\nCockroachDB, Spanner"]
+
+    style PA fill:#2d5a3d,color:#e2e8f0,stroke:#4ade80
+    style PC fill:#2d4a7a,color:#e2e8f0,stroke:#4a90d9
+    style EL fill:#2d5a3d,color:#e2e8f0,stroke:#4ade80
+    style EC fill:#2d4a7a,color:#e2e8f0,stroke:#4a90d9
+    style PartChoice fill:#4a1942,color:#e2e8f0,stroke:#c084fc
+    style ElseChoice fill:#4a1942,color:#e2e8f0,stroke:#c084fc
+```
+
+### PACELC Classifications
+
+A database's PACELC label is written as `PA/EL`, `PC/EC`, etc.:
+
+- **PA/EL** — Sacrifices consistency both during partitions and during normal operation (favors availability + low latency)
+- **PC/EC** — Preserves consistency in both cases (pays in availability + latency)
+- **PA/EC** — Inconsistent during partition (prioritizes availability) but consistent in normal operation (pays latency)
+
+---
+
+## CAP/PACELC Database Classification
+
+| Database | CAP | PACELC | Partition Behavior | Normal-Op Trade-off | Notes |
+|---|---|---|---|---|---|
+| **PostgreSQL** | CA/CP | PC/EC | Rejects if replica sync fails | Sync replica → higher write latency | Single-region: CA. Multi-region: CP |
+| **MySQL InnoDB** | CA/CP | PC/EC | Semi-sync replication | Configurable sync level | Semi-sync = 1 replica confirms |
+| **CockroachDB** | CP | PC/EC | Refuses stale reads | Consensus (Raft) adds ~2–5ms | Serializable isolation by default |
+| **Google Spanner** | CP | PC/EC | Refuses during partition | TrueTime adds bounded latency | ~7ms clock uncertainty globally |
+| **MongoDB** | CP* | PC/EC | Rejects w/o quorum | Majority writes are consistent | *Default is AP; CP with writeConcern:majority |
+| **Cassandra** | AP | PA/EL | Continues serving stale | Async replication, fast writes | Tunable consistency (ONE to ALL) |
+| **DynamoDB** | AP | PA/EL* | Continues with stale data | Eventually consistent by default | *Strongly consistent reads available at 2× cost |
+| **Redis (Cluster)** | CP | PC/EL | Rejects if primary unreachable | Single-threaded, very low latency | Sentinel mode adds failover |
+| **HBase** | CP | PC/EC | Stops writes during partition | HDFS replication, higher latency | Built on HDFS, ZooKeeper for coordination |
+| **etcd / ZooKeeper** | CP | PC/EC | Halts without quorum | Raft/ZAB consensus, consistent reads | Coordination services, not general storage |
+
+> **Reading the table:** MongoDB's `*` reflects that its default write concern (`w:1`, local write) is AP/EL, but configuring `w:majority` shifts it to CP/EC. Most databases allow tuning along these axes.
+
+---
+
+## Practical Decision Flowchart
+
+Use this flowchart when choosing a database for a new system:
+
+```mermaid
+flowchart TD
+    Q1{"Does your data require\nmulti-row atomic transactions?"}
+    Q1 -->|"Yes"| Q2{"Is global multi-region\nwrite availability required?"}
+    Q1 -->|"No — document or key-value OK"| Q5{"Is write throughput\nthe primary concern?"}
+
+    Q2 -->|"Yes"| NewDB["CockroachDB / Spanner\nDistributed SQL, CP/EC"]
+    Q2 -->|"No — single region or async cross-region"| RDBMS["PostgreSQL / MySQL\nCP/EC within region"]
+
+    Q5 -->|"Yes — millions of writes/sec"| Q6{"Do you need flexible schema?"}
+    Q5 -->|"No — moderate writes"| Q7{"Primary access pattern?"}
+
+    Q6 -->|"Yes"| Cassandra["Cassandra / ScyllaDB\nPA/EL, wide-column"]
+    Q6 -->|"No — key lookups"| Dynamo["DynamoDB\nPA/EL, key-value"]
+
+    Q7 -->|"Key-value lookups"| Redis["Redis\nCP/EL, in-memory"]
+    Q7 -->|"Document queries"| Mongo["MongoDB\nCP/EC (w:majority)"]
+    Q7 -->|"Graph relationships"| Graph["Neo4j / Neptune\nCP, graph-native"]
+
+    RDBMS --> Note1["Cross-reference:\nch09 — SQL deep-dive"]
+    Cassandra --> Note2["Cross-reference:\nch10 — NoSQL patterns"]
+    Dynamo --> Note2
+
+    style NewDB fill:#2d4a7a,color:#e2e8f0,stroke:#4a90d9
+    style RDBMS fill:#2d4a7a,color:#e2e8f0,stroke:#4a90d9
+    style Cassandra fill:#2d5a3d,color:#e2e8f0,stroke:#4ade80
+    style Dynamo fill:#2d5a3d,color:#e2e8f0,stroke:#4ade80
+    style Redis fill:#4a2a10,color:#e2e8f0,stroke:#f97316
+    style Mongo fill:#2d4a7a,color:#e2e8f0,stroke:#4a90d9
+```
+
+### Quick Reference: Requirements → Choice
+
+| Requirement | CAP/PACELC Target | Recommended Systems |
+|---|---|---|
+| Financial transactions, strict ordering | CP / PC/EC | PostgreSQL, CockroachDB, Spanner |
+| High-write global scale, tolerate stale reads | AP / PA/EL | Cassandra, DynamoDB |
+| Session storage, caching | CP / PC/EL | Redis |
+| Distributed coordination, leader election | CP / PC/EC | etcd, ZooKeeper |
+| Flexible schema, document model | CP / PC/EC | MongoDB (w:majority) |
+| Real-time analytics, time-series | AP / PA/EL | Cassandra, ClickHouse |
+| Multi-region active-active writes | AP / PA/EL | DynamoDB global tables, Cassandra |
+
+> **Cross-references:** SQL internals (isolation levels, MVCC) → [Chapter 9 — SQL Databases](../part-2-building-blocks/ch09-databases-sql). NoSQL trade-offs by data model → [Chapter 10 — NoSQL Databases](../part-2-building-blocks/ch10-databases-nosql).
+
+---
+
+## PACELC in Practice: Real-World Decisions
+
+### Case 1: Cassandra — PA/EL by Design
+
+Cassandra's tunable consistency (`ONE`, `QUORUM`, `ALL`) lets operators slide along the PACELC spectrum per operation:
+
+| Consistency Level | P Behavior | E Behavior | Use Case |
+|---|---|---|---|
+| `ONE` | AP — serve from nearest node | EL — lowest latency, stale possible | User preference reads, analytics |
+| `QUORUM` | CP/AP hybrid — majority confirms | EL/EC hybrid | Balanced: most application reads |
+| `LOCAL_QUORUM` | Quorum within one datacenter only | Lower cross-DC latency | Multi-region with regional isolation |
+| `ALL` | CP — all replicas must confirm | EC — highest consistency | Rarely used; kills availability |
+
+**Lesson:** Even a single database can occupy different PACELC positions depending on configuration. Understand the knobs, not just the label.
+
+### Case 2: DynamoDB — PA/EL with Optional EC
+
+DynamoDB's default reads are eventually consistent (PA/EL). Strongly consistent reads (`ConsistentRead: true`) shift it to PA/EC — you pay 2× read capacity units and ~1–2ms higher latency for guarantee that you see the latest write.
+
+**When to pay for strong consistency in DynamoDB:**
+- Inventory checks before deduction
+- Financial balance reads before debit
+- Idempotency key lookups (to prevent duplicate processing)
+
+**When to accept eventual consistency:**
+- Product catalog reads (stale by minutes is acceptable)
+- User profile reads (eventual convergence is fine)
+- Leaderboards and counters (approximate values are acceptable)
+
+### Case 3: CockroachDB — PC/EC for Global SQL
+
+CockroachDB targets the PC/EC quadrant — consistency both during partitions and in normal operation. It achieves this via **Raft consensus** per range (sharded key range), adding ~2–10ms to writes depending on replica placement.
+
+**Trade-off made explicit:** A write to a CockroachDB row in us-east1 that has replicas in eu-west1 and ap-southeast1 must wait for 2 of 3 replicas to confirm — paying cross-ocean latency for every write. In exchange, any replica can answer any read with fully consistent data. This is the right trade-off for global financial applications; it is the wrong trade-off for a high-volume social media feed.
+
+### Connecting PACELC to Interview Answers
+
+When asked "what database would you use for X?" in a system design interview, structure your answer around PACELC:
+
+```
+1. State the requirement: "This is a [financial/social/analytics] use case"
+2. Name the trade-off: "We need [strong consistency / low latency / high availability]"
+3. Pick the PACELC quadrant: "So we want a [PC/EC / PA/EL] system"
+4. Name the database: "That leads us to [PostgreSQL / Cassandra / DynamoDB]"
+5. Acknowledge the cost: "The trade-off we accept is [higher write latency / stale reads]"
+```
+
+This structure shows the interviewer you understand the *why* behind the database choice, not just the name.
+
+---
+
 ## Practice Questions
 
 1. **CAP Analysis:** A startup is building a collaborative document editor (like Google Docs). During a

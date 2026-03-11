@@ -598,6 +598,208 @@ The result: Amazon can deploy to production every 11.6 seconds on average, with 
 
 ---
 
+## Service Discovery Deep-Dive
+
+The existing section covers the two models at a high level. This section goes deeper into implementation details and failure modes.
+
+### Multi-Region Service Discovery
+
+In multi-region deployments, service discovery must balance routing traffic to the nearest healthy instance against cross-region failover when an entire region goes down.
+
+| Strategy | How It Works | Latency | Failover |
+|----------|-------------|---------|---------|
+| **Local-first (zone-aware)** | Registry returns instances in same AZ/region first | Lowest | Automatic fallback to remote zone if local unhealthy |
+| **Global load balancer** | DNS-based (Route 53 latency routing, Cloudflare) routes to nearest region | Low | Automatic via DNS health checks |
+| **Federated registries** | Each region has its own Consul/etcd cluster; cross-region lookup over WAN | Medium | Manual or scripted failover |
+| **Service mesh multi-cluster** | Istio or Linkerd cross-cluster service discovery via trust bundles | Low | Policy-driven; transparent to services |
+
+**Kubernetes multi-cluster:** `ServiceImport` / `ServiceExport` (MCS API) allows a service in cluster A to be discovered by services in cluster B without shared DNS, using a multi-cluster gateway to route traffic.
+
+---
+
+### Client-Side vs Server-Side Discovery
+
+```mermaid
+sequenceDiagram
+    participant C as "Client Service"
+    participant R as "Service Registry"
+    participant S1 as "Instance A (10.0.1.5)"
+    participant S2 as "Instance B (10.0.1.6)"
+
+    Note over C,R: Client-Side Discovery
+    C->>R: Lookup("payment-service")
+    R-->>C: "[10.0.1.5:8080, 10.0.1.6:8080]"
+    Note over C: Client applies load-balancing (round-robin)
+    C->>S1: POST /payments
+
+    Note over C,S2: Server-Side Discovery
+    C->>S2: POST /payment-service/payments
+    S2->>R: Lookup("payment-service")
+    R-->>S2: "[10.0.1.5:8080, 10.0.1.6:8080]"
+    S2->>S1: Forward request
+    S1-->>S2: 200 OK
+    S2-->>C: 200 OK
+```
+
+| Pattern | Pros | Cons | Example |
+|---------|------|------|---------|
+| **Client-Side** | Fine-grained load-balancing control, no extra hop | Discovery logic in every client; language-specific SDKs required | Netflix Eureka + Ribbon |
+| **Server-Side** | Clients are simple; centralized routing policy | Router is a critical path dependency; extra network hop | Kubernetes DNS + kube-proxy |
+| **DNS-based** | Universal client support; no SDK needed | Low TTL required for fast updates; no health-aware routing | AWS Route 53, Consul DNS |
+| **Service Mesh** | Transparent to app code; policy-driven | Operational overhead of control plane | Istio, Linkerd |
+
+---
+
+## Service Registry Comparison
+
+Choosing a service registry depends on your consistency requirements, existing ecosystem, and operational complexity budget.
+
+| Tool | Protocol | Consistency | Health Check | Watches / Notifications | Language Support | Best For |
+|------|----------|-------------|--------------|------------------------|------------------|---------|
+| **Consul** | HTTP + DNS | CP (Raft) | HTTP, TCP, gRPC, script | Yes (blocking queries) | All via HTTP | Multi-DC, health-aware routing, KV store |
+| **etcd** | gRPC (HTTP/2) | CP (Raft) | Lease TTL (client heartbeat) | Yes (watch API) | All via gRPC | Kubernetes backing store, config management |
+| **Eureka** | REST (HTTP) | AP (no consensus) | HTTP heartbeat every 30s | Polling only | JVM-first; REST for others | Netflix OSS stack; availability over consistency |
+| **ZooKeeper** | Custom binary | CP (ZAB) | Session timeout (ephemeral znodes) | Yes (watches on znodes) | Java-first | Legacy Kafka/Hadoop; strong consistency required |
+
+**Consistency trade-off in practice:**
+- **Consul/etcd (CP)**: During a network partition, the minority partition stops serving writes. Services cannot register or deregister — they may return stale data or be unavailable.
+- **Eureka (AP)**: During a partition, Eureka nodes continue serving cached data. A service may appear registered even after it has crashed (30–90s stale window). Netflix accepted this: a stale entry causing a failed request is better than a complete outage.
+
+### Service Registration Flow
+
+```mermaid
+sequenceDiagram
+    participant SVC as "New Service Instance"
+    participant REG as "Service Registry (Consul)"
+    participant HM as "Health Monitor"
+    participant LB as "Load Balancer / Discovery Client"
+
+    SVC->>REG: Register(name, ip, port, healthCheckURL, ttl=30s)
+    REG-->>SVC: Registration OK (serviceId returned)
+
+    loop Every 10s
+        HM->>SVC: GET /healthz
+        SVC-->>HM: 200 OK
+        HM->>REG: Mark healthy
+    end
+
+    Note over SVC: Service becomes overloaded
+    HM->>SVC: GET /healthz
+    SVC-->>HM: 503 Service Unavailable
+    HM->>REG: Mark critical (unhealthy)
+    REG-->>LB: Updated catalog (instance removed from healthy set)
+
+    Note over SVC: Instance crashes (no deregister)
+    Note over REG: TTL expires after 30s → auto-deregister
+    REG-->>LB: Updated catalog (instance fully removed)
+```
+
+**Self-registration vs third-party registration:**
+- **Self-registration**: The service itself calls the registry on startup and deregisters on shutdown (graceful). Simple, but requires registry client logic in each service.
+- **Third-party registration**: An external observer (Kubernetes controller, Consul agent, ECS service scheduler) registers and deregisters on behalf of the service. The service code stays registry-agnostic.
+
+> Cross-reference: [Chapter 6 — Load Balancing](/system-design/part-2-building-blocks/ch06-load-balancing) covers the load-balancing algorithms (round-robin, least-connections, consistent hashing) that client-side discovery uses to pick instances. [Chapter 23](/system-design/part-5-modern-mastery/ch23-cloud-native-serverless) covers Kubernetes DNS, which implements server-side discovery natively.
+
+---
+
+## Health Check Patterns
+
+Service registries only provide value if they reflect the true health of each instance. Three probe types cover different failure modes:
+
+```mermaid
+stateDiagram-v2
+    [*] --> Starting : "Container starts"
+    Starting --> Ready : "Startup probe passes"
+    Starting --> Crashed : "Startup probe fails (too slow to init)"
+    Ready --> Healthy : "Liveness + readiness pass"
+    Healthy --> Degraded : "Readiness fails (overloaded, dep down)"
+    Degraded --> Healthy : "Readiness recovers"
+    Degraded --> Unhealthy : "Liveness fails (deadlock, OOM)"
+    Unhealthy --> [*] : "Container killed and restarted"
+    Crashed --> [*] : "Container killed"
+```
+
+| Probe Type | Question Answered | Failure Action | Typical Check |
+|------------|-------------------|----------------|---------------|
+| **Startup** | Has the app finished initializing? | Kill and restart | HTTP 200 on `/healthz/startup` |
+| **Liveness** | Is the app alive (not deadlocked/OOM)? | Kill and restart | HTTP 200 on `/healthz/live` |
+| **Readiness** | Is the app ready to serve traffic? | Remove from load balancer (do NOT restart) | Check DB connection, cache, downstream deps |
+
+**Key distinction — readiness vs liveness:**
+A service can be *alive* but not *ready*. If the database connection pool is exhausted, the service is liveness-healthy (process is running, no deadlock) but readiness-unhealthy (cannot serve requests). The right action is to pull it from the load balancer, not kill it. Confusing the two probes causes unnecessary restarts under load.
+
+**Deep health checks:** Expose a `/health/detailed` endpoint that reports sub-component status (database, cache, downstream services). Use it for dashboards and alerting. Liveness probes should be *shallow* (process-level only) to avoid cascading restarts when a dependency flaps.
+
+### Health Check Anti-Patterns
+
+| Anti-Pattern | Problem | Fix |
+|-------------|---------|-----|
+| **Readiness checks all dependencies** | One flapping downstream dep marks entire service unready; cascading removal from load balancer | Check only critical dependencies; use circuit breaker for non-critical ones |
+| **Liveness checks include DB** | DB timeout triggers container restart loop; connection pool exhaustion self-heals, restarts do not | Liveness = process-only; readiness = dependency-aware |
+| **No startup probe (slow init)** | Liveness fires before app finishes initializing; container killed in infinite restart loop | Add startup probe with `failureThreshold * periodSeconds > max_init_time` |
+| **Too-short TTL + slow check** | Health check RTT > TTL → instance flaps between healthy/unhealthy under load | Set TTL ≥ 3× check interval; use deregister-critical-service-after for graceful cleanup |
+
+---
+
+## API Versioning Strategies
+
+API versioning is how you evolve your service contracts without breaking existing consumers. There is no universally correct strategy — the right choice depends on client types and change frequency.
+
+| Strategy | Format | Caching | Client Complexity | Breaking Changes | Example |
+|----------|--------|---------|------------------|-----------------|---------|
+| **URL Path** | `/v1/users`, `/v2/users` | Excellent (URL is cache key) | Low — explicit, visible | Clean — old and new coexist | Most REST APIs |
+| **Query Parameter** | `/users?version=2` | Good | Low | Same as URL path | Some Google APIs |
+| **Request Header** | `API-Version: 2024-01-01` | Poor (cache key doesn't include headers by default) | Medium — must set header | Requires header-aware proxies | Stripe, GitHub |
+| **Content Negotiation** | `Accept: application/vnd.myapp.v2+json` | Poor | High — non-standard | Semantically correct per HTTP spec | Rare in practice |
+| **Consumer-Driven Contracts** | Pact-style contract tests | N/A | Low | Detected before deployment | Internal microservices |
+
+**Backward compatibility best practices:**
+
+1. **Never remove a field** — mark it deprecated, keep it populated for ≥6 months
+2. **Never change field semantics** — `total` changing from gross to net is a breaking change even if the field name stays the same
+3. **Add fields as optional** — new fields must have safe defaults; consumers must tolerate unknown fields
+4. **Use sunset headers** — `Sunset: Sat, 01 Jan 2026 00:00:00 GMT` in responses to deprecated versions gives consumers a machine-readable deadline
+5. **Run versions in parallel** — use the strangler fig approach at the API level: route `/v1` to old handlers, `/v2` to new handlers, retire `/v1` once all consumers migrate
+
+**Versioning in event contracts:** The same principles apply to event schemas — see [Chapter 14](/system-design/part-3-architecture-patterns/ch14-event-driven-architecture) for schema evolution and schema registry patterns.
+
+### API Version Lifecycle
+
+```mermaid
+sequenceDiagram
+    participant Team as "Platform Team"
+    participant V1 as "v1 Handler"
+    participant V2 as "v2 Handler"
+    participant Cons as "API Consumers"
+
+    Note over Team,V1: Phase 1 - Launch v2
+    Team->>V2: Deploy v2 alongside v1
+    Team->>Cons: Announce v2 availability + v1 sunset date
+
+    Note over V1,Cons: Phase 2 - Migration Window (6-12 months)
+    Cons->>V1: Existing traffic continues
+    Cons->>V2: New consumers adopt v2
+    V1-->>Cons: Sunset header in all v1 responses
+
+    Note over Team,V1: Phase 3 - Deprecation
+    Team->>V1: Return 410 Gone for unknown clients
+    Cons->>V2: All traffic migrated
+    Team->>V1: Decommission v1 handler
+```
+
+### Internal vs External Versioning
+
+Internal microservices (service-to-service) can use a lighter versioning strategy than public APIs:
+
+| Context | Recommended Strategy | Reason |
+|---------|---------------------|--------|
+| **Public API** (third-party, mobile apps) | URL path versioning (`/v1`) | Explicit, cacheable, discoverable; clients may not update quickly |
+| **Internal services** (known consumers) | Consumer-driven contracts (Pact) + additive-only changes | Detect breaking changes at CI time; avoid URL proliferation |
+| **Event schemas** | Schema registry with compatibility rules | Enforce backward compatibility before publishing to topic |
+| **gRPC internal APIs** | Protobuf field numbers (never change); add new fields, deprecate old | Protobuf is naturally backward/forward compatible if field numbers are preserved |
+
+---
+
 ## Practice Questions
 
 1. **Boundary Design:** An e-commerce startup wants to decompose their monolith into microservices. They have a single `users` table joined in 15 places across the codebase. Describe the strangler fig migration strategy step by step. What service do you extract first, and why?

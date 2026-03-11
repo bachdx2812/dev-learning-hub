@@ -405,6 +405,347 @@ Facebook runs MySQL at massive scale for their social graph storage:
 
 ---
 
+## Transaction Isolation Levels
+
+ACID's "I" (Isolation) is not binary — there is a configurable spectrum. Higher isolation prevents more anomalies but reduces concurrency. Every major RDBMS defaults to something in the middle.
+
+### Isolation Anomalies
+
+| Anomaly | Description | Example |
+|---|---|---|
+| **Dirty Read** | Transaction reads uncommitted data from another transaction | Read a balance update that was later rolled back |
+| **Non-repeatable Read** | Reading the same row twice in one transaction yields different values | Row updated by concurrent transaction between your two reads |
+| **Phantom Read** | A range query returns different rows on re-execution | New row inserted by concurrent transaction matches your WHERE clause |
+
+### Isolation Levels Matrix
+
+| Isolation Level | Dirty Read | Non-repeatable Read | Phantom Read | Performance | Default In |
+|---|---|---|---|---|---|
+| **Read Uncommitted** | Possible | Possible | Possible | Highest | Rarely used |
+| **Read Committed** | Prevented | Possible | Possible | High | PostgreSQL, Oracle |
+| **Repeatable Read** | Prevented | Prevented | Possible* | Medium | MySQL InnoDB |
+| **Serializable** | Prevented | Prevented | Prevented | Lowest | CockroachDB, Spanner |
+
+*InnoDB prevents phantoms at Repeatable Read via gap locks; PostgreSQL uses MVCC snapshot isolation instead.
+
+### Dirty Read Scenario
+
+```mermaid
+sequenceDiagram
+    participant T1 as "Transaction 1"
+    participant DB as Database
+    participant T2 as "Transaction 2"
+
+    T1->>DB: BEGIN
+    T1->>DB: UPDATE accounts SET balance=500 WHERE id=1
+    Note over DB: Balance=500 not yet committed
+    T2->>DB: BEGIN
+    T2->>DB: SELECT balance FROM accounts WHERE id=1
+    DB-->>T2: 500 (dirty read — T1 not committed)
+    T1->>DB: ROLLBACK
+    Note over DB: Balance reverted to 300
+    T2->>DB: COMMIT
+    Note over T2: T2 made decision based on data that never existed
+```
+
+**When isolation levels matter in practice:**
+
+- **Read Committed** (default in PostgreSQL): Safe for most OLTP workloads. Allows non-repeatable reads — acceptable if you do not re-read rows within a transaction.
+- **Repeatable Read**: Use when a transaction reads the same data multiple times and must see consistent values — e.g., generating a report that spans multiple queries.
+- **Serializable**: Use for financial transfers, inventory deductions, or any operation where phantom reads could cause correctness failures.
+
+---
+
+## Multi-Version Concurrency Control (MVCC)
+
+Traditional locking blocks readers when writers are active. MVCC eliminates this by keeping multiple versions of each row, allowing readers and writers to proceed concurrently without blocking.
+
+### How PostgreSQL Implements MVCC
+
+Every row in PostgreSQL has two hidden system columns:
+- `xmin` — the transaction ID that created this row version
+- `xmax` — the transaction ID that deleted/updated this row (0 if still live)
+
+When a transaction updates a row, it does **not** overwrite the old version. Instead it:
+1. Marks the old row with `xmax = current_txid`
+2. Inserts a new row version with `xmin = current_txid`
+
+```mermaid
+flowchart TD
+    subgraph "Row versions in heap"
+        V1["Row v1\nxmin=100, xmax=205\nbalance=300"]
+        V2["Row v2\nxmin=205, xmax=0\nbalance=500"]
+    end
+
+    T1["Transaction 210\nSELECT balance"]
+    T2["Transaction 205\nUPDATE balance=500"]
+    T3["Transaction 215\nSELECT balance"]
+
+    T2 -->|"Created v2, marked v1 dead"| V2
+    T1 -->|"Started before txid 205\nReads v1 = 300"| V1
+    T3 -->|"Started after txid 205\nReads v2 = 500"| V2
+
+    style V1 fill:#2d4a7a,color:#e2e8f0,stroke:#4a90d9
+    style V2 fill:#2d5a3d,color:#e2e8f0,stroke:#4ade80
+```
+
+### MVCC vs Traditional Locking
+
+| Property | MVCC | Traditional Locking |
+|---|---|---|
+| **Reader blocks writer** | Never | Yes (shared lock) |
+| **Writer blocks reader** | Never | Yes (exclusive lock) |
+| **Writer blocks writer** | Yes (conflict on same row) | Yes |
+| **Storage overhead** | Dead tuples accumulate — need VACUUM | No dead tuples |
+| **Snapshot isolation** | Natural — each transaction sees a snapshot | Requires range locks |
+| **Used by** | PostgreSQL, Oracle, MySQL InnoDB | SQL Server (page locking mode) |
+
+**VACUUM**: PostgreSQL periodically runs `VACUUM` to reclaim storage from dead row versions. Without it, tables grow unboundedly. `autovacuum` handles this automatically but must be tuned for write-heavy tables.
+
+> **Cross-reference:** MVCC is the mechanism enabling PostgreSQL's Read Committed and Repeatable Read isolation levels. For how this interacts with distributed systems, see [Ch03 — PACELC](/system-design/part-1-fundamentals/ch03-core-tradeoffs).
+
+---
+
+## B-Tree vs LSM-Tree Storage Engines
+
+The storage engine determines how data is physically laid out on disk — which directly governs read vs. write performance characteristics.
+
+### B-Tree (Read-Optimized)
+
+B-Trees organize data in a balanced tree where every update is an **in-place write** to a specific page on disk.
+
+```
+Write path: locate page → load page from disk → modify in memory → write back
+Read path:  traverse tree (O(log n)) → load leaf page → return row
+```
+
+**Used by:** PostgreSQL heap storage, MySQL InnoDB, SQLite, most traditional RDBMS.
+
+### LSM-Tree (Write-Optimized)
+
+Log-Structured Merge Trees append all writes to an in-memory buffer (MemTable), flush to disk as immutable sorted files (SSTables), and merge (compact) those files in the background.
+
+```mermaid
+flowchart TD
+    W(["Write request"]) --> MT["MemTable\nin-memory sorted buffer"]
+    MT -->|"Flush when full"| L0["L0 SSTables\nsmall, overlapping"]
+    L0 -->|"Minor compaction"| L1["L1 SSTables\nlarger, sorted"]
+    L1 -->|"Major compaction"| L2["L2 SSTables\nlarge, non-overlapping"]
+
+    R(["Read request"]) --> MT
+    R --> BloomFilter{"Bloom filter:\nkey probably here?"}
+    BloomFilter -->|"Yes"| L0
+    BloomFilter -->|"No — skip SSTable"| Skip(["Skip this level"])
+
+    style MT fill:#2d5a3d,color:#e2e8f0,stroke:#4ade80
+    style L0 fill:#2d4a7a,color:#e2e8f0,stroke:#4a90d9
+    style L1 fill:#2d4a7a,color:#e2e8f0,stroke:#4a90d9
+    style L2 fill:#2d4a7a,color:#e2e8f0,stroke:#4a90d9
+```
+
+**Used by:** RocksDB, LevelDB, Cassandra, HBase, ScyllaDB, InfluxDB.
+
+### B-Tree vs LSM-Tree Comparison
+
+| Property | B-Tree | LSM-Tree |
+|---|---|---|
+| **Write performance** | Medium — in-place page writes, random I/O | High — sequential append, batch flush |
+| **Read performance** | High — direct tree traversal | Medium — may check multiple SSTables + bloom filters |
+| **Write amplification** | Low (~1×) | High (compaction rewrites data multiple times, 10–30×) |
+| **Read amplification** | Low (O(log n) pages) | Medium (check MemTable + multiple SSTable levels) |
+| **Space amplification** | Low | Medium (tombstones + not-yet-compacted duplicates) |
+| **Update semantics** | In-place overwrite | Append new version; old version removed at compaction |
+| **Compression** | Per-page | Per-SSTable (better compression ratios) |
+| **Best use case** | Read-heavy OLTP (dashboards, reporting) | Write-heavy workloads (IoT, logging, time-series) |
+| **Example databases** | PostgreSQL, MySQL, SQLite | RocksDB, Cassandra, HBase |
+
+**Rule of thumb:** If writes dominate (>70% of operations), LSM-Tree is likely faster. If reads dominate or you need predictable read latency, B-Tree wins.
+
+---
+
+## Database Locking Strategies
+
+When multiple transactions access the same data, the database must coordinate to prevent anomalies. Two fundamental approaches:
+
+### Pessimistic Locking
+
+Assume conflict will happen — acquire a lock before reading or writing.
+
+```sql
+-- Pessimistic: lock the row for the entire transaction
+BEGIN;
+SELECT balance FROM accounts WHERE id = 1 FOR UPDATE;  -- acquires exclusive lock
+UPDATE accounts SET balance = balance - 100 WHERE id = 1;
+COMMIT;  -- lock released
+```
+
+### Optimistic Locking
+
+Assume conflict is rare — proceed without locks, but check for conflicts at commit time using a version counter.
+
+```mermaid
+sequenceDiagram
+    participant T1 as "Transaction 1"
+    participant T2 as "Transaction 2"
+    participant DB as Database
+
+    T1->>DB: SELECT id, balance, version FROM accounts WHERE id=1
+    DB-->>T1: "balance=500, version=7"
+    T2->>DB: SELECT id, balance, version FROM accounts WHERE id=1
+    DB-->>T2: "balance=500, version=7"
+
+    T1->>DB: UPDATE accounts SET balance=400, version=8\nWHERE id=1 AND version=7
+    DB-->>T1: "1 row updated (success)"
+
+    T2->>DB: UPDATE accounts SET balance=450, version=8\nWHERE id=1 AND version=7
+    DB-->>T2: "0 rows updated (version mismatch)"
+    Note over T2: Retry: re-read row, reapply business logic
+```
+
+### Locking Strategy Comparison
+
+| Property | Pessimistic | Optimistic |
+|---|---|---|
+| **Conflict assumption** | High contention expected | Low contention expected |
+| **Lock duration** | Entire transaction | No lock held (check at commit) |
+| **Throughput under low contention** | Lower — unnecessary locking overhead | Higher — no blocking |
+| **Throughput under high contention** | Better — avoids retry storms | Lower — many retries |
+| **Deadlock risk** | Yes — two transactions can deadlock | No — no locks held |
+| **Implementation** | `SELECT FOR UPDATE`, `LOCK TABLE` | Version column + conditional UPDATE |
+| **Best for** | Inventory deductions, seat booking, money transfer | User profile updates, shopping cart changes |
+
+**Deadlock example with pessimistic locking:**
+
+```
+T1 locks Row A, waits for Row B
+T2 locks Row B, waits for Row A
+→ Deadlock detected by DB → one transaction rolled back → retry
+```
+
+Prevention: always acquire locks in the **same order** across transactions.
+
+---
+
+## Advanced Index Types
+
+Beyond standard B-Tree and Hash indexes, modern databases offer specialized index types that can dramatically improve performance for specific access patterns.
+
+| Index Type | How It Works | Best For | Overhead | Example |
+|---|---|---|---|---|
+| **Covering Index** | Includes all columns needed by a query — no heap lookup | High-frequency SELECT with known column set | Larger index size | `CREATE INDEX ON orders (user_id) INCLUDE (status, total)` |
+| **Partial Index** | Indexes only rows matching a WHERE condition | Sparse predicates (e.g., only active users) | Smaller — indexes a subset | `CREATE INDEX ON users (email) WHERE active = true` |
+| **Expression Index** | Indexes a computed expression, not a raw column | Case-insensitive lookups, derived values | Recomputed on every write | `CREATE INDEX ON users (LOWER(email))` |
+| **GIN (Generalized Inverted)** | Inverted index over composite values (arrays, JSONB, tsvector) | Full-text search, JSONB key queries, array `@>` | Slower writes, large index | `CREATE INDEX ON posts USING GIN (search_vector)` |
+| **GiST (Generalized Search Tree)** | Pluggable tree for non-scalar types | Geometric data, range types, nearest-neighbor | Complex — depends on operator class | `CREATE INDEX ON locations USING GIST (coordinates)` |
+| **BRIN (Block Range Index)** | Stores min/max per block range, not per row | Huge append-only tables with natural ordering | Tiny — 1 entry per block range | `CREATE INDEX ON events USING BRIN (created_at)` |
+
+### When to Use Each
+
+```
+Query: WHERE LOWER(email) = ?        → Expression index on LOWER(email)
+Query: WHERE tags @> ARRAY['golang'] → GIN index on tags
+Query: WHERE location <-> point ...  → GiST index on geometry column
+Query: WHERE created_at > last_month → BRIN on append-only time-series table
+Query: SELECT id, status FROM orders WHERE user_id = ?  → Covering index (user_id) INCLUDE (status)
+```
+
+**Index bloat:** Unused indexes slow down writes without helping reads. Periodically query `pg_stat_user_indexes` to identify zero-scan indexes and drop them.
+
+> **Cross-references:** Index storage engines (B-Tree internals) are covered in the section above. For how NoSQL databases handle indexing differently, see [Ch10 — NoSQL](/system-design/part-2-building-blocks/ch10-databases-nosql). For replication and consistency trade-offs, see [Ch03 — PACELC](/system-design/part-1-fundamentals/ch03-core-tradeoffs) and [Ch15 — Replication](/system-design/part-3-architecture-patterns/ch15-data-replication-consistency).
+
+---
+
+## Case Study: Figma's PostgreSQL Scaling Journey
+
+Figma is a browser-based collaborative design tool. By 2020 their user base was doubling annually — and their single PostgreSQL instance was reaching connection saturation, replication lag spikes, and slow query times on analytics workloads.
+
+### Context and Challenges
+
+| Challenge | Root Cause | Symptoms |
+|---|---|---|
+| Connection exhaustion | Each web server opens its own PG connection; PG process-per-connection model limits ~500 concurrent | `FATAL: remaining connection slots reserved` errors under load |
+| Replication lag | Heavy write workload on a single primary; replicas couldn't keep up | Analytics queries reading stale data; delayed dashboards |
+| Partition growth | A single `documents` table grew to hundreds of millions of rows | Query planner choosing sequential scans despite indexes |
+| Cross-team query coupling | All teams queried the same DB; a bad analytics query starved OLTP | Latency spikes on the design canvas during batch reports |
+
+### Solution Architecture
+
+Figma addressed each challenge in layers rather than a single "big bang" migration:
+
+**Step 1 — PgBouncer for connection pooling**
+
+Instead of each app server holding a dedicated PostgreSQL connection, all connections first go through PgBouncer, which maintains a smaller pool of actual backend connections and multiplexes thousands of client connections onto them.
+
+```mermaid
+graph TD
+    subgraph "Application Tier (100s of pods)"
+        A1["App Server 1"]
+        A2["App Server 2"]
+        A3["App Server N"]
+    end
+
+    subgraph "Connection Pool Layer"
+        PB["PgBouncer\ntransaction-mode pooling\n~20 backend connections per PgBouncer"]
+    end
+
+    subgraph "PostgreSQL Primary"
+        PG[("PostgreSQL Primary\n~100 actual backend connections")]
+    end
+
+    subgraph "Read Replicas"
+        R1[("Replica 1\nAnalytics workloads")]
+        R2[("Replica 2\nReporting queries")]
+    end
+
+    A1 -->|"up to 1000s of client connections"| PB
+    A2 --> PB
+    A3 --> PB
+    PB -->|"multiplexed pool"| PG
+    PG -->|"async replication"| R1
+    PG -->|"async replication"| R2
+```
+
+**Step 2 — Read replicas for analytics isolation**
+
+Analytics and reporting queries were routed to dedicated read replicas, removing them from the primary's query queue entirely. This reduced replication lag on the primary because it was no longer competing with heavy read workloads.
+
+**Step 3 — Horizontal sharding by organization ID**
+
+For the largest tables (documents, files, comments), Figma sharded by `organization_id` — a natural boundary because most queries are scoped to a single organization. This keeps cross-shard queries rare.
+
+```mermaid
+graph LR
+    Router["Shard Router\n(application layer)"]
+
+    Router -->|"org_id hash 0-33%"| S1[("Shard 1\nPostgreSQL")]
+    Router -->|"org_id hash 33-66%"| S2[("Shard 2\nPostgreSQL")]
+    Router -->|"org_id hash 66-100%"| S3[("Shard 3\nPostgreSQL")]
+
+    S1 --> SR1[("Shard 1\nReplica")]
+    S2 --> SR2[("Shard 2\nReplica")]
+    S3 --> SR3[("Shard 3\nReplica")]
+```
+
+### Trade-offs and Decisions
+
+| Decision | Benefit | Trade-off Accepted |
+|---|---|---|
+| PgBouncer transaction-mode pooling | Handles thousands of clients with small backend pool | Prepared statements and session-level variables not preserved across transactions |
+| Shard key = `organization_id` | Cross-shard queries are rare; most work stays in one shard | Large enterprise orgs land on one shard — requires shard-level capacity planning |
+| Read replicas for analytics | Primary fully dedicated to OLTP writes and reads | Replication lag means analytics may be seconds behind; acceptable for dashboards |
+| Stay on PostgreSQL (not migrate to NoSQL) | ACID guarantees; complex queries via SQL; team familiarity | More operational complexity than managed NoSQL; requires sharding discipline |
+
+### Key Takeaways
+
+1. **Connection pooling is not optional at scale.** PostgreSQL's process-per-connection model caps at ~500-1000 connections; PgBouncer is the standard solution.
+2. **Separate read workloads early.** Analytics queries on the primary cause replication lag that affects OLTP responsiveness. Route to replicas before you feel the pain.
+3. **Shard by your natural access boundary.** `organization_id` was Figma's natural isolation unit — most queries never needed to cross it. Sharding along this boundary eliminated 95%+ of cross-shard joins.
+4. **Relational DBs CAN scale horizontally.** With sharding, connection pooling, and replica routing, PostgreSQL handled Figma's scale without migrating to NoSQL.
+
+> **Cross-references:** Connection pooling is mentioned in the SQL Tuning section above. For how shard routing interacts with consistency, see [Ch03 — PACELC](/system-design/part-1-fundamentals/ch03-core-tradeoffs). For replication mechanics, see [Ch15 — Replication](/system-design/part-3-architecture-patterns/ch15-data-replication-consistency).
+
+---
+
 ## Practice Questions
 
 1. **Replication lag:** A user updates their profile picture, then immediately loads their profile and sees the old picture. What caused this and how would you fix it?

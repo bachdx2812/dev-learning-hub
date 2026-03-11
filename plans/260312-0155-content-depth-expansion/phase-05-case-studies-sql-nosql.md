@@ -11,7 +11,7 @@
 
 ## Overview
 - **Priority**: MEDIUM
-- **Status**: pending
+- **Status**: completed
 - **Description**: Add mini case studies to ch09 and ch10 based on BBG reference material
 
 ## Key Insights
@@ -45,10 +45,10 @@
 3. Cross-reference ch03 (PACELC), ch15 (replication)
 
 ### Success Criteria
-- [ ] Figma architecture diagram
-- [ ] Challenge/solution/trade-off table
-- [ ] Reinforces ch09 sharding and replication concepts
-- [ ] ~120 new lines
+- [x] Figma architecture diagram
+- [x] Challenge/solution/trade-off table
+- [x] Reinforces ch09 sharding and replication concepts
+- [x] ~120 new lines (+90 actual)
 
 ---
 
@@ -68,11 +68,11 @@
 3. Cross-reference ch09 (SQL alternative), ch18 (Snowflake IDs), ch20 (chat system design)
 
 ### Success Criteria
-- [ ] Migration timeline diagram
-- [ ] Database comparison table with pain points
-- [ ] Data model description
-- [ ] Reinforces NoSQL evolution concepts
-- [ ] ~120 new lines
+- [x] Migration timeline diagram
+- [x] Database comparison table with pain points
+- [x] Data model description
+- [x] Reinforces NoSQL evolution concepts
+- [x] ~120 new lines (+91 actual)
 
 ---
 

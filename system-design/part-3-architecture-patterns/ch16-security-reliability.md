@@ -416,6 +416,263 @@ graph TD
 
 ---
 
+## OAuth 2.0 Authorization Flows
+
+OAuth 2.0 defines several "grant types" — each optimized for a different client context. The existing section covers the Authorization Code + PKCE flow. This section maps all major flows and when to use each.
+
+### Flow Comparison
+
+| Flow | Best For | Token Location | Security Level | Client Secret Required |
+|---|---|---|---|---|
+| **Authorization Code + PKCE** | Web apps, mobile, SPA | Server-side or httpOnly cookie | Highest | No (PKCE replaces it) |
+| **Authorization Code** (no PKCE) | Traditional server-side web apps | Server-side session | High | Yes |
+| **Client Credentials** | Machine-to-machine, background services | Server memory / secrets manager | High (no user) | Yes |
+| **Device Code** | Smart TVs, CLI tools, limited-input devices | Server-side | Medium | No |
+| **Implicit** (deprecated) | Legacy SPA | URL fragment (insecure) | Low — do not use | No |
+
+### Authorization Code + PKCE Flow (Web / Mobile)
+
+This is the flow shown in the existing section above. PKCE (Proof Key for Code Exchange) replaces the client secret for public clients that cannot store secrets securely (e.g., single-page apps, mobile apps).
+
+**PKCE mechanics:**
+1. Client generates a random `code_verifier` (43–128 chars)
+2. Client computes `code_challenge = BASE64URL(SHA256(code_verifier))`
+3. Authorization request includes `code_challenge` and `code_challenge_method=S256`
+4. Token request includes `code_verifier` — server re-hashes and compares
+
+Even if an attacker intercepts the `authorization_code`, they cannot exchange it without the original `code_verifier`.
+
+### Client Credentials Flow (Machine-to-Machine)
+
+No user is involved. A backend service authenticates directly as itself.
+
+```mermaid
+sequenceDiagram
+    participant S as Service A
+    participant A as Auth Server
+    participant B as Service B
+
+    S->>A: POST /token\nclient_id + client_secret + grant_type=client_credentials
+    A->>S: access_token (scoped to service permissions)
+    S->>B: GET /internal/data\nAuthorization: Bearer access_token
+    B->>B: Verify token signature + scopes
+    B->>S: Response data
+```
+
+**Use case:** Microservice A calling Microservice B, scheduled jobs calling APIs, CI/CD pipelines accessing deployment APIs.
+
+**Security note:** `client_secret` must be stored in a secrets manager (AWS Secrets Manager, HashiCorp Vault) — never in source code or environment variables committed to git.
+
+### Device Code Flow (Input-Constrained Devices)
+
+```mermaid
+sequenceDiagram
+    participant D as Device (TV/CLI)
+    participant A as Auth Server
+    participant U as User (phone/browser)
+
+    D->>A: POST /device_authorization (client_id, scope)
+    A->>D: device_code, user_code, verification_uri
+    D->>U: "Visit example.com/activate and enter code: ABCD-1234"
+    U->>A: Navigate to verification_uri, enter user_code, authenticate
+    D->>A: Poll POST /token (device_code) every 5s
+    A-->>D: pending... pending... pending...
+    A->>D: access_token (once user approves)
+```
+
+**Use case:** Logging into Netflix on a smart TV, GitHub CLI authentication, IoT device provisioning.
+
+---
+
+## JWT Deep-Dive
+
+The existing section covers JWT structure and validation. This section adds claim semantics, session vs token comparison, and security pitfalls.
+
+### Standard Claims Reference
+
+| Claim | Full Name | Purpose | Example Value |
+|---|---|---|---|
+| `iss` | Issuer | Who created the token | `"https://auth.example.com"` |
+| `sub` | Subject | Who the token represents (user ID) | `"user_abc123"` |
+| `aud` | Audience | Which service(s) should accept this token | `"api.example.com"` |
+| `exp` | Expiration | Unix timestamp after which token is invalid | `1700000900` |
+| `iat` | Issued At | Unix timestamp when token was created | `1700000000` |
+| `nbf` | Not Before | Token not valid before this timestamp | `1700000000` |
+| `jti` | JWT ID | Unique token ID — enables revocation tracking | `"abc-def-123"` |
+
+**Custom claims** (application-specific):
+```json
+{
+  "sub": "user_123",
+  "role": "admin",
+  "org_id": "org_456",
+  "permissions": ["read:reports", "write:settings"],
+  "exp": 1700000900
+}
+```
+
+### JWT Algorithm Selection
+
+| Algorithm | Type | Key Type | Use Case |
+|---|---|---|---|
+| `HS256` | Symmetric HMAC | Single shared secret | Internal services (all share same secret) |
+| `RS256` | Asymmetric RSA | Private key signs, public key verifies | Cross-service (distribute public key only) |
+| `ES256` | Asymmetric ECDSA | Private key signs, public key verifies | Same as RS256 but smaller tokens |
+
+**Rule:** Use `RS256` or `ES256` for any token that crosses a trust boundary. `HS256` is fine for internal service-to-service when all parties share the secret.
+
+### Session-Based vs Token-Based Auth
+
+| Property | Session (Cookie) | Token (JWT) |
+|---|---|---|
+| **Server state** | Session stored server-side (DB/Redis) | Stateless — no server state |
+| **Revocation** | Instant — delete session from store | Hard — token valid until expiry |
+| **Scalability** | Session store becomes hot dependency | Scales easily — no shared state |
+| **Token size** | Cookie: ~100 bytes (session ID only) | JWT: ~500–2000 bytes in headers |
+| **Cross-domain** | Cookies limited to same origin / CORS | Bearer token works cross-domain |
+| **Mobile/API clients** | Awkward — cookie handling varies | Natural — Authorization header |
+| **Best for** | Traditional web apps, instant logout critical | APIs, microservices, mobile apps |
+
+### JWT Security Pitfalls
+
+| Pitfall | Risk | Mitigation |
+|---|---|---|
+| **`alg: none` attack** | Attacker removes signature, claims any identity | Always explicitly specify allowed algorithms in validation |
+| **Weak `HS256` secret** | Brute-forceable secret → forge any token | Minimum 256-bit random secret; prefer `RS256` |
+| **No `aud` validation** | Token for Service A accepted by Service B | Always validate `aud` claim matches current service |
+| **Long expiry** | Stolen token usable for hours/days | Access tokens: 5–15 min; use refresh tokens for long sessions |
+| **JWT in localStorage** | Readable by any JavaScript (XSS risk) | Store in `httpOnly` cookie; if localStorage, accept XSS risk explicitly |
+| **No `jti` tracking** | Cannot revoke individual tokens before expiry | Track `jti` in Redis for high-security actions; accept cost |
+
+---
+
+## Rate Limiting Algorithms — Full Comparison
+
+The existing section covers four algorithms. This section adds **Leaky Bucket** and provides deeper implementation guidance.
+
+### Token Bucket (Detailed)
+
+Tokens accumulate up to a `capacity`. Each request consumes one token. Tokens refill at `rate` per second.
+
+```mermaid
+flowchart TD
+    Req(["Request arrives"]) --> Check{"tokens >= 1?"}
+    Check -->|"Yes"| Consume["tokens -= 1\nProcess request"]
+    Check -->|"No"| Reject(["Reject 429\nX-RateLimit-Retry-After: N sec"])
+    Timer(["Background timer\nevery 1/rate seconds"]) -->|"tokens = min(tokens+1, capacity)"| Check
+
+    style Consume fill:#2d5a3d,color:#e2e8f0,stroke:#4ade80
+    style Reject fill:#4a1942,color:#e2e8f0,stroke:#c084fc
+```
+
+**Key properties:**
+- Burst of up to `capacity` requests is immediately allowed
+- Long-term rate enforced by refill speed
+- Implementation: `(last_tokens + (now - last_refill) * rate)` — no timer needed, calculate on each request
+
+### Leaky Bucket
+
+Requests enter a fixed-size queue. A worker processes (drains) the queue at a constant rate. If the queue is full, the request is dropped.
+
+```mermaid
+flowchart TD
+    Req(["Request arrives"]) --> QueueFull{"Queue full?\nsize < capacity"}
+    QueueFull -->|"No, space available"| Enqueue["Add to queue"]
+    QueueFull -->|"Yes, full"| Drop(["Drop request 429"])
+    Worker(["Worker: process 1 req\nevery 1/rate seconds"]) --> Dequeue["Dequeue + process"]
+    Enqueue --> Worker
+
+    style Enqueue fill:#2d5a3d,color:#e2e8f0,stroke:#4ade80
+    style Drop fill:#4a1942,color:#e2e8f0,stroke:#c084fc
+    style Worker fill:#2d4a7a,color:#e2e8f0,stroke:#4a90d9
+```
+
+**Key difference from Token Bucket:** Leaky Bucket produces a smooth, constant output rate regardless of input burst pattern. Token Bucket allows bursts to pass through immediately.
+
+### Fixed Window Counter
+
+```
+Window: [0s—60s] counter=0 → increments to 100 → resets at 60s → [60s—120s] counter=0
+```
+
+**Boundary burst problem:**
+```
+[0:59] 100 requests → allowed (window 1, counter=100)
+[1:00] 100 requests → allowed (window 2 starts, counter=0 → 100)
+Result: 200 requests in 2 seconds despite "100/min" limit
+```
+
+### Sliding Window Log
+
+Stores a timestamp for every request in the current window. On each request:
+1. Remove entries older than `window_size`
+2. Count remaining entries
+3. If count < limit → allow and add new timestamp; else → reject
+
+```
+Redis sorted set: ZADD key timestamp "requestID"
+                  ZREMRANGEBYSCORE key 0 (now - window_ms)
+                  count = ZCARD key
+```
+
+**Exact accuracy** but memory grows with request volume — `O(requests_per_window)` per user.
+
+### Sliding Window Counter (Hybrid)
+
+Estimates the count using weighted average between current and previous window:
+
+```
+estimated = prev_count × (1 − elapsed/window_size) + curr_count
+```
+
+**Example:** Window=60s, prev_count=80, curr_count=10, elapsed=15s into current window:
+```
+estimated = 80 × (1 − 15/60) + 10 = 80 × 0.75 + 10 = 60 + 10 = 70
+```
+
+Memory: O(1) per user — only store two counters per window.
+
+### Algorithm Comparison
+
+| Algorithm | Burst Handling | Memory | Accuracy | Smoothness | Complexity | Best For |
+|---|---|---|---|---|---|---|
+| **Token Bucket** | Allows bursts up to capacity | O(1) | High | Bursty output | Low | APIs allowing short bursts (Stripe, AWS) |
+| **Leaky Bucket** | Absorbs bursts, constant output | O(queue) | High | Smooth output | Low-Medium | Protecting downstream at constant rate |
+| **Fixed Window** | Hard cutoff (boundary burst risk) | O(1) | Low | Not smooth | Lowest | Simple internal quotas |
+| **Sliding Window Log** | Perfectly smooth | O(requests) | Exact | Smooth | Medium | Low-volume, exact enforcement |
+| **Sliding Window Counter** | Smooth, approximate | O(1) | ~99.997% | Smooth | Low | Production APIs (Cloudflare, Kong) |
+
+### Distributed Rate Limiting with Redis
+
+Single-node rate limiting is insufficient for multi-instance services. Use Redis atomic operations:
+
+```
+-- Token Bucket in Redis (Lua script for atomicity)
+local tokens = tonumber(redis.call('GET', key) or capacity)
+local now = tonumber(ARGV[1])
+local last = tonumber(redis.call('GET', key..':ts') or now)
+local refill = math.min(capacity, tokens + (now - last) * rate)
+if refill >= 1 then
+    redis.call('SET', key, refill - 1)
+    redis.call('SET', key..':ts', now)
+    return 1  -- allowed
+else
+    return 0  -- rejected
+end
+```
+
+**Per-node vs centralized trade-off:**
+
+| Approach | Accuracy | Latency | Failure Mode |
+|---|---|---|---|
+| Per-node counter | Allows N×limit burst (N = node count) | Zero (local) | Node failure loses counter |
+| Redis centralized | Accurate | +1–2ms per request | Redis outage = no rate limiting |
+| Redis + local fallback | Approximate (slightly over) | +1–2ms normally, 0ms on Redis failure | Graceful degradation |
+
+> **Cross-references:** Rate limiting at the API gateway layer → [Ch13 — Microservices](/system-design/part-3-architecture-patterns/ch13-microservices). Load balancer traffic shaping → [Ch06 — Load Balancing](/system-design/part-2-building-blocks/ch06-load-balancing).
+
+---
+
 ## Trade-offs & Comparisons
 
 | Approach | Benefit | Cost | When to Choose |
@@ -430,6 +687,115 @@ graph TD
 ---
 
 > **Key Takeaway:** Security and reliability are not features to bolt on — they emerge from deliberate design choices: short-lived tokens, layered input validation, isolated failure domains via bulkheads, and tested recovery procedures. The most dangerous assumption in system design is that your dependencies will stay up.
+
+---
+
+## Case Study: Shopify's Payment Resilience
+
+Shopify processes hundreds of billions of dollars in Gross Merchandise Volume annually. For a merchant, a failed or duplicated payment is existential — it means lost revenue or angry customers demanding refunds. This case study maps the reliability patterns in this chapter to Shopify's actual payment architecture.
+
+### Context and Challenges
+
+| Challenge | Consequence if Ignored | Scale |
+|---|---|---|
+| **Payment gateway failures** | Lost sales during checkout | Shopify integrates 100+ payment providers |
+| **Double-charge prevention** | Duplicate charges, chargebacks, merchant liability | Any retry without idempotency → duplicate charge |
+| **Partial failures** | Payment debited but order not created | Distributed transaction across services |
+| **Reconciliation drift** | Internal ledger disagrees with Stripe/Braintree | Discovered only at end-of-month audit |
+
+### Pattern 1: Idempotency Keys
+
+Every payment request is tagged with a globally unique idempotency key generated by the client before the first attempt. If the network fails mid-request, the client retries with the **same key** — the payment provider de-duplicates based on the key and returns the original result without re-processing the charge.
+
+```mermaid
+sequenceDiagram
+    participant Client as "Checkout Client"
+    participant Shop as "Shopify Payment Service"
+    participant Provider as "Payment Provider (Stripe)"
+    participant DB as "Idempotency Store (Redis)"
+
+    Client->>Shop: POST /payments\nidempotency_key=uuid-abc123\namount=99.99
+    Shop->>DB: Check key uuid-abc123
+    DB-->>Shop: Not seen — proceed
+    Shop->>Provider: Charge card\nIdempotency-Key: uuid-abc123
+    Provider-->>Shop: 200 charge_id=ch_XYZ\nstatus=succeeded
+    Shop->>DB: Store result for uuid-abc123
+    Shop-->>Client: 200 charge_id=ch_XYZ
+
+    Note over Client,Provider: Network failure — client retries
+
+    Client->>Shop: POST /payments\nidempotency_key=uuid-abc123\namount=99.99
+    Shop->>DB: Check key uuid-abc123
+    DB-->>Shop: Already processed — return cached result
+    Shop-->>Client: 200 charge_id=ch_XYZ (same result, no duplicate charge)
+```
+
+**Key design rules for idempotency keys:**
+- Generated client-side (not server-side) so the key survives server crashes
+- Stored with TTL (e.g., 24h) — long enough to cover retries, short enough to reclaim memory
+- Associated with the full response, not just a success flag — lets clients recover partial state
+
+### Pattern 2: Circuit Breakers on Payment Providers
+
+Shopify integrates multiple payment providers (Stripe, Braintree, Adyen, etc.). If one provider degrades, a circuit breaker isolates that provider and routes new requests to alternatives — maintaining checkout availability even when a provider has an incident.
+
+```mermaid
+flowchart TD
+    Checkout["Checkout Request"] --> CB{"Circuit Breaker\nStripe"}
+    CB -->|"Closed: Stripe healthy"| Stripe["Stripe API"]
+    CB -->|"Open: Stripe > 5% errors\nin last 60s"| Fallback["Fallback: Braintree"]
+    Stripe -->|"Error rate spikes"| Monitor["Error Rate Monitor"]
+    Monitor -->|"Threshold exceeded"| OPEN["Open circuit\n30s timeout"]
+    OPEN -->|"Half-open: probe 1 request"| Stripe
+    Stripe -->|"Probe succeeds"| CLOSE["Close circuit\nresume normal routing"]
+    Stripe -->|"Probe fails"| RESET["Reset timer\nstay open another 30s"]
+```
+
+The state machine is identical to the circuit breaker pattern in [Chapter 13](/system-design/part-3-architecture-patterns/ch13-microservices). The Shopify-specific addition: when the circuit opens, the load balancer weight for that provider drops to 0 rather than returning errors to users.
+
+### Pattern 3: Async Payment Processing
+
+Not all payment operations are synchronous. Subscription renewals, delayed captures, and refunds are processed asynchronously through a queue. This isolates the checkout path from batch operations and provides guaranteed delivery even when downstream services are slow.
+
+Architecture (see [Chapter 11 — Message Queues](/system-design/part-2-building-blocks/ch11-message-queues) for queue patterns):
+- Checkout → publishes `payment.capture_requested` event to durable queue
+- Payment worker consumes the event, calls provider, emits `payment.succeeded` or `payment.failed`
+- Order service subscribes to `payment.succeeded` to fulfill the order
+- Dead-letter queue captures failed messages after 3 retries for manual inspection
+
+**Why async for subscriptions specifically:** Shopify processes millions of subscription renewals in a daily batch window. Processing them synchronously would require holding millions of open connections to payment providers. The queue decouples ingestion rate from processing rate, smoothing load across the window.
+
+### Pattern 4: Reconciliation Jobs
+
+Even with idempotency keys and circuit breakers, state mismatches occur: network timeouts after a provider charges but before Shopify receives confirmation, provider-side corrections, partial refunds. Reconciliation jobs run on a schedule (hourly for high-value merchants, daily for standard) to detect and fix mismatches.
+
+```mermaid
+flowchart TD
+    Job["Reconciliation Job\nruns every hour"]
+    Job --> Fetch1["Fetch Shopify internal\ntransaction ledger\nfor time window"]
+    Job --> Fetch2["Fetch provider\nstatement via API\n(Stripe /balance/history)"]
+    Fetch1 --> Compare["Compare: match on\npayment_intent_id + amount"]
+    Fetch2 --> Compare
+    Compare -->|"Matched"| OK["No action"]
+    Compare -->|"Provider charged,\nShopify has no record"| Alert["Alert ops +\ncreate compensating record"]
+    Compare -->|"Shopify has record,\nprovider shows no charge"| Retry["Retry charge or\nmark as failed"]
+    Compare -->|"Amount mismatch"| Dispute["Flag for manual\nreview + chargeback check"]
+```
+
+Reconciliation is the safety net that catches everything the online path missed. See [Chapter 14 — Event-Driven Architecture](/system-design/part-3-architecture-patterns/ch14-event-driven-architecture) for the event sourcing approach that makes reconciliation audits tractable: each state transition is a logged event, so the full history is reconstructable.
+
+### Pattern Comparison
+
+| Pattern | Problem Solved | Implementation | Trade-off |
+|---|---|---|---|
+| **Idempotency keys** | Duplicate charges on retry | Client-generated UUID + Redis lookup | Key storage cost; TTL must outlast retry window |
+| **Circuit breaker** | Gateway outage kills checkout | Per-provider error rate threshold → open/half-open/close | False opens under transient spikes; needs careful tuning |
+| **Async queue** | Checkout blocked by slow provider | Durable queue + worker pool | Eventual consistency; UX must handle "payment processing" state |
+| **Reconciliation** | Silent mismatches between systems | Periodic batch compare of internal vs external ledger | Latency: mismatches detected hours later, not instantly |
+
+### Key Takeaway
+
+Financial systems require **defense-in-depth**: no single pattern prevents all failure modes. Idempotency prevents duplicates but not gateway outages. Circuit breakers prevent cascading failures but not data mismatches. Async queues decouple services but introduce eventual consistency. Reconciliation catches everything the online path missed but only after the fact. The complete system requires all four layers.
 
 ---
 

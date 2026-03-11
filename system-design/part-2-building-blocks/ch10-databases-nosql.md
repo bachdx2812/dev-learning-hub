@@ -429,6 +429,98 @@ Netflix uses Apache Cassandra for their viewing history and recommendations pipe
 
 ---
 
+## Case Study: Discord's Message Storage Migration
+
+Discord is a real-time chat platform that grew from a gaming community tool to over 500 million registered users sending billions of messages per day. Their message storage history is one of the most cited real-world NoSQL migration stories.
+
+### Migration Timeline
+
+```mermaid
+flowchart LR
+    M1["MongoDB\n2015–2017\nLaunched with it"]
+    M2["Apache Cassandra\n2017–2022\nFirst NoSQL migration"]
+    M3["ScyllaDB\n2022–present\nDrop-in C++ replacement"]
+
+    M1 -->|"Data size exceeded\nMongoDB comfort zone"| M2
+    M2 -->|"JVM GC pauses\ncaused latency spikes"| M3
+```
+
+### Phase 1: MongoDB (2015–2017)
+
+Discord launched on MongoDB, which was a reasonable default for a startup: flexible schema for evolving message payloads, fast development velocity, and familiar to the team.
+
+**Why it stopped working:**
+- By late 2015, the primary MongoDB cluster was storing ~100 million messages
+- MongoDB B-Tree indexes for the messages collection no longer fit in RAM
+- Random I/O on cold data caused disk seeks — read latency climbed as data grew
+- MongoDB's data-size-per-node scaling model did not match Discord's write volume
+
+### Phase 2: Apache Cassandra (2017–2022)
+
+Cassandra fit Discord's access pattern: messages are written once, read in time order by channel. Its LSM-Tree storage engine is optimized for sequential writes; its partition model maps naturally to `(channel_id, message_id)`.
+
+**Why they chose Cassandra:**
+- Masterless ring topology — no single-writer bottleneck
+- Write throughput scales linearly with nodes
+- Time-ordered clustering key (`message_id` as Snowflake ID encodes timestamp) enables fast range reads
+
+**Why it eventually caused problems:**
+- Cassandra runs on the JVM. At Discord's write volume, the JVM garbage collector caused **GC pause latency spikes** — brief but unpredictable freezes during compaction that showed up as tail latency in message delivery
+- Compaction pressure was high: Discord's hotspot channels (large gaming servers) created dense partitions that triggered frequent major compactions
+- Operational burden: JVM tuning (`-XX:+UseG1GC`, heap sizing) required constant adjustment
+
+### Phase 3: ScyllaDB (2022–present)
+
+ScyllaDB is a **Cassandra-compatible** database rewritten in C++ (not Java). It exposes the exact same CQL query language and data model, so Discord could migrate without changing application code.
+
+**Why ScyllaDB solved the problems:**
+- No JVM, no garbage collector — C++ with per-core shard architecture eliminates GC pauses entirely
+- Better tail latency consistency (p99 latency dropped significantly)
+- Higher throughput per node → fewer nodes needed for the same load
+
+### Database Comparison Table
+
+| Database | Era | Why Chosen | Core Pain Point | When Migrated Away |
+|---|---|---|---|---|
+| **MongoDB** | 2015–2017 | Flexible schema, fast prototyping, team familiarity | Random I/O as index outgrew RAM; poor write scaling | 2017 — data volume exceeded sweet spot |
+| **Apache Cassandra** | 2017–2022 | Masterless writes, LSM-Tree efficiency, linear scale | JVM GC pause latency spikes; compaction pressure on hotspot partitions | 2022 — tail latency unacceptable at scale |
+| **ScyllaDB** | 2022–present | Cassandra-compatible CQL; C++ (no GC); per-core sharding | Still evaluating operational maturity | Still in use |
+
+### Data Model
+
+The core insight: Discord's query pattern is **"give me the last N messages in channel X"** — a time-ordered range read within a single channel partition.
+
+```sql
+-- ScyllaDB / Cassandra CQL
+CREATE TABLE messages (
+    channel_id   BIGINT,       -- partition key: all messages for a channel are co-located
+    message_id   BIGINT,       -- clustering key: Snowflake ID encodes creation timestamp
+    author_id    BIGINT,
+    content      TEXT,
+    attachments  LIST<TEXT>,
+    PRIMARY KEY (channel_id, message_id)
+) WITH CLUSTERING ORDER BY (message_id DESC);
+```
+
+**Why Snowflake IDs as clustering key:**
+- Snowflake IDs are time-sortable 64-bit integers (timestamp in high bits)
+- Sorting by `message_id DESC` gives chronological ordering for free
+- Cursor-based pagination: `WHERE channel_id = ? AND message_id < :last_seen_id LIMIT 50`
+- No `ALLOW FILTERING` needed — the query is a partition key lookup + clustering range scan
+
+See [Ch18 — Unique ID Generation](/system-design/part-4-case-studies/ch18-url-shortener-pastebin) for Snowflake ID internals.
+
+### Key Takeaways
+
+1. **Database choice is not permanent.** What works at 10M users (MongoDB) fails at 200M. Architect for migration, not just for today's scale.
+2. **Match storage engine to access pattern.** Discord's append-heavy, time-ordered reads are exactly what LSM-Tree (Cassandra/ScyllaDB) is optimized for. B-Tree (MongoDB) was wrong shape for the workload.
+3. **Runtime matters, not just the data model.** Cassandra's CQL model was correct; its JVM runtime caused tail latency. ScyllaDB kept the model and replaced the runtime.
+4. **Partition key = unit of co-location.** Partitioning messages by `channel_id` ensures one node owns all messages for a channel — single-node reads, no scatter-gather.
+
+> **Cross-references:** Compare with [Ch09 — SQL](/system-design/part-2-building-blocks/ch09-databases-sql) for why Discord avoided relational DB at this write volume. Snowflake ID generation is covered in [Ch18](/system-design/part-4-case-studies/ch18-url-shortener-pastebin). The full chat system design is in [Ch20](/system-design/part-4-case-studies/ch20-chat-messaging-system).
+
+---
+
 ## Practice Questions
 
 1. **Data model design:** Design the Cassandra schema for a ride-sharing app's trip history. What is your partition key and clustering key? What queries does this enable and what does it prevent?
