@@ -425,23 +425,23 @@ sequenceDiagram
 
 ```mermaid
 graph TB
-    subgraph Origin Region us-east-1
+    subgraph "Origin Region us-east-1"
         S3["S3\nTranscoded Video Store"]
         Shield["Origin Shield\n(CloudFront cache tier)"]
     end
 
-    subgraph CDN Edge PoP — North America
+    subgraph "CDN Edge PoP - North America"
         NA1["Edge: New York"]
         NA2["Edge: Los Angeles"]
         NA3["Edge: Chicago"]
     end
 
-    subgraph CDN Edge PoP — Europe
+    subgraph "CDN Edge PoP - Europe"
         EU1["Edge: London"]
         EU2["Edge: Frankfurt"]
     end
 
-    subgraph CDN Edge PoP — Asia
+    subgraph "CDN Edge PoP - Asia"
         AS1["Edge: Tokyo"]
         AS2["Edge: Singapore"]
     end

@@ -11,7 +11,7 @@ hero:
       link: /system-design/
     - theme: alt
       text: Jump to Chapter 1
-      link: /system-design/part-1-fundamentals/ch01-scale-from-zero-to-millions
+      link: /system-design/part-1-fundamentals/ch01-introduction-to-system-design
 
 features:
   - icon: 🏗️

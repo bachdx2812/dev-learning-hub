@@ -107,7 +107,7 @@
 /* --------------------------------------------------------------------------
    Typography — JetBrains Mono Everywhere
    -------------------------------------------------------------------------- */
-* {
+*:not(.mermaid *) {
   font-family: 'JetBrains Mono', 'Cascadia Code', 'Fira Code', monospace !important;
 }
 
@@ -484,10 +484,26 @@ a:hover {
   margin: 1.5em 0 !important;
   display: flex !important;
   justify-content: center !important;
+  overflow-x: auto !important;
 }
 
 .mermaid svg {
   font-family: 'JetBrains Mono', monospace !important;
+  max-width: 100%;
+  height: auto;
+}
+
+/* Ensure Mermaid node text doesn't get clipped */
+.mermaid .node rect,
+.mermaid .node polygon,
+.mermaid .node circle {
+  overflow: visible !important;
+}
+
+.mermaid .nodeLabel {
+  font-family: 'JetBrains Mono', monospace !important;
+  white-space: pre-wrap !important;
+  overflow-wrap: break-word !important;
 }
 
 /* --------------------------------------------------------------------------

@@ -65,10 +65,10 @@ DNS resolution is a hierarchical, distributed lookup process. When a browser res
 sequenceDiagram
     participant B as Browser
     participant OS as OS Resolver
-    participant R as Recursive Resolver<br/>(ISP / 8.8.8.8)
+    participant R as Recursive Resolver (ISP / 8.8.8.8)
     participant ROOT as Root Name Server
-    participant TLD as TLD Name Server<br/>(.com)
-    participant AUTH as Authoritative Server<br/>(example.com)
+    participant TLD as TLD Name Server (.com)
+    participant AUTH as Authoritative Server (example.com)
 
     B->>OS: Resolve www.example.com
     OS->>OS: Check local hosts file and OS cache

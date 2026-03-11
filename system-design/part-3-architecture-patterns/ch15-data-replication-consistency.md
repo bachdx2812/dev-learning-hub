@@ -252,19 +252,19 @@ graph TD
     subgraph "Write: W=2, N=3"
         Client -->|Write v2| Node1W[(Node 1 ✓)]
         Client -->|Write v2| Node2W[(Node 2 ✓)]
-        Client -->|Write v2| Node3W[(Node 3 — slow)]
+        Client -->|Write v2| Node3W[(Node 3 - slow)]
         Node1W -->|Ack| Client
         Node2W -->|Ack| Client
-        Note1[W=2 reached → write confirmed]
+        Note1["W=2 reached - write confirmed"]
     end
 
     subgraph "Read: R=2, N=3"
-        Client2([Client]) -->|Read| Node1R[(Node 1: v2)]
-        Client2 -->|Read| Node2R[(Node 2: v2)]
-        Client2 -->|Read| Node3R[(Node 3: v1 — stale)]
+        Client2([Client]) -->|Read| Node1R["(Node 1: v2)"]
+        Client2 -->|Read| Node2R["(Node 2: v2)"]
+        Client2 -->|Read| Node3R["(Node 3: v1 - stale)"]
         Node1R -->|v2| Client2
         Node2R -->|v2| Client2
-        Note2[R=2 reached → return highest version v2]
+        Note2["R=2 reached - return highest version v2"]
     end
 
     style Node1W fill:#27ae60,color:#fff

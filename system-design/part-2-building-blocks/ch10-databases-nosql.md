@@ -344,21 +344,21 @@ This query would require multiple self-joins and subqueries in SQL.
 flowchart TD
     Start([New data storage requirement]) --> Q1{Need multi-table\nACID transactions?}
 
-    Q1 -->|Yes| SQL[Use SQL\nPostgreSQL / MySQL]
+    Q1 -->|Yes| SQL["Use SQL\nPostgreSQL / MySQL"]
     Q1 -->|No| Q2{Schema known\nand stable?}
 
     Q2 -->|Yes, rigid schema| Q3{Scale type?}
-    Q2 -->|No, flexible schema| DOC[Use Document Store\nMongoDB / CouchDB]
+    Q2 -->|No, flexible schema| DOC["Use Document Store\nMongoDB / CouchDB"]
 
-    Q3 -->|Massive write throughput\nor time-series| WC[Use Wide-Column\nCassandra / HBase]
+    Q3 -->|Massive write throughput\nor time-series| WC["Use Wide-Column\nCassandra / HBase"]
     Q3 -->|Moderate scale| Q4{Query pattern?}
 
-    Q4 -->|Simple key lookups\nor caching| KV[Use Key-Value\nRedis / DynamoDB]
-    Q4 -->|Complex relationships\ntraversal queries| GR[Use Graph DB\nNeo4j / Neptune]
+    Q4 -->|Simple key lookups\nor caching| KV["Use Key-Value\nRedis / DynamoDB"]
+    Q4 -->|Complex relationships\ntraversal queries| GR["Use Graph DB\nNeo4j / Neptune"]
     Q4 -->|Ad-hoc queries + JOINs| SQL
 
     DOC -.->|If also need ACID| SQL
-    WC -.->|If also need strong consistency| HB[Consider HBase\nor SQL + partitioning]
+    WC -.->|If also need strong consistency| HB["Consider HBase\nor SQL + partitioning"]
 ```
 
 ### Quick Decision Rules

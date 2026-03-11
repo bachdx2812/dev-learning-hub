@@ -270,11 +270,11 @@ sequenceDiagram
     participant Svc as Service Implementation
 
     App->>CS: getUserById(42)
-    Note over CS: Serialize arguments<br/>(marshal to bytes)
+    Note over CS: Serialize arguments (marshal to bytes)
     CS->>Net: Binary/JSON payload over TCP/HTTP
 
     Net->>SS: Deliver payload
-    Note over SS: Deserialize arguments<br/>(unmarshal from bytes)
+    Note over SS: Deserialize arguments (unmarshal from bytes)
     SS->>Svc: getUserById(42)
     Svc-->>SS: User{id:42, name:"Alice"}
 

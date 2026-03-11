@@ -309,24 +309,24 @@ When Service A calls Service B synchronously, a slow or failing Service B will c
 stateDiagram-v2
     [*] --> Closed
 
-    Closed --> Open : Failure threshold exceeded\n(e.g. 50% errors in 10s window)
-    Open --> HalfOpen : Timeout elapsed\n(e.g. 30 seconds)
+    Closed --> Open : Failure threshold exceeded (50% errors in 10s)
+    Open --> HalfOpen : Timeout elapsed (30 seconds)
     HalfOpen --> Closed : Probe request succeeds
     HalfOpen --> Open : Probe request fails
 
     state Closed {
         [*] --> Monitoring
-        Monitoring --> Monitoring : Requests pass through\nFailure count tracked
+        Monitoring --> Monitoring : Requests pass through, failure count tracked
     }
 
     state Open {
         [*] --> Rejecting
-        Rejecting --> Rejecting : All requests fail fast\nFallback response returned
+        Rejecting --> Rejecting : All requests fail fast, fallback returned
     }
 
     state HalfOpen {
         [*] --> Probing
-        Probing --> Probing : Limited probe requests\nsent to downstream
+        Probing --> Probing : Limited probe requests sent to downstream
     }
 ```
 

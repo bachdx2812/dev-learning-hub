@@ -140,7 +140,7 @@ sequenceDiagram
     OS->>GW: Order response
     GW->>U: 200 OK (total: 120ms)
 
-    Note over GW,DB: Jaeger/Zipkin reconstructs the span tree<br/>from Trace-ID + parent Span-IDs
+    Note over GW,DB: Jaeger/Zipkin reconstructs the span tree from Trace-ID + parent Span-IDs
 ```
 
 ### Span Tree Visualization
@@ -224,9 +224,9 @@ Google's Site Reliability Engineering introduced the SLI → SLO → SLA hierarc
 
 ```mermaid
 graph TD
-    SLI["SLI — Service Level Indicator\nActual measurement\ne.g., fraction of requests < 200ms"]
-    SLO["SLO — Service Level Objective\nInternal reliability target\ne.g., 99.9% of requests < 200ms"]
-    SLA["SLA — Service Level Agreement\nExternal contract with consequences\ne.g., 99.5% uptime or credit issued"]
+    SLI["SLI - Service Level Indicator\nActual measurement\ne.g., fraction of requests under 200ms"]
+    SLO["SLO - Service Level Objective\nInternal reliability target\ne.g., 99.9% of requests under 200ms"]
+    SLA["SLA - Service Level Agreement\nExternal contract with consequences\ne.g., 99.5% uptime or credit issued"]
 
     SLI -->|Measured against| SLO
     SLO -->|Weaker version of, with penalties| SLA

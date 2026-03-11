@@ -189,8 +189,8 @@ graph LR
         M2[(Master 2)]
     end
 
-    App1[App: Region A] -->|reads + writes| M1
-    App2[App: Region B] -->|reads + writes| M2
+    App1["App: Region A"] -->|reads + writes| M1
+    App2["App: Region B"] -->|reads + writes| M2
     M1 <-->|Bidirectional replication| M2
     M1 -.->|Conflict detected| CR[Conflict Resolution]
     M2 -.->|Conflict detected| CR
@@ -233,13 +233,13 @@ graph TD
 ```mermaid
 flowchart TD
     Q{What is your sharding key?}
-    Q -->|Sequential, skewable| RB[Range-Based\ne.g. user_id 0–999k → Shard 1]
-    Q -->|High cardinality, uniform| HB[Hash-Based\ne.g. hash(user_id) mod N → Shard]
-    Q -->|Complex routing rules| DB[Directory-Based\nLookup service maps key → shard]
+    Q -->|Sequential, skewable| RB["Range-Based\ne.g. user_id 0-999k to Shard 1"]
+    Q -->|High cardinality, uniform| HB["Hash-Based\ne.g. hash(user_id) mod N to Shard"]
+    Q -->|Complex routing rules| DB["Directory-Based\nLookup service maps key to shard"]
 
-    RB --> RP[Pros: range scans fast\nCons: hotspots possible]
-    HB --> HP[Pros: uniform distribution\nCons: range queries span all shards]
-    DB --> DP[Pros: flexible, arbitrary mapping\nCons: lookup service is SPOF]
+    RB --> RP["Pros: range scans fast\nCons: hotspots possible"]
+    HB --> HP["Pros: uniform distribution\nCons: range queries span all shards"]
+    DB --> DP["Pros: flexible, arbitrary mapping\nCons: lookup service is SPOF"]
 ```
 
 | Strategy | How It Works | Pros | Cons |

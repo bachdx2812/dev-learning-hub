@@ -321,14 +321,14 @@ flowchart TD
     LB[Load Balancer / DNS] --> Active
 
     subgraph normal["Normal Operation"]
-        Active[Active Server\n✅ Handling traffic]
-        Passive[Passive Server\n⏸ Standby]
+        Active["Active Server\n✅ Handling traffic"]
+        Passive["Passive Server\n⏸ Standby"]
         Active -->|Heartbeat + Data Sync| Passive
     end
 
     subgraph failover["After Failure"]
-        ActiveFail[Active Server\n💀 Failed]
-        PassiveNew[Former Passive\n✅ Now Active]
+        ActiveFail["Active Server\n💀 Failed"]
+        PassiveNew["Former Passive\n✅ Now Active"]
         ActiveFail -.->|Failover triggered| PassiveNew
     end
 
@@ -352,14 +352,14 @@ No downtime — the surviving node simply handles more traffic.
 
 ```mermaid
 flowchart TD
-    LB[Load Balancer] -->|50% traffic| Server1[Server 1\n✅ Active]
-    LB -->|50% traffic| Server2[Server 2\n✅ Active]
+    LB[Load Balancer] -->|50% traffic| Server1["Server 1\n✅ Active"]
+    LB -->|50% traffic| Server2["Server 2\n✅ Active"]
 
     Server1 <-->|State sync / shared DB| Server2
 
     subgraph failure["After Server 1 Fails"]
-        LBf[Load Balancer] -->|100% traffic| Server2f[Server 2\n✅ Absorbs all load]
-        Server1f[Server 1\n💀 Failed]
+        LBf[Load Balancer] -->|100% traffic| Server2f["Server 2\n✅ Absorbs all load"]
+        Server1f["Server 1\n💀 Failed"]
     end
 
     style Server1 fill:#2d5a3d,color:#e2e8f0,stroke:#4ade80

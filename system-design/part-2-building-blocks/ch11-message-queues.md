@@ -177,15 +177,15 @@ graph TD
     ZK[ZooKeeper / KRaft Controller]
 
     subgraph Broker1["Broker 1"]
-      T1P0[Topic A — Partition 0 LEADER]
-      T1P1[Topic A — Partition 1 FOLLOWER]
-      T2P0[Topic B — Partition 0 FOLLOWER]
+      T1P0["Topic A - Partition 0 LEADER"]
+      T1P1["Topic A - Partition 1 FOLLOWER"]
+      T2P0["Topic B - Partition 0 FOLLOWER"]
     end
 
     subgraph Broker2["Broker 2"]
-      T1P0R[Topic A — Partition 0 FOLLOWER]
-      T1P1L[Topic A — Partition 1 LEADER]
-      T2P0L[Topic B — Partition 0 LEADER]
+      T1P0R["Topic A - Partition 0 FOLLOWER"]
+      T1P1L["Topic A - Partition 1 LEADER"]
+      T2P0L["Topic B - Partition 0 LEADER"]
     end
   end
 
