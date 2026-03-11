@@ -1,0 +1,20 @@
+{
+  "name": "the-engineers-handbook",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vitepress dev",
+    "build": "vitepress build",
+    "preview": "vitepress preview",
+    "generate-images": "npx tsx scripts/generate-chapter-images.ts"
+  },
+  "devDependencies": {
+    "vitepress": "latest",
+    "vitepress-plugin-mermaid": "latest",
+    "mermaid": "latest"
+  },
+  "dependencies": {
+    "@google/genai": "latest"
+  }
+}
