@@ -516,3 +516,12 @@ The most important insight from this diagram: **the first two steps are almost e
    <summary>Hint</summary>
    Break the day into seconds, apply the peak multiplier, add the headroom factor, then reason about geographic distribution and redundancy for fault tolerance.
    </details>
+
+---
+
+## References & Further Reading
+
+- "Designing Data-Intensive Applications" — Martin Kleppmann
+- "System Design Interview" — Alex Xu (Vol 1 & 2)
+- "The System Design Primer" — Donne Martin (GitHub)
+- Google SRE Book — https://sre.google/sre-book/table-of-contents/

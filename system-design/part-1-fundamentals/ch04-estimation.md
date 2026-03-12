@@ -664,3 +664,12 @@ Attempt each estimate before reading the hint. Write your assumptions explicitly
    <summary>Hint</summary>
    Start with raw page size (~10 KB compressed), multiply by index amplification factor and replica count; the answer should land in the tens-of-exabytes range and can be cross-checked against Google's reported data center capacity.
    </details>
+
+---
+
+## References & Further Reading
+
+- "System Design Interview" — Alex Xu, Chapter 2 (Back-of-the-Envelope Estimation)
+- Jeff Dean's "Numbers Everyone Should Know"
+- "The Art of Capacity Planning" — John Allspaw
+- Latency Numbers Every Programmer Should Know — https://colin-scott.github.io/personal_website/research/interactive_latency.html

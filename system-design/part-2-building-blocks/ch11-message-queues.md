@@ -483,6 +483,92 @@ For async cache invalidation patterns (where message queues propagate cache evic
 
 ---
 
+## Designing Idempotent Consumers
+
+### Why Idempotency Matters
+
+- At-least-once delivery means messages CAN be delivered multiple times
+- Without idempotent consumers, duplicate processing causes bugs (double charges, duplicate records)
+
+### Idempotency Strategies
+
+| Strategy | How It Works | Best For |
+|----------|-------------|----------|
+| **Idempotency key** | Store processed message IDs in a set; skip duplicates | Payment processing |
+| **Natural idempotency** | Operations that produce same result regardless of repetition (SET vs INCREMENT) | State updates |
+| **Optimistic locking** | Check version/timestamp before applying changes | Concurrent updates |
+| **Deduplication window** | Track message IDs within a time window (e.g., 24h) | High-throughput streams |
+
+### Code Example: Idempotent Kafka Consumer (Go)
+
+```go
+func processMessage(ctx context.Context, db *sql.DB, msg kafka.Message) error {
+    msgID := string(msg.Key)
+
+    // Check if already processed (idempotency key)
+    var exists bool
+    db.QueryRowContext(ctx,
+        "SELECT EXISTS(SELECT 1 FROM processed_messages WHERE message_id = $1)",
+        msgID).Scan(&exists)
+    if exists {
+        return nil // Skip duplicate
+    }
+
+    // Process within transaction
+    tx, _ := db.BeginTx(ctx, nil)
+    defer tx.Rollback()
+
+    // Business logic here
+    if err := handleOrder(tx, msg.Value); err != nil {
+        return err
+    }
+
+    // Mark as processed
+    tx.Exec("INSERT INTO processed_messages (message_id, processed_at) VALUES ($1, NOW())", msgID)
+    return tx.Commit()
+}
+```
+
+---
+
+## Schema Evolution in Event-Driven Systems
+
+### The Problem
+
+- Producers and consumers evolve independently
+- Changing event schemas can break downstream consumers
+- Need backward AND forward compatibility
+
+### Schema Compatibility Types
+
+| Compatibility | Rule | Example |
+|--------------|------|---------|
+| **Backward** | New schema can read old data | Adding optional field |
+| **Forward** | Old schema can read new data | Removing optional field |
+| **Full** | Both backward and forward | Only add/remove optional fields |
+| **None** | No guarantees | Changing field type |
+
+### Schema Registry Pattern
+
+```mermaid
+%%{init: {'theme': 'dark'}}%%
+graph LR
+  P["Producer"] -->|"validate schema"| SR["Schema Registry"]
+  P -->|"publish event"| K["Kafka"]
+  K -->|"consume event"| C["Consumer"]
+  C -->|"deserialize schema"| SR
+```
+
+### Best Practices
+
+- Use Avro or Protobuf (not JSON) for schema enforcement
+- Deploy schema registry (Confluent, Apicurio)
+- Set compatibility mode to BACKWARD or FULL
+- Never remove required fields or change field types
+- Use schema evolution as a deployment gate
+
+---
+
 ## Related Chapters
 
 | Chapter | Relevance |
@@ -535,3 +621,13 @@ For async cache invalidation patterns (where message queues propagate cache evic
    <summary>Hint</summary>
    Fan-out decouples consumers so a slow email service doesn't affect inventory updates; fan-in centralizes logic but creates a single point of failure — fan-out is the right default when consumers have different SLAs or scaling needs.
    </details>
+
+---
+
+## References & Further Reading
+
+- **"Designing Data-Intensive Applications"** — Martin Kleppmann, Chapter 4 (Encoding and Evolution)
+- **Kafka documentation** — https://kafka.apache.org/documentation/
+- **"The Log: What every software engineer should know"** — Jay Kreps
+- **Confluent Schema Registry documentation** — https://docs.confluent.io/platform/current/schema-registry/index.html
+- **"Building Event-Driven Microservices"** — Adam Bellemare

@@ -570,6 +570,72 @@ Facebook's 2013 paper *"Scaling Memcache at Facebook"* (Nishtala et al.) describ
 
 ---
 
+## Code Examples
+
+The examples below use Go and the `go-redis` client. They illustrate the three most common patterns in production systems.
+
+### Cache-Aside Pattern with Redis (Go)
+
+Cache-aside is the most widely used pattern. The application owns all cache interactions — read from cache first, fall back to the database on a miss, then populate the cache before returning.
+
+```go
+// Cache-aside (lazy loading) pattern
+func GetUser(ctx context.Context, rdb *redis.Client, db *sql.DB, userID string) (*User, error) {
+    // 1. Try cache first
+    cached, err := rdb.Get(ctx, "user:"+userID).Result()
+    if err == nil {
+        var user User
+        json.Unmarshal([]byte(cached), &user)
+        return &user, nil
+    }
+
+    // 2. Cache miss — read from DB
+    user, err := queryUserFromDB(db, userID)
+    if err != nil {
+        return nil, err
+    }
+
+    // 3. Populate cache with TTL
+    data, _ := json.Marshal(user)
+    rdb.Set(ctx, "user:"+userID, data, 15*time.Minute)
+
+    return user, nil
+}
+```
+
+### Cache Invalidation on Write
+
+When a record is updated, delete the stale cache entry rather than updating it. Writing the new value directly risks a race condition between concurrent writers.
+
+```go
+func UpdateUser(ctx context.Context, rdb *redis.Client, db *sql.DB, user *User) error {
+    // 1. Update database first
+    if err := updateUserInDB(db, user); err != nil {
+        return err
+    }
+    // 2. Invalidate cache (delete, don't update)
+    rdb.Del(ctx, "user:"+user.ID)
+    return nil
+}
+```
+
+### Write-Through Pattern
+
+Write-through keeps the cache and database in sync on every write. Reads always hit a warm cache; the trade-off is higher write latency (cache + DB in sequence).
+
+```go
+func SetUserWriteThrough(ctx context.Context, rdb *redis.Client, db *sql.DB, user *User) error {
+    // Write to both DB and cache atomically
+    if err := updateUserInDB(db, user); err != nil {
+        return err
+    }
+    data, _ := json.Marshal(user)
+    return rdb.Set(ctx, "user:"+user.ID, data, 30*time.Minute).Err()
+}
+```
+
+---
+
 ## Related Chapters
 
 | Chapter | Relevance |
@@ -623,3 +689,13 @@ Facebook's 2013 paper *"Scaling Memcache at Facebook"* (Nishtala et al.) describ
    <summary>Hint</summary>
    A sliding window log uses a sorted set (`ZADD` + `ZREMRANGEBYSCORE` + `ZCARD`) in a `MULTI/EXEC` pipeline; a fixed window uses `INCR` with `EXPIRE` — compare their accuracy at window boundaries and memory usage.
    </details>
+
+---
+
+## References & Further Reading
+
+- *Designing Data-Intensive Applications* by Martin Kleppmann — Chapter 3 (Storage and Retrieval)
+- Redis documentation: https://redis.io/docs/
+- "Caching at Scale" — Meta Engineering Blog
+- "How Facebook Serves Billions of Requests with Memcached" — Nishtala et al.
+- "Scaling Memcache at Facebook" — USENIX NSDI 2013

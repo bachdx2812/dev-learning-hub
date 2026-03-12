@@ -579,3 +579,13 @@ See [Ch18 — Unique ID Generation](/system-design/part-4-case-studies/ch18-url-
 
 *Next: [Chapter 11 — Message Queues →](/system-design/part-2-building-blocks/ch11-message-queues)*
 *Previous: [Chapter 09 — Databases: SQL ←](/system-design/part-2-building-blocks/ch09-databases-sql)*
+
+---
+
+## References & Further Reading
+
+- "Designing Data-Intensive Applications" — Chapters 2, 5 (Data Models, Replication)
+- MongoDB documentation — https://www.mongodb.com/docs/
+- Apache Cassandra Architecture Guide
+- Amazon DynamoDB Developer Guide
+- "Dynamo: Amazon's Highly Available Key-Value Store" — DeCandia et al.

@@ -774,6 +774,169 @@ flowchart TD
 
 ---
 
+## API Design Best Practices
+
+### REST API Design
+
+#### Resource Naming
+
+- Use nouns, not verbs: `/users/123` not `/getUser/123`
+- Use plural nouns for collections: `/users` not `/user`
+- Nest for relationships: `/users/123/orders`
+- Avoid deep nesting beyond 2–3 levels
+
+#### HTTP Methods & Status Codes
+
+| Method | Action | Idempotent | Safe | Success Code |
+|--------|--------|-----------|------|-------------|
+| GET | Read | Yes | Yes | 200 |
+| POST | Create | No | No | 201 |
+| PUT | Replace | Yes | No | 200 |
+| PATCH | Partial update | No | No | 200 |
+| DELETE | Remove | Yes | No | 204 |
+
+**Idempotent** means calling the operation N times produces the same server state as calling it once. **Safe** means the operation has no side effects.
+
+---
+
+### Idempotency in APIs
+
+Network failures are unavoidable. When a client retries a failed request, the server must be able to detect duplicates and return the original result instead of executing the operation twice — critical for payment charges, order creation, and any non-reversible action.
+
+#### Idempotency Keys
+
+- Client generates a unique key per logical operation (typically a UUID)
+- Client sends the key in the request header: `Idempotency-Key: <uuid>`
+- Server stores the key alongside the result for a deduplication window (typically 24 hours)
+- On retry with the same key, the server returns the cached response without re-executing
+
+```mermaid
+%%{init: {"theme": "dark"}}%%
+sequenceDiagram
+    participant C as Client
+    participant S as Server
+    participant DB as Database
+    participant PP as "Payment Provider"
+
+    Note over C,PP: First attempt
+    C->>S: POST /payments (Idempotency-Key: "abc-123")
+    S->>DB: Check idempotency key "abc-123"
+    DB-->>S: Not found
+    S->>PP: Charge $99.00
+    PP-->>S: Charge succeeded
+    S->>DB: Store key "abc-123" + result 201
+    S-->>C: 201 Created
+
+    Note over C,PP: Network failure — client retries
+    C->>S: POST /payments (Idempotency-Key: "abc-123")
+    S->>DB: Check idempotency key "abc-123"
+    DB-->>S: Found — return cached result
+    S-->>C: 201 Created (cached — no double charge)
+```
+
+Without idempotency keys, a network timeout between the payment provider's success and the server's response to the client would cause a double charge on retry.
+
+**Real-world:** Stripe uses idempotency keys on all payment mutations. The key must be unique per operation but stable across retries of the same operation.
+
+---
+
+### Pagination Strategies
+
+Large collections must be paginated — returning all records in one response creates unbounded response sizes and slow queries.
+
+| Strategy | Pros | Cons | Best For |
+|----------|------|------|----------|
+| Offset / Limit | Simple, supports random access | Slow on large offsets (`OFFSET 100000` scans 100k rows), inconsistent on concurrent inserts | Small datasets, admin panels |
+| Cursor-based | Fast, stable results during concurrent writes | No random access, cursor must be stored by client | Infinite scroll, social feeds |
+| Keyset | Fast, consistent, uses index directly | Cannot skip pages arbitrarily | Time-ordered data, append-heavy tables |
+
+**Offset example:** `GET /users?offset=200&limit=50`
+
+**Cursor example:** `GET /users?after=dXNlcjoxMjM&limit=50` — the `after` value encodes the last seen ID (often base64-encoded) and is returned in the response alongside a `next_cursor` field.
+
+**Keyset example:** `GET /events?after_id=9823&limit=50` — the query is `WHERE id > 9823 ORDER BY id LIMIT 50`, which uses the primary key index directly with no full table scan.
+
+---
+
+### API Versioning
+
+As APIs evolve, breaking changes are unavoidable. Versioning strategies determine how clients and servers negotiate which version to use.
+
+| Strategy | Example | Pros | Cons |
+|----------|---------|------|------|
+| URI path | `/v1/users` | Explicit, cacheable, easy to test in browser | "URL pollution," old paths must be maintained indefinitely |
+| Accept header | `Accept: application/vnd.api.v1+json` | Clean URLs | Hidden from logs/proxies, harder to test manually |
+| Query parameter | `/users?version=1` | Easy to use | Messy, not semantically correct |
+
+**Recommendation:** URI path versioning (`/v1/`, `/v2/`) is the most pragmatic choice for public APIs — it is explicit, cacheable, and trivially testable. Header versioning is preferred in strict REST purist circles but creates operational friction.
+
+**Additive changes** (new optional fields, new endpoints) never require a version bump. Only breaking changes (removing fields, changing types, altering semantics) warrant a new version.
+
+---
+
+### Error Response Design
+
+Consistent, structured error responses let clients handle failures programmatically rather than parsing human-readable strings.
+
+```json
+{
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Invalid email format",
+    "details": [
+      { "field": "email", "reason": "must be a valid email address" }
+    ],
+    "request_id": "req_abc123"
+  }
+}
+```
+
+**Key fields:**
+
+- `code` — machine-readable error identifier, stable across versions
+- `message` — human-readable description, may change
+- `details` — structured list for field-level validation errors (reduces client parsing work)
+- `request_id` — correlates the error to server-side logs for debugging
+
+**Anti-pattern:** Always returning `200 OK` with an error in the body. This breaks HTTP caching, monitoring, and any middleware that relies on status codes.
+
+---
+
+### When to Choose REST vs gRPC vs GraphQL
+
+```mermaid
+%%{init: {"theme": "dark"}}%%
+flowchart TD
+    START(["Which API style?"])
+    START --> Q1{"Public-facing API\nor internal service?"}
+
+    Q1 -->|"Internal\nmicroservice"| Q2{"Need streaming\nor max efficiency?"}
+    Q2 -->|"Yes"| GRPC["gRPC\nProtobuf + HTTP/2\nStreaming native\nCode generation"]
+    Q2 -->|"No"| REST_INT["REST\nSimpler to start\nEasier debugging\nHTTP caching"]
+
+    Q1 -->|"Public / browser"| Q3{"Multiple client types\nwith divergent\ndata needs?"}
+    Q3 -->|"Yes — mobile + web\nhave different shapes"| GQL["GraphQL\nClient-driven queries\nSingle round-trip joins\nNo over-fetching"]
+    Q3 -->|"No — uniform\nclient needs"| REST_PUB["REST\nSimple, cacheable\nWidely understood\nOpenAPI tooling"]
+
+    style GRPC fill:#2196F3,color:#fff
+    style GQL fill:#9C27B0,color:#fff
+    style REST_INT fill:#FF9800,color:#fff
+    style REST_PUB fill:#FF9800,color:#fff
+```
+
+| Criteria | REST | gRPC | GraphQL |
+|----------|------|------|---------|
+| Primary use case | Public APIs, CRUD | Internal microservices | Frontend-driven queries |
+| Protocol | HTTP/1.1 or HTTP/2 | HTTP/2 | HTTP |
+| Payload format | JSON | Protobuf (binary) | JSON |
+| Streaming | Limited (SSE for server push) | Bidirectional native | Subscriptions |
+| Browser support | Native | Needs proxy (grpc-web) | Native |
+| Schema | OpenAPI (optional) | `.proto` (required) | SDL (required) |
+| Type safety | Runtime only | Compile time | Schema-validated |
+| Learning curve | Low | Medium | Medium-High |
+
+---
+
 ## Related Chapters
 
 | Chapter | Relevance |
@@ -826,3 +989,14 @@ flowchart TD
    <summary>Hint</summary>
    Use a pub/sub layer (Redis Pub/Sub or Kafka) so any server can publish to a channel that all servers subscribe to; sticky sessions at the load balancer keep each client on one server, but the pub/sub layer enables cross-server delivery.
    </details>
+
+---
+
+## References & Further Reading
+
+- **"RESTful Web APIs"** — Leonard Richardson & Mike Amundsen. Deep treatment of REST constraints, hypermedia, and the Richardson Maturity Model.
+- **gRPC documentation** — https://grpc.io/docs/ — Official guide covering protobuf schemas, streaming patterns, authentication, and language-specific stubs.
+- **GraphQL specification** — https://spec.graphql.org/ — The formal specification defining query language semantics, schema definition, and execution model.
+- **"API Design Patterns"** — JJ Geewax (Google). Practical patterns for resource naming, long-running operations, revisions, and cross-cutting concerns.
+- **Stripe API design guide** — Canonical example of idempotency key design, error envelope structure, and versioning done well. Study the Stripe API as a reference implementation.
+- **Google API Design Guide** — https://cloud.google.com/apis/design — Google's internal API design principles, open-sourced. Covers resource-oriented design, naming conventions, errors, and versioning at scale.

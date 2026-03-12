@@ -694,3 +694,12 @@ Post created → [async] → Image/Text ML classifier → {SAFE | REVIEW | BLOCK
 ---
 
 *Next: [Chapter 20 — Chat & Messaging System](/system-design/part-4-case-studies/ch20-chat-messaging-system)*
+
+---
+
+## References & Further Reading
+
+- "System Design Interview" — Alex Xu, Chapter 11 (News Feed)
+- "Serving Facebook Multifeed" — Lars Backstrom
+- Twitter's Timeline Architecture (InfoQ)
+- "Scaling Instagram Infrastructure" — Instagram Engineering

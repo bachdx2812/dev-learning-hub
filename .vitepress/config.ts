@@ -82,6 +82,9 @@ export default withMermaid(
     // Clean URLs without .html extension
     cleanUrls: true,
 
+    // Exclude internal planning files from the built site
+    srcExclude: ['**/plans/**', '**/plans_*', '**/plans_reports_*'],
+
     // Ignore localhost links in plan reports
     ignoreDeadLinks: [/^http:\/\/localhost/],
 

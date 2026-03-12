@@ -693,6 +693,48 @@ CREATE TABLE outbox (
 
 ---
 
+## Notification Systems
+
+### Architecture Overview
+
+Notification delivery is a natural fit for event-driven architecture. Events trigger notifications across multiple channels.
+
+```mermaid
+%%{init: {'theme': 'dark'}}%%
+flowchart LR
+    UA["User Action"] --> EB["Event Bus"]
+    EB --> NS["Notification Service"]
+    NS --> CR["Channel Router"]
+    CR --> EMAIL["Email\n(SES / SendGrid)"]
+    CR --> PUSH["Push\n(FCM / APNS)"]
+    CR --> SMS["SMS\n(Twilio)"]
+    CR --> INAPP["In-App\n(WebSocket)"]
+```
+
+### Channel Comparison
+
+| Channel | Latency | Deliverability | Cost per msg | Best For |
+|---------|---------|---------------|-------------|----------|
+| Push notification | < 1s | Medium (tokens expire) | ~Free | Real-time alerts |
+| Email | 1-30s | High (with warm-up) | $0.0001 | Transactional, marketing |
+| SMS | 1-5s | Very high | $0.01-0.05 | 2FA, critical alerts |
+| In-app | < 100ms | Very high (if online) | Free | Activity feeds |
+| Webhook | < 1s | Medium (retries needed) | Free | Developer integrations |
+
+### Delivery Guarantees
+
+- Use message queues for reliable delivery
+- Implement retries with exponential backoff
+- Dead letter queue for permanently failed notifications
+- Idempotency keys to prevent duplicate sends
+- Rate limiting per user per channel (no notification spam)
+
+### Bounce & Feedback Handling
+
+- Email bounces: hard bounce (remove address) vs soft bounce (retry)
+- Push token invalidation: FCM/APNS return error codes
+- SMS delivery receipts: track failed deliveries
+
 ## Related Chapters
 
 | Chapter | Relevance |
@@ -746,4 +788,12 @@ CREATE TABLE outbox (
    <summary>Hint</summary>
    DB deduplication key is the most reliable (persistent) but adds a write per message; provider-level idempotency keys work if the SMS provider supports them; a state machine (processed/unprocessed enum) prevents duplicates but requires careful distributed locking.
    </details>
+
+## References & Further Reading
+
+- "Building Event-Driven Microservices" — Adam Bellemare
+- "Designing Data-Intensive Applications" — Chapter 11
+- Martin Fowler: "Event-Driven Architecture" essay
+- Kafka Streams documentation
+- AWS EventBridge documentation
 

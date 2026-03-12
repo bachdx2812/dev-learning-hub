@@ -885,6 +885,55 @@ Option 2 is preferred: keeps regional services autonomous, uses Kafka for cross-
 
 ---
 
+### Code Example: WebSocket Connection Manager (Go)
+
+```go
+type Hub struct {
+    mu      sync.RWMutex
+    clients map[string]*Client  // userID -> client
+    rooms   map[string]map[string]*Client  // roomID -> userID -> client
+}
+
+type Client struct {
+    UserID string
+    Conn   *websocket.Conn
+    Send   chan []byte
+}
+
+func (h *Hub) HandleConnection(w http.ResponseWriter, r *http.Request) {
+    conn, err := upgrader.Upgrade(w, r, nil)
+    if err != nil {
+        return
+    }
+
+    userID := r.URL.Query().Get("user_id")
+    client := &Client{UserID: userID, Conn: conn, Send: make(chan []byte, 256)}
+
+    h.mu.Lock()
+    h.clients[userID] = client
+    h.mu.Unlock()
+
+    go client.writePump()
+    go client.readPump(h)
+}
+
+func (h *Hub) SendToRoom(roomID string, message []byte, senderID string) {
+    h.mu.RLock()
+    defer h.mu.RUnlock()
+
+    for userID, client := range h.rooms[roomID] {
+        if userID != senderID {
+            select {
+            case client.Send <- message:
+            default:
+                close(client.Send)
+                delete(h.rooms[roomID], userID)
+            }
+        }
+    }
+}
+```
+
 ## Related Chapters
 
 | Chapter | Relevance |
@@ -940,5 +989,13 @@ Option 2 is preferred: keeps regional services autonomous, uses Kafka for cross-
    </details>
 
 ---
+
+## References & Further Reading
+
+- "Designing Data-Intensive Applications" — Chapter 11 (Stream Processing)
+- WhatsApp architecture (InfoQ presentation)
+- Discord Engineering Blog — "How Discord Stores Messages"
+- Signal Protocol specification
+- WebSocket RFC 6455
 
 *Next: [Chapter 21 — Video Streaming Platform](/system-design/part-4-case-studies/ch21-video-streaming-platform)*

@@ -914,6 +914,66 @@ Netflix's deployment philosophy is: **investment in deployment tooling enables f
 
 ---
 
+## Object Storage as a Building Block
+
+### What is Object Storage?
+
+- Flat namespace of buckets containing objects (files + metadata)
+- Unlike file systems: no directory hierarchy, no in-place updates
+- Each object addressed by unique key within a bucket
+- Examples: AWS S3, Google Cloud Storage, Azure Blob Storage, MinIO
+
+### Architecture Internals
+
+| Component | Role |
+|-----------|------|
+| Metadata service | Maps object keys to storage locations; stores ACLs, versioning |
+| Data service | Stores actual bytes across distributed nodes |
+| Gateway / API | Handles HTTP requests (PUT, GET, DELETE) |
+| Replication | Copies data across availability zones (typically 3 copies) |
+
+### Consistency & Durability
+
+- S3 provides strong read-after-write consistency (since Dec 2020)
+- 99.999999999% (11 nines) durability via erasure coding + replication
+- Eventual consistency for bucket listing operations in some providers
+
+### Object Storage vs File Storage vs Block Storage
+
+| Feature | Object Storage | File Storage (NFS/EFS) | Block Storage (EBS) |
+|---------|---------------|----------------------|-------------------|
+| Access | HTTP API (REST) | POSIX file system | Raw blocks (mount) |
+| Scalability | Unlimited | Limited by server | Limited by volume |
+| Latency | 50-200ms | 1-10ms | < 1ms |
+| Use case | Media, backups, data lakes | Shared config, logs | Databases, OS disks |
+| Cost | Cheapest | Medium | Most expensive |
+
+### Integration Patterns
+
+- Pre-signed URLs for direct client upload (bypass application server)
+- CDN in front of object storage for global distribution
+- Lifecycle policies: transition to cheaper tiers (S3 Glacier) after N days
+- Event notifications: trigger Lambda/function on object creation
+
+```mermaid
+flowchart LR
+    Client["Client"]
+    App["Application Server"]
+    S3["Object Storage (S3)"]
+    Event["Event Notification"]
+    Lambda["Lambda / Function"]
+    Process["Process / Index / Transcode"]
+
+    Client -->|"1. Request pre-signed URL"| App
+    App -->|"2. Return pre-signed URL"| Client
+    Client -->|"3. Upload directly"| S3
+    S3 -->|"4. Emit event on PUT"| Event
+    Event -->|"5. Trigger"| Lambda
+    Lambda -->|"6. Read & process"| Process
+```
+
+---
+
 ## Related Chapters
 
 | Chapter | Relevance |
@@ -967,3 +1027,13 @@ Netflix's deployment philosophy is: **investment in deployment tooling enables f
    <summary>Hint</summary>
    Real-time queries: Reserved EC2 (predictable business-hours load, 1-year reservation saves 40%); night idle: scale to zero with Fargate or Lambda; batch aggregation: Spot instances (2 AM = low demand, 60–80% cheaper) with On-Demand fallback if Spot is interrupted.
    </details>
+
+---
+
+## References & Further Reading
+
+- "Cloud Native Patterns" — Cornelia Davis
+- Kubernetes documentation — https://kubernetes.io/docs/
+- AWS Lambda documentation
+- "The Twelve-Factor App" — https://12factor.net/
+- Martin Fowler — "Serverless Architectures"

@@ -698,6 +698,213 @@ This structure shows the interviewer you understand the *why* behind the databas
 
 ---
 
+## Tail Latencies & Why Averages Lie
+
+### The Problem with Averages
+
+Average (mean) response time is one of the most misleading metrics in systems engineering. A service
+reporting "average latency: 50ms" sounds healthy — but that average can hide a small percentage of
+requests that take seconds. Those slow requests represent real users having a terrible experience.
+
+**Percentile vocabulary:**
+
+| Percentile | Notation | Meaning | Who it describes |
+|---|---|---|---|
+| 50th | p50 | Half of requests are faster than this | The "typical" user — median experience |
+| 90th | p90 | 90% of requests are faster than this | Most users are fine; 10% see worse |
+| 95th | p95 | 95% of requests are faster than this | The SLA threshold for many APIs |
+| 99th | p99 | 99% of requests are faster than this | 1 in 100 requests is at least this slow |
+| 99.9th | p999 | 99.9% of requests are faster than this | 1 in 1,000 — "the worst of the worst" |
+
+**Concrete example:** A payment service with these latency numbers:
+
+| Percentile | Latency |
+|---|---|
+| p50 | 45ms |
+| p90 | 120ms |
+| p95 | 380ms |
+| p99 | 2,100ms |
+| p999 | 8,400ms |
+
+The average is ~55ms. Dashboards look green. But 1% of users — at 10,000 requests per second, that is
+100 users every second — wait over 2 seconds. At p999, one user per second waits 8.4 seconds. At payment
+checkout, that is an abandoned transaction, a support ticket, or a chargeback.
+
+> **Why this matters for SLAs:** Service-level agreements written against averages are easily gamed.
+> Agreements written against p99 or p999 reflect the actual worst-case user experience. Always negotiate
+> and monitor SLAs at the tail.
+
+---
+
+### Fan-Out Latency Amplification
+
+Microservices and service-oriented architectures introduce a subtle but severe latency problem: when
+Service A must call multiple downstream services to compose a response, the tail latency of the composite
+call is determined by the **slowest** downstream — not the average.
+
+```mermaid
+flowchart TD
+    Client(["Client"])
+    Client --> A["Service A\n(orchestrator)"]
+    A --> B["Service B\nproduct catalog"]
+    A --> C["Service C\nuser profile"]
+    A --> D["Service D\ninventory"]
+    A --> E["Service E\npricing"]
+    A --> F["Service F\nreviews"]
+    A --> G["Service G\npersonalization"]
+    A --> H["Service H\nshipping options"]
+    A --> I["Service I\npromotions"]
+    A --> J["Service J\nrecommendations"]
+    B & C & D & E & F & G & H & I & J --> A
+    A --> Client
+
+    style A fill:#2d4a7a,color:#e2e8f0,stroke:#4a90d9
+    style Client fill:#4a1942,color:#e2e8f0,stroke:#c084fc
+```
+
+**The math:** If each downstream service has a p99 latency of 10ms, what is the probability that at
+least one of the 10 services exceeds its p99 when Service A calls all 10 in parallel?
+
+```
+P(at least one slow) = 1 - P(all fast)
+                     = 1 - (1 - 0.01)^N
+                     = 1 - 0.99^N
+```
+
+| Fan-out (N) | Formula | P(at least one exceeds p99) |
+|---|---|---|
+| N = 1 | 1 - 0.99^1 | 1.0% |
+| N = 5 | 1 - 0.99^5 | 4.9% |
+| N = 10 | 1 - 0.99^10 | 9.6% |
+| N = 20 | 1 - 0.99^20 | 18.2% |
+| N = 50 | 1 - 0.99^50 | 39.5% |
+| N = 100 | 1 - 0.99^100 | 63.4% |
+
+**The implication:** A service calling 10 downstream dependencies in parallel — completely normal in
+microservices — will experience p99-level latency on nearly 10% of all requests, even if every downstream
+is individually healthy. Call 50 services and you hit a tail event 40% of the time. Call 100 and you
+are in tail territory more often than not.
+
+> **This is why microservices architectures see p99 blow up.** Each added dependency multiplies the
+> surface area for tail events. A monolith with in-process calls has no network hops to contribute
+> tail latency. A microservices system with 10 services is statistically guaranteed to surface tail
+> events on nearly every tenth request.
+
+---
+
+### Measuring & Managing Tail Latencies
+
+#### Accurate Measurement: HDR Histogram
+
+Standard metrics systems (StatsD, Prometheus) often use approximate percentile algorithms that are
+fast but lose precision in the tails — exactly where accuracy matters most. **HDR Histogram
+(High Dynamic Range Histogram)** records latency at full precision across a wide range with constant
+memory, making p99 and p999 measurements trustworthy.
+
+- Drop-in libraries for Java, Go, Python, Rust, and others
+- Captures values from 1 microsecond to 1 hour in a single data structure
+- Used internally at LinkedIn, Netflix, and most high-scale systems that take tail latencies seriously
+
+#### Hedged Requests
+
+A hedged request sends a duplicate request to a second replica after a short timeout and uses
+whichever response arrives first. This trades a small increase in system load (~5–10% extra requests)
+for a dramatic reduction in tail latency.
+
+```mermaid
+sequenceDiagram
+    participant C as Client
+    participant R1 as "Replica 1"
+    participant R2 as "Replica 2"
+
+    C->>R1: Request (primary)
+    Note over C: Wait 10ms (hedge threshold)
+    C->>R2: Hedged duplicate request
+    R2->>C: Response (arrived first)
+    Note over C: Cancel R1 request, use R2 response
+    R1-->>C: Response (arrived late, discarded)
+```
+
+**When to use hedging:** Read-heavy workloads where idempotency is guaranteed (reads, cache lookups).
+Not suitable for non-idempotent writes without careful deduplication.
+
+**Google's finding:** Hedging at the 95th percentile threshold reduced p999 latency by up to 40× in
+their large-scale storage systems (described in "The Tail at Scale", Dean & Barroso, 2013).
+
+#### Tail-at-Scale Mitigations
+
+| Technique | How it helps | Trade-off |
+|---|---|---|
+| **Hedged requests** | Duplicate request to second replica after threshold | +5–10% load; requires idempotency |
+| **Request coalescing** | Merge identical concurrent requests into one upstream call | Slight latency increase for early arrivals |
+| **Aggressive caching** | Serve from memory, eliminate downstream fan-out entirely | Stale data risk; cache invalidation complexity |
+| **Timeout budgets** | Propagate remaining deadline via context; cancel work when budget exhausted | Requires distributed context propagation |
+| **Graceful degradation** | Return partial response if non-critical services are slow | Application must handle incomplete responses |
+| **Circuit breakers** | Stop calling a slow/failing service; return fallback immediately | May serve stale or empty data |
+| **Load shedding** | Reject low-priority requests under heavy load to protect capacity | Requires priority classification |
+
+---
+
+### Queuing Theory Basics
+
+#### Little's Law
+
+The most important equation in capacity planning:
+
+```
+L = λ × W
+```
+
+- **L** = average number of requests in the system (queue + being processed)
+- **λ** = average arrival rate (requests per second)
+- **W** = average time a request spends in the system (latency)
+
+**Example:** Your service processes 500 req/s (λ = 500). Observed average latency is 200ms (W = 0.2s).
+Little's Law tells you there are L = 500 × 0.2 = **100 concurrent requests** in flight at steady state.
+If your thread pool has only 80 threads, you have a problem.
+
+**Rearranged for capacity planning:**
+- To halve latency (W), either halve concurrency (L) or double processing rate (λ)
+- To handle 2× traffic at the same latency, you need 2× processing capacity
+
+#### Why Utilization Drives Latency to Infinity
+
+As a system's utilization approaches 100%, queuing latency does not increase linearly — it explodes.
+This is the fundamental result from **M/M/1 queueing theory**:
+
+```
+W_queue = (ρ / (1 - ρ)) × (1/μ)
+```
+
+Where ρ = utilization (0 to 1) and μ = service rate. As ρ → 1, W_queue → ∞.
+
+```mermaid
+xychart-beta
+    title "Latency vs System Utilization (Hockey Stick)"
+    x-axis ["10%", "20%", "30%", "40%", "50%", "60%", "70%", "80%", "90%", "95%", "99%"]
+    y-axis "Relative Latency" 0 --> 100
+    line [1.1, 1.3, 1.4, 1.7, 2.0, 2.5, 3.3, 5.0, 10.0, 20.0, 100.0]
+```
+
+| Utilization | Relative Latency | Interpretation |
+|---|---|---|
+| 50% | 2× baseline | Comfortable headroom |
+| 70% | 3.3× baseline | Acceptable for most systems |
+| 80% | 5× baseline | Starting to feel pressure |
+| 90% | 10× baseline | Danger zone — tail latency severe |
+| 95% | 20× baseline | Crisis — user-visible degradation |
+| 99% | 100× baseline | System effectively unusable |
+
+> **Rule of thumb:** Keep steady-state utilization below 70% to preserve headroom for traffic spikes
+> and tail latency stability. A system running at 90% utilization during normal hours will collapse
+> during any traffic spike — the hockey stick curve ensures it.
+
+**Connecting back to fan-out:** Each downstream service in your call graph has its own utilization level.
+A service at 85% utilization contributes 7× baseline latency to every fan-out call that reaches it —
+and with 10-service fan-out, you are nearly certain to hit one of them on every request.
+
+---
+
 ## Related Chapters
 
 | Chapter | Relevance |

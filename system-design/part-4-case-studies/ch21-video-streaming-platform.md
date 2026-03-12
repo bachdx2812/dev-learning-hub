@@ -776,3 +776,12 @@ graph TB
    <summary>Hint</summary>
    Lazy transcoding saves upfront compute cost but creates a first-viewer latency spike (the transcoding job must run before the first playback); use a hybrid: pre-transcode the most common resolutions (480p, 720p, 1080p) immediately; generate 240p and 4K lazily, with a 30-second timeout fallback to the nearest available rendition.
    </details>
+
+---
+
+## References & Further Reading
+
+- "System Design Interview Vol 2" — Alex Xu, Chapter 14 (YouTube)
+- Netflix Tech Blog — video encoding and streaming
+- "Adaptive Bitrate Streaming" — Apple HLS documentation
+- "Building Netflix's Distributed Filesystem" — Netflix Engineering

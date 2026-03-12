@@ -567,3 +567,12 @@ Stack Overflow co-locates servers in a data center rather than running on AWS or
    <summary>Hint</summary>
    Consider Netflix's specific traffic patterns (large video files, predictable burst), ISP peering relationships, and the cost curve of commercial CDN per-GB pricing at petabyte scale.
    </details>
+
+---
+
+## References & Further Reading
+
+- "The Art of Scalability" — Martin Abbott & Michael Fisher
+- "Designing Data-Intensive Applications" — Chapter 1 (Reliability, Scalability, Maintainability)
+- Stack Overflow Architecture — Nick Craver's blog series
+- Netflix Tech Blog — scaling microservices

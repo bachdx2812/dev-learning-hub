@@ -675,3 +675,12 @@ Cross-reference: API Gateway patterns are covered in [Chapter 13: Microservices 
    <summary>Hint</summary>
    Least connections or least response time algorithms route based on real server load rather than uniform distribution — but require the LB to track per-server state, which adds overhead at very high backend counts.
    </details>
+
+---
+
+## References & Further Reading
+
+- "Designing Data-Intensive Applications" — Chapter 6 (Partitioning)
+- NGINX documentation — Load Balancing
+- "Introduction to Modern Network Load Balancing" — Matt Klein (Envoy)
+- HAProxy documentation — Configuration Manual

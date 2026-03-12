@@ -552,3 +552,12 @@ Cross-reference: [Chapter 6: Load Balancing](/system-design/part-2-building-bloc
    <summary>Hint</summary>
    All PoPs announce the same IP prefix; BGP routers select the shortest path, so clients automatically route to the nearest healthy PoP — convergence typically takes 30–90 seconds depending on BGP timer configuration.
    </details>
+
+---
+
+## References & Further Reading
+
+- "DNS and BIND" — Cricket Liu & Paul Albitz
+- Cloudflare Learning Center — DNS articles
+- RFC 1035 — Domain Names Implementation
+- "The Illustrated TLS Connection" — https://tls13.xargs.org/

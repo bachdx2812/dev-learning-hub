@@ -553,3 +553,12 @@ Cloudflare operates one of the most unique CDN architectures:
    <summary>Hint</summary>
    Versioned URLs never need purging (immutable by design) but require build tooling to inject hashes; manual purge is simpler to implement but introduces a propagation delay window where stale assets serve alongside new HTML.
    </details>
+
+---
+
+## References & Further Reading
+
+- Cloudflare documentation — CDN concepts
+- "High Performance Browser Networking" — Ilya Grigorik
+- AWS CloudFront Developer Guide
+- Fastly documentation — Edge Computing

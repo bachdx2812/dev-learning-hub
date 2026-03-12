@@ -709,3 +709,12 @@ graph TB
    <summary>Hint</summary>
    INT8 quantization halves GPU memory (can run on 2× A100 or smaller GPUs, -50% cost); continuous batching (vs static) increases GPU utilization and throughput 2–4×; switch to continuous batching framework (vLLM) — together these changes can achieve 60% cost reduction while improving throughput.
    </details>
+
+---
+
+## References & Further Reading
+
+- "Designing Machine Learning Systems" — Chip Huyen
+- "Hidden Technical Debt in Machine Learning Systems" — Google (NeurIPS 2015)
+- MLflow documentation — https://mlflow.org/
+- "Scaling Machine Learning at Uber" — Uber Engineering Blog

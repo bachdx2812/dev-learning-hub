@@ -800,6 +800,47 @@ Internal microservices (service-to-service) can use a lighter versioning strateg
 
 ---
 
+### Code Example: gRPC Service Definition
+
+```protobuf
+// user_service.proto
+syntax = "proto3";
+package user;
+
+service UserService {
+  rpc GetUser(GetUserRequest) returns (User);
+  rpc ListUsers(ListUsersRequest) returns (stream User);  // server streaming
+  rpc CreateUser(CreateUserRequest) returns (User);
+}
+
+message GetUserRequest {
+  string user_id = 1;
+}
+
+message User {
+  string id = 1;
+  string name = 2;
+  string email = 3;
+  int64 created_at = 4;
+}
+```
+
+```go
+// gRPC server implementation (Go)
+type userServer struct {
+    pb.UnimplementedUserServiceServer
+    db *sql.DB
+}
+
+func (s *userServer) GetUser(ctx context.Context, req *pb.GetUserRequest) (*pb.User, error) {
+    user, err := s.db.QueryRow("SELECT id, name, email FROM users WHERE id = $1", req.UserId)
+    if err != nil {
+        return nil, status.Errorf(codes.NotFound, "user not found: %s", req.UserId)
+    }
+    return &pb.User{Id: user.Id, Name: user.Name, Email: user.Email}, nil
+}
+```
+
 ## Related Chapters
 
 | Chapter | Relevance |
@@ -854,3 +895,11 @@ Internal microservices (service-to-service) can use a lighter versioning strateg
    <summary>Hint</summary>
    BFF is justified when clients have meaningfully different data-shaping needs (web = large aggregated responses, mobile = minimal payloads, partner = versioned contracts with rate limiting) — a single gateway forces all clients to over-fetch or under-fetch.
    </details>
+
+## References & Further Reading
+
+- "Building Microservices" — Sam Newman
+- "Microservices Patterns" — Chris Richardson
+- gRPC documentation: https://grpc.io/
+- Netflix Microservices blog series
+- "The Twelve-Factor App" — https://12factor.net/

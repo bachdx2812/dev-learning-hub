@@ -746,6 +746,56 @@ graph LR
 
 ---
 
+## Zero-Downtime Schema Migrations
+
+### The Problem
+
+- `ALTER TABLE` on a large table can lock it for minutes or hours
+- Dropping a column still referenced by running code causes errors
+- Adding a `NOT NULL` column without a default fails on existing rows
+
+### Expand-Contract Pattern
+
+Three phases ensure no single deployment breaks running code or locks the table:
+
+```mermaid
+%%{init: {"theme": "dark"}}%%
+flowchart LR
+    E["**Expand**\nAdd new column (nullable)\nDeploy code that writes\nto both old and new"]
+    M["**Migrate**\nBackfill existing rows\nVerify data correctness"]
+    C["**Contract**\nRemove old column\nDeploy code that only\nreads/writes new column"]
+
+    E -->|"All rows have old col\nnew col filling up"| M
+    M -->|"All rows have new col\ndata verified"| C
+
+    style E fill:#2d4a7a,color:#e2e8f0,stroke:#4a90d9
+    style M fill:#4a3a1a,color:#e2e8f0,stroke:#f59e0b
+    style C fill:#2d5a3d,color:#e2e8f0,stroke:#4ade80
+```
+
+1. **Expand** — Add the new column as nullable. Deploy application code that writes to both the old and new columns simultaneously. Running instances still use only the old column for reads.
+2. **Migrate** — Backfill all existing rows in batches (avoid one giant `UPDATE`). Verify row counts and spot-check values before proceeding.
+3. **Contract** — Once all rows are populated and all application instances have been updated to read from the new column, drop the old column.
+
+### Common Migration Patterns
+
+| Operation | Safe Approach | Unsafe Approach |
+|-----------|--------------|-----------------|
+| Add column | Add nullable, backfill, then add constraint | `ADD COLUMN NOT NULL` |
+| Remove column | Stop reading in code, deploy, then drop | `DROP COLUMN` immediately |
+| Rename column | Add new, copy data, drop old (expand-contract) | `RENAME COLUMN` |
+| Change type | Add new column, dual-write, migrate, drop old | `ALTER TYPE` directly |
+| Add index | `CREATE INDEX CONCURRENTLY` (Postgres) | `CREATE INDEX` (locks table) |
+
+### Tools
+
+- **gh-ost** (GitHub) — online schema migration for MySQL; shadows the table via triggers and binary log
+- **pt-online-schema-change** (Percona) — MySQL online DDL using trigger-based copying
+- **pgroll** — PostgreSQL zero-downtime migrations using the expand-contract pattern natively
+- **Flyway / Liquibase** — version-controlled migration runners; provide ordering and checksums but do not themselves solve the locking problem
+
+---
+
 ## Related Chapters
 
 | Chapter | Relevance |
@@ -799,6 +849,16 @@ graph LR
    <summary>Hint</summary>
    Modulo resharding moves ~80% of rows; consistent hashing moves ~20% — use a shadow write to the new shard topology while reads still go to the old, then cut over after backfill validation.
    </details>
+
+---
+
+## References & Further Reading
+
+- **"Designing Data-Intensive Applications"** by Martin Kleppmann — Chapters 2–3 cover data models and storage engines in depth; the primary reference for B-Tree, LSM-Tree, and ACID internals.
+- **"Use The Index, Luke"** — [https://use-the-index-luke.com/](https://use-the-index-luke.com/) — Free online book dedicated to SQL indexing; covers the leftmost prefix rule, execution plans, and index-only scans with practical examples.
+- **PostgreSQL documentation: EXPLAIN / Indexes** — [https://www.postgresql.org/docs/current/using-explain.html](https://www.postgresql.org/docs/current/using-explain.html) — Official reference for reading query plans and understanding index selection.
+- **"Zero-Downtime Migrations"** — Stripe Engineering Blog — Describes the expand-contract pattern as applied at Stripe's scale, including dual-write strategies and backfill tooling.
+- **"Online Schema Change at GitHub"** — gh-ost documentation — [https://github.com/github/gh-ost](https://github.com/github/gh-ost) — Explains how gh-ost avoids table locks by using a ghost table and the MySQL binary log to replay writes during migration.
 
 ---
 

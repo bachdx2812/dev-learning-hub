@@ -868,3 +868,12 @@ flowchart TD
    <summary>Hint</summary>
    Store blob content in object storage (S3), not the database; the short code maps to the object key; content-addressable storage means identical pastes share the same object (hash the content to generate the key, not a random ID).
    </details>
+
+---
+
+## References & Further Reading
+
+- "System Design Interview" — Alex Xu, Chapter 8 (URL Shortener)
+- Bitly Engineering Blog
+- Base62 encoding and hash collision strategies
+- "Snowflake: A Distributed Unique ID Generator" — Twitter Engineering

@@ -523,6 +523,107 @@ flowchart TD
 
 ---
 
+## Incident Management Lifecycle
+
+### The Five Phases
+
+```mermaid
+%%{init: {"theme": "dark"}}%%
+flowchart LR
+    D["Detect"] --> T["Triage"] --> M["Mitigate"] --> R["Resolve"] --> P["Postmortem"]
+```
+
+### Detection
+
+- **Automated alerts, not human discovery** — if an engineer finds the issue before an alert fires, alerting has failed
+- **Alert on symptoms, not causes** — alert on error rate or latency degradation, not "CPU > 80%" (which may be harmless)
+- **Multi-signal detection** — a latency spike confirmed by both metrics and traces is higher confidence than a single signal; reduce false positives by requiring two or more signals to agree
+
+### Triage
+
+Classify severity within minutes of detection to determine escalation path and response urgency:
+
+| Severity | Impact | Response Time | Example |
+|----------|--------|--------------|---------|
+| P0 / SEV1 | Total outage, data loss | Immediate, all hands | Payment system down |
+| P1 / SEV2 | Major feature broken | 15 min | Login failing for 50% of users |
+| P2 / SEV3 | Minor feature degraded | 1 hour | Search results slow |
+| P3 / SEV4 | Cosmetic / low impact | Next business day | Dashboard chart incorrect |
+
+### Incident Example: Latency Spike Debugging
+
+```mermaid
+%%{init: {"theme": "dark"}}%%
+sequenceDiagram
+    participant AL as Alert System
+    participant OC as On-Call Engineer
+    participant DA as Dashboards
+    participant TR as Trace Explorer
+    participant LG as Log Search
+    participant DB as Database
+
+    AL->>OC: "p99 latency &gt; 2s" fires
+    OC->>DA: Check service dashboards
+    DA->>OC: Order Service latency elevated
+    OC->>TR: Filter traces on Order Service
+    TR->>OC: Slow spans in DB layer identified
+    OC->>LG: Correlate logs at spike timestamp
+    LG->>OC: "connection pool exhausted" errors
+    OC->>DB: Increase pool size, restart service
+    DB->>OC: Latency returns to normal
+```
+
+---
+
+## Designing Effective Dashboards
+
+### The Four Golden Signals (Google SRE)
+
+Every service dashboard should lead with these four panels — they cover the majority of user-visible failure modes:
+
+- **Latency** — how long requests take (show p50, p95, p99 — never just average)
+- **Traffic** — how much demand the system is under (requests/sec, events/sec)
+- **Errors** — rate of failed requests (5xx, timeouts, explicit errors)
+- **Saturation** — how "full" the service is (CPU %, queue depth, connection pool usage)
+
+If a service is degraded, at least one of these four will deviate from baseline. Start your dashboard design here; add domain-specific panels only as supplements.
+
+### Dashboard Anti-patterns
+
+| Anti-pattern | Problem | Fix |
+|-------------|---------|-----|
+| Too many panels | Information overload slows incident response | Max 8–10 panels per dashboard; link to drill-down dashboards |
+| Only averages | Hides tail latency affecting real users | Always show p50, p95, p99 side by side |
+| No baseline | Cannot tell if a value is normal or alarming | Add SLO threshold lines and historical comparison overlays |
+| Wall of text | Slow to scan under pressure | Use time-series graphs and stat panels, not tables of raw numbers |
+
+---
+
+## Cost-Efficient Observability
+
+### The Cardinality Problem
+
+High-cardinality labels cause metric storage to explode. Each unique label combination creates a separate time series:
+
+```
+1,000 unique user_id values
+  × 100 metrics per user
+  × 60-second resolution
+  × 30-day retention
+= millions of time series → storage and query cost balloons
+```
+
+Never use `user_id`, `request_id`, or `session_id` as Prometheus label values. Reserve labels for low-cardinality dimensions: `service`, `method`, `status_code`, `region`.
+
+### Strategies
+
+- **Sampling:** Collect 1% of traces in normal production traffic; use tail-based sampling to capture 100% of error traces and traces exceeding the p99 latency threshold — you get full coverage where it matters at a fraction of the cost
+- **Aggregation:** Pre-aggregate metrics at collection time in the OTel Collector (e.g., sum request counts by service) rather than storing raw per-request data
+- **Retention tiers:** Hot storage (7 days, full resolution) → Warm storage (30 days, downsampled to 1-minute intervals) → Cold storage (1 year, aggregated to hourly) — most incidents are investigated within 7 days; cold data is for trend analysis only
+- **Log levels:** Emit `DEBUG` logs only in development environments; `INFO`, `WARN`, and `ERROR` in production — a single verbose service can generate gigabytes of low-value log data per day
+
+---
+
 ## Related Chapters
 
 | Chapter | Relevance |
@@ -575,3 +676,14 @@ flowchart TD
    <summary>Hint</summary>
    Demote self-resolving alerts to warnings or eliminate them; add alert inhibition (suppress child alerts when a parent alert fires); use Alertmanager grouping to collapse 50 pod-restart alerts into one service-level alert — target a ratio where >80% of pages require action.
    </details>
+
+---
+
+## References & Further Reading
+
+- **"Site Reliability Engineering"** (Google SRE Book) — Chapters on Monitoring Distributed Systems and Alerting: https://sre.google/sre-book/table-of-contents/
+- **"Observability Engineering"** — Charity Majors, Liz Fong-Jones, George Miranda (O'Reilly, 2022) — the definitive guide to high-cardinality observability and the shift from monitoring to observability
+- **OpenTelemetry documentation** — vendor-neutral instrumentation standard for traces, metrics, and logs: https://opentelemetry.io/docs/
+- **"The Art of Monitoring"** — James Turnbull — practical guide to modern monitoring pipelines with Prometheus and the ELK stack
+- **Datadog blog: "The Four Golden Signals"** — https://www.datadoghq.com/blog/monitoring-101-collecting-data/
+- **Google SRE Workbook — Chapter on Incident Response** — covers structured incident management, severity classification, and postmortem culture: https://sre.google/workbook/incident-response/

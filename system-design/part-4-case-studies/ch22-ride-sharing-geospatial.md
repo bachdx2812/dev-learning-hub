@@ -794,3 +794,12 @@ graph TB
    <summary>Hint</summary>
    At 50 km/h, a vehicle travels 417m in 30 seconds — GPS sampling error accumulates per segment; store the raw GPS stream in a cheap cold store (S3) for dispute resolution even if the real-time pipeline uses sampled data; the dispute model should show the reconstructed path with confidence intervals.
    </details>
+
+---
+
+## References & Further Reading
+
+- "System Design Interview Vol 2" — Alex Xu, Chapter 13 (Proximity Service)
+- Uber Engineering Blog — geospatial indexing
+- "The Geohash Algorithm" — https://en.wikipedia.org/wiki/Geohash
+- "RING: An Architecture for Real-Time Ride Matching" — Lyft Engineering

@@ -795,3 +795,12 @@ flowchart TD
    <summary>Hint</summary>
    Waiting until t+ε ensures no future transaction can be assigned a timestamp earlier than the current transaction's commit time, preserving global ordering — Spanner uses GPS and atomic clocks to keep ε under 7ms.
    </details>
+
+---
+
+## References & Further Reading
+
+- "Designing Data-Intensive Applications" — Chapters 5, 7, 9 (Replication, Transactions, Consistency)
+- "In Search of an Understandable Consensus Algorithm" — Ongaro & Ousterhout (Raft paper)
+- Jepsen — https://jepsen.io/ (distributed systems testing)
+- "Paxos Made Simple" — Leslie Lamport

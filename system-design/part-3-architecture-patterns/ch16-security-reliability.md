@@ -799,6 +799,76 @@ Financial systems require **defense-in-depth**: no single pattern prevents all f
 
 ---
 
+### Code Example: Token Bucket Rate Limiter (Go)
+
+```go
+type TokenBucket struct {
+    mu         sync.Mutex
+    tokens     float64
+    maxTokens  float64
+    refillRate float64  // tokens per second
+    lastRefill time.Time
+}
+
+func (tb *TokenBucket) Allow() bool {
+    tb.mu.Lock()
+    defer tb.mu.Unlock()
+
+    now := time.Now()
+    elapsed := now.Sub(tb.lastRefill).Seconds()
+    tb.tokens = min(tb.maxTokens, tb.tokens+elapsed*tb.refillRate)
+    tb.lastRefill = now
+
+    if tb.tokens >= 1 {
+        tb.tokens--
+        return true
+    }
+    return false
+}
+```
+
+### Code Example: Circuit Breaker (Go)
+
+```go
+type CircuitBreaker struct {
+    mu           sync.Mutex
+    state        string  // "closed", "open", "half-open"
+    failures     int
+    threshold    int
+    lastFailure  time.Time
+    cooldown     time.Duration
+}
+
+func (cb *CircuitBreaker) Execute(fn func() error) error {
+    cb.mu.Lock()
+    if cb.state == "open" {
+        if time.Since(cb.lastFailure) > cb.cooldown {
+            cb.state = "half-open"
+        } else {
+            cb.mu.Unlock()
+            return errors.New("circuit breaker is open")
+        }
+    }
+    cb.mu.Unlock()
+
+    err := fn()
+
+    cb.mu.Lock()
+    defer cb.mu.Unlock()
+    if err != nil {
+        cb.failures++
+        cb.lastFailure = time.Now()
+        if cb.failures >= cb.threshold {
+            cb.state = "open"
+        }
+        return err
+    }
+    cb.failures = 0
+    cb.state = "closed"
+    return nil
+}
+```
+
 ## Related Chapters
 
 | Chapter | Relevance |
@@ -852,3 +922,11 @@ Financial systems require **defense-in-depth**: no single pattern prevents all f
    <summary>Hint</summary>
    Token bucket allows smooth bursts (good for feeds); sliding window log is most accurate but uses O(requests) memory; fixed window counter has a boundary doubling flaw; the sliding window counter approximation balances accuracy and memory — choose based on whether bursts are acceptable.
    </details>
+
+## References & Further Reading
+
+- "Release It!" — Michael Nygard (circuit breaker patterns)
+- OWASP Top 10: https://owasp.org/www-project-top-ten/
+- OAuth 2.0 RFC 6749
+- "The SRE Book" — Google
+- Cloudflare rate limiting blog posts

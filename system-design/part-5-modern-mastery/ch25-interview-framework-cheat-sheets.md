@@ -906,3 +906,13 @@ flowchart LR
    <summary>Hint</summary>
    Narrate the discovery out loud ("I notice my write estimate doesn't match my architecture — let me fix that"); propose the scaling fix (write buffer, DB sharding, or a queue in front of the DB); interviewers reward self-correction because it shows you can validate your own designs under pressure.
    </details>
+
+---
+
+## References & Further Reading
+
+- "System Design Interview" — Alex Xu (Vol 1 & 2)
+- "Designing Data-Intensive Applications" — Martin Kleppmann
+- ByteByteGo — https://bytebytego.com/
+- "Grokking the System Design Interview" — Educative.io
+- "The System Design Primer" — Donne Martin (GitHub)
