@@ -752,3 +752,19 @@ textarea:focus-visible,
     align-items: center;
   }
 }
+
+/* --------------------------------------------------------------------------
+   Breadcrumb Navigation
+   -------------------------------------------------------------------------- */
+@media (max-width: 768px) {
+  .breadcrumb-nav {
+    font-size: 0.78em;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    white-space: nowrap;
+  }
+
+  .breadcrumb-nav ol {
+    flex-wrap: nowrap;
+  }
+}

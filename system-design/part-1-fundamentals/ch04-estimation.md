@@ -139,6 +139,10 @@ flowchart LR
 4. **Sequential access beats random access** by 10–100× on both SSD and HDD
 5. **Cross-continent latency is irreducible** — physics sets a floor of ~100 ms
 
+::: info Historical Note
+These are the classic latency numbers originally compiled by Jeff Dean (~2008) and widely used in system design interviews. Modern hardware has improved several of these values significantly (e.g., mutex lock/unlock is now ~17-25ns, network serialization is faster). The original values remain the standard reference for estimation exercises and interviews. See the [community-maintained gist](https://gist.github.com/jboner/2841832) for updated figures.
+:::
+
 ---
 
 ## QPS (Queries Per Second) Estimation

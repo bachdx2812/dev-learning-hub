@@ -196,6 +196,24 @@ export default withMermaid(
       lastUpdated: true,
     },
 
+    // Consolidate Mermaid's 30+ diagram chunks into one lazy chunk.
+    // The plugin statically imports Mermaid into the app entry so we cannot
+    // remove the preloads entirely, but fewer larger chunks mean fewer HTTP
+    // round-trips and less browser parse overhead on every page.
+    vite: {
+      build: {
+        rollupOptions: {
+          output: {
+            manualChunks(id) {
+              if (id.includes('node_modules/mermaid') || id.includes('node_modules/vitepress-plugin-mermaid')) {
+                return 'mermaid-bundle'
+              }
+            },
+          },
+        },
+      },
+    },
+
     // Mermaid config — themed to Dracula
     mermaid: {
       theme: 'dark',

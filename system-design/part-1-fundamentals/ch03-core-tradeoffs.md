@@ -158,6 +158,23 @@ category collapses back to the CP/AP choice.
 > **Key insight:** "CA" is not a real distributed system choice. It means "we only run in one datacenter and
 > accept the availability risk if that datacenter goes down."
 
+### PACELC Theorem
+
+The **PACELC theorem** (Abadi, 2012) extends CAP by addressing what happens when there is *no* network partition — the normal operating state for most systems.
+
+**PACELC states:** If there is a **P**artition, choose between **A**vailability and **C**onsistency (same as CAP). **E**lse (normal operation), choose between **L**atency and **C**onsistency.
+
+This matters because CAP only describes behavior during failures, but most of the time your system is running normally. During normal operation, you still face a fundamental trade-off: do you sacrifice latency for stronger consistency, or accept weaker consistency for faster responses?
+
+| System | During Partition (PA/PC) | Normal Operation (EL/EC) | Classification |
+|---|---|---|---|
+| DynamoDB / Cassandra | PA (favor availability) | EL (favor latency) | PA/EL |
+| MongoDB | PC (favor consistency) | EC (favor consistency) | PC/EC |
+| PAXOS / Raft | PC (favor consistency) | EC (favor consistency) | PC/EC |
+| Cosmos DB | Configurable | Configurable | Tunable |
+
+> **Key insight:** PACELC is more useful than CAP for real-world system design because it captures the latency vs. consistency trade-off that engineers face every day, not just during rare partition events.
+
 ---
 
 ## ACID vs BASE

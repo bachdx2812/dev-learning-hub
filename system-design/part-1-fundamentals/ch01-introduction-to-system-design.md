@@ -81,7 +81,7 @@ Beyond cost and hardware limits, a single machine is a **single point of failure
 
 ### Enter Distribution
 
-Distributed systems solve these problems by spreading work and data across many machines connected by a network. The tradeoffs are real — distributed systems introduce network latency, partial failures, and consistency challenges — but the alternative (a single machine) cannot scale to internet scale. Google serves over 8.5 billion searches per day. Netflix streams to 260 million subscribers simultaneously. Amazon processes millions of transactions per hour. None of these workloads fit on one machine.
+Distributed systems solve these problems by spreading work and data across many machines connected by a network. The tradeoffs are real — distributed systems introduce network latency, partial failures, and consistency challenges — but the alternative (a single machine) cannot scale to internet scale. Google serves an estimated 8.5 billion searches per day. Netflix streams to 300+ million subscribers simultaneously. Amazon processes millions of transactions per hour. None of these workloads fit on one machine.
 
 ```mermaid
 flowchart LR
