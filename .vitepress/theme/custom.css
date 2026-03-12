@@ -364,6 +364,11 @@
   padding-left: 8px;
 }
 
+/* Hide VitePress default active indicator bar (we use our own border-left) */
+.dark .VPSidebarItem.is-active > .item > .indicator {
+  display: none;
+}
+
 /* --------------------------------------------------------------------------
    Hero Section — Hacker Terminal Aesthetic
    -------------------------------------------------------------------------- */
