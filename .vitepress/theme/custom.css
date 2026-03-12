@@ -207,12 +207,13 @@
   line-height: 1.7;
 }
 
-/* Line numbers — align with code and match line-height */
+/* Line numbers — offset past the traffic-light bar and match code metrics */
 .dark .vp-doc div[class*="language-"].line-numbers-mode .line-numbers-wrapper {
-  padding-top: 1.2em;
+  top: 32px;
   line-height: 1.7;
   font-family: 'JetBrains Mono', monospace;
   font-size: 0.875rem;
+  padding-top: 1.2em;
   border-right: 1px solid var(--dracula-current-line);
 }
 
