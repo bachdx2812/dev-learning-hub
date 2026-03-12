@@ -16,9 +16,9 @@ watch(() => route.path, (newPath) => {
     <Giscus
       :key="key"
       repo="bachdx2812/dev-learning-hub"
-      repo-id=""
-      category="Comments"
-      category-id=""
+      repo-id="R_kgDORkhj0Q"
+      category="General"
+      category-id="DIC_kwDORkhj0c4C4Nk0"
       mapping="pathname"
       strict="0"
       reactions-enabled="1"
