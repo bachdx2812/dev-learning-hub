@@ -569,6 +569,95 @@ graph LR
 
 ---
 
+## Go Implementation Example
+
+The following implements an in-memory publish/subscribe message queue — the core pattern behind Kafka topics and RabbitMQ fanout exchanges.
+
+```go
+package main
+
+import (
+	"fmt"
+	"sync"
+)
+
+// Message is the unit of data flowing through the queue.
+type Message struct {
+	Topic   string
+	Payload string
+}
+
+// Broker manages topics and delivers messages to all subscribers.
+type Broker struct {
+	mu          sync.RWMutex
+	subscribers map[string][]chan Message // topic → list of subscriber channels
+}
+
+func NewBroker() *Broker {
+	return &Broker{subscribers: make(map[string][]chan Message)}
+}
+
+// Subscribe returns a channel that receives all messages published to topic.
+// bufSize controls how many messages can queue before the subscriber blocks.
+func (b *Broker) Subscribe(topic string, bufSize int) <-chan Message {
+	ch := make(chan Message, bufSize)
+	b.mu.Lock()
+	b.subscribers[topic] = append(b.subscribers[topic], ch)
+	b.mu.Unlock()
+	return ch
+}
+
+// Publish delivers msg to every subscriber of msg.Topic (fan-out pattern).
+func (b *Broker) Publish(msg Message) {
+	b.mu.RLock()
+	subs := b.subscribers[msg.Topic]
+	b.mu.RUnlock()
+
+	for _, ch := range subs {
+		// Non-blocking send: drop message if subscriber's buffer is full.
+		// In production, this is the "drop" back-pressure strategy.
+		select {
+		case ch <- msg:
+		default:
+			fmt.Printf("⚠ subscriber buffer full, dropping message on topic %q\n", msg.Topic)
+		}
+	}
+}
+
+func main() {
+	broker := NewBroker()
+
+	// Two independent consumer groups subscribe to "order.placed".
+	inventory := broker.Subscribe("order.placed", 10)
+	email := broker.Subscribe("order.placed", 10)
+
+	var wg sync.WaitGroup
+	consume := func(name string, ch <-chan Message, count int) {
+		defer wg.Done()
+		for i := 0; i < count; i++ {
+			msg := <-ch
+			fmt.Printf("[%s] received: %s\n", name, msg.Payload)
+		}
+	}
+
+	wg.Add(2)
+	go consume("inventory-service", inventory, 2)
+	go consume("email-service", email, 2)
+
+	broker.Publish(Message{Topic: "order.placed", Payload: `{"order_id":"101"}`})
+	broker.Publish(Message{Topic: "order.placed", Payload: `{"order_id":"102"}`})
+
+	wg.Wait()
+}
+```
+
+Key patterns illustrated:
+- Each `Subscribe` call gets its own buffered channel — this is how Kafka consumer groups achieve independent offsets (each group sees every message)
+- `sync.RWMutex` allows concurrent reads (many publishers) with exclusive writes (new subscriptions)
+- The `select { case ch <- msg: default: }` non-blocking send is the "drop" back-pressure strategy — replace with a blocking send for "buffer" strategy
+
+---
+
 ## Related Chapters
 
 | Chapter | Relevance |

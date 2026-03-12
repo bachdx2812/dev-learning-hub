@@ -156,7 +156,8 @@ export default withMermaid(
     },
 
     themeConfig: {
-      // Site title in nav
+      // Site logo + title in nav
+      logo: '/logo.png',
       siteTitle: "The Engineer's Handbook",
 
       // Top navigation

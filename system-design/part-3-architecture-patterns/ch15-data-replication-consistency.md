@@ -493,6 +493,106 @@ Amazon's leaderless, Dynamo-style system (production evolution of the 2007 paper
 
 ---
 
+## Go Implementation Example
+
+The following implements **vector clocks** — the mechanism behind causal consistency and conflict detection in systems like Riak and DynamoDB. When last-write-wins is not safe, vector clocks tell you whether two writes are causally ordered or concurrent.
+
+```go
+package main
+
+import "fmt"
+
+// VectorClock tracks the logical time seen by each node.
+// Key = node ID (e.g. "A", "B"), Value = event count on that node.
+type VectorClock map[string]int
+
+// Increment records a new event on nodeID.
+func (vc VectorClock) Increment(nodeID string) {
+	vc[nodeID]++
+}
+
+// Merge updates vc to the element-wise maximum of vc and other.
+// Called when a node receives a message: it adopts the sender's knowledge.
+func (vc VectorClock) Merge(other VectorClock) {
+	for node, t := range other {
+		if t > vc[node] {
+			vc[node] = t
+		}
+	}
+}
+
+// Relation describes the causal relationship between two clocks.
+type Relation string
+
+const (
+	HappensBefore Relation = "happens-before" // vc < other
+	HappensAfter  Relation = "happens-after"  // vc > other
+	Concurrent    Relation = "concurrent"     // neither dominates — conflict!
+	Identical     Relation = "identical"
+)
+
+// Compare returns the causal relationship of vc relative to other.
+func (vc VectorClock) Compare(other VectorClock) Relation {
+	lessOrEqual, greaterOrEqual := true, true
+	for node := range merge(vc, other) {
+		a, b := vc[node], other[node]
+		if a > b {
+			lessOrEqual = false
+		}
+		if a < b {
+			greaterOrEqual = false
+		}
+	}
+	switch {
+	case lessOrEqual && greaterOrEqual:
+		return Identical
+	case lessOrEqual:
+		return HappensBefore
+	case greaterOrEqual:
+		return HappensAfter
+	default:
+		return Concurrent // neither ≤ the other → conflict
+	}
+}
+
+func merge(a, b VectorClock) VectorClock {
+	result := make(VectorClock)
+	for k, v := range a {
+		result[k] = v
+	}
+	for k, v := range b {
+		if v > result[k] {
+			result[k] = v
+		}
+	}
+	return result
+}
+
+func main() {
+	// Node A writes, sends to Node B — causal ordering
+	clockA := VectorClock{"A": 1, "B": 0}
+	clockB := VectorClock{"A": 0, "B": 1}
+	clockB.Merge(clockA) // B receives A's message
+	clockB.Increment("B")
+	fmt.Printf("After merge: B clock = %v\n", clockB) // {A:1, B:2}
+	fmt.Printf("A→B relation: %s\n", clockA.Compare(clockB)) // happens-before
+
+	// Concurrent writes on two nodes — neither received the other's event
+	concA := VectorClock{"A": 2, "B": 1}
+	concB := VectorClock{"A": 1, "B": 2}
+	fmt.Printf("Concurrent writes relation: %s\n", concA.Compare(concB)) // concurrent → conflict!
+	// A system detecting "concurrent" must surface both versions to the application
+	// (like Riak's siblings) or apply a deterministic merge (CRDT).
+}
+```
+
+Key patterns illustrated:
+- `Increment` advances the local logical clock — called before every write
+- `Merge` advances the clock to the element-wise maximum — called on every message receive (this is how causal knowledge propagates)
+- `Concurrent` result means neither write happened before the other — the system cannot automatically pick a winner without data loss; this is when LWW silently loses data
+
+---
+
 ## Key Takeaway
 
 > **Replication buys availability and scale; consistency is what you pay for it.** Single-leader systems are simple but bottleneck at the leader. Multi-leader and leaderless systems scale writes globally but require explicit conflict resolution. Consensus protocols (Raft, Paxos) provide the strongest guarantees at the cost of coordination overhead. Choose your replication model by answering three questions: *Can you tolerate data loss on failure? Can you tolerate seeing stale data on reads? Can your application resolve write conflicts?*

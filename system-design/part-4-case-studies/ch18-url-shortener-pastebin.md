@@ -286,6 +286,87 @@ def encode_base62(num: int, length: int = 7) -> str:
 
 The weakness: sequential IDs mean sequential short codes — an attacker can enumerate all URLs by incrementing. Mitigate with ID obfuscation (XOR with a secret constant) or use the KGS approach.
 
+### Go Implementation Example
+
+```go
+package main
+
+import (
+	"fmt"
+	"strings"
+)
+
+const base62Chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+
+// EncodeBase62 converts a non-negative integer to a base62 string of fixed length.
+// This is the core algorithm that maps a DB auto-increment ID to a short code.
+func EncodeBase62(n int, length int) string {
+	result := make([]byte, length)
+	for i := length - 1; i >= 0; i-- {
+		result[i] = base62Chars[n%62]
+		n /= 62
+	}
+	return string(result)
+}
+
+// DecodeBase62 reverses the encoding — needed to look up the original ID.
+func DecodeBase62(s string) int {
+	n := 0
+	for _, c := range s {
+		n = n*62 + strings.IndexRune(base62Chars, c)
+	}
+	return n
+}
+
+// URLShortener maps short codes to long URLs (in-memory for this example).
+type URLShortener struct {
+	store   map[string]string // shortCode → longURL
+	counter int               // simulates DB auto-increment
+}
+
+// Shorten assigns the next ID, encodes it as a 7-char base62 code, and stores the mapping.
+func (s *URLShortener) Shorten(longURL string) string {
+	s.counter++
+	code := EncodeBase62(s.counter, 7)
+	s.store[code] = longURL
+	return code
+}
+
+// Resolve returns the original URL for a given short code.
+func (s *URLShortener) Resolve(code string) (string, bool) {
+	url, ok := s.store[code]
+	return url, ok
+}
+
+func main() {
+	shortener := &URLShortener{store: make(map[string]string)}
+
+	urls := []string{
+		"https://example.com/very/long/path?with=query&params=true",
+		"https://github.com/some-org/some-repo/blob/main/README.md",
+	}
+	for _, u := range urls {
+		code := shortener.Shorten(u)
+		resolved, _ := shortener.Resolve(code)
+		fmt.Printf("short=%s  id=%d  long=%s\n", code, DecodeBase62(code), resolved)
+	}
+
+	// Capacity check: 62^7 ≈ 3.5 trillion combinations
+	fmt.Printf("\nCapacity: 62^7 = %d combinations\n", func() int {
+		n := 1
+		for i := 0; i < 7; i++ {
+			n *= 62
+		}
+		return n
+	}())
+}
+```
+
+Key patterns illustrated:
+- `EncodeBase62` fills characters right-to-left so the most significant digit is first — the same layout as decimal numbers
+- `DecodeBase62` is the inverse: it is used when displaying the numeric ID in admin tools or for analytics joins
+- The `counter` simulates a DB `SERIAL` / `AUTO_INCREMENT` — in production, replace with a `SELECT nextval('url_id_seq')` or the KGS described below
+
 ### 4.2 Key Generation Service (KGS)
 
 KGS is a dedicated microservice that pre-generates short codes and stores them in two tables:

@@ -622,6 +622,93 @@ Cross-reference: API Gateway patterns are covered in [Chapter 13: Microservices 
 
 ---
 
+## Go Implementation Example
+
+The following shows a round-robin and weighted load balancer in Go. This is the core algorithm behind most software load balancers.
+
+```go
+package main
+
+import (
+	"fmt"
+	"sync"
+)
+
+// Backend represents a single upstream server.
+type Backend struct {
+	Address string
+	Weight  int // relative capacity; higher = more traffic
+}
+
+// RoundRobinLB cycles through backends sequentially.
+type RoundRobinLB struct {
+	backends []*Backend
+	mu       sync.Mutex
+	current  int
+}
+
+func (lb *RoundRobinLB) Next() *Backend {
+	lb.mu.Lock()
+	defer lb.mu.Unlock()
+	b := lb.backends[lb.current%len(lb.backends)]
+	lb.current++
+	return b
+}
+
+// WeightedRoundRobinLB distributes requests proportionally to Weight.
+// It pre-expands the slot list so selection is O(1) with no division.
+type WeightedRoundRobinLB struct {
+	slots   []*Backend // expanded: a backend with weight 3 appears 3 times
+	mu      sync.Mutex
+	current int
+}
+
+func NewWeightedRR(backends []*Backend) *WeightedRoundRobinLB {
+	var slots []*Backend
+	for _, b := range backends {
+		for i := 0; i < b.Weight; i++ {
+			slots = append(slots, b)
+		}
+	}
+	return &WeightedRoundRobinLB{slots: slots}
+}
+
+func (lb *WeightedRoundRobinLB) Next() *Backend {
+	lb.mu.Lock()
+	defer lb.mu.Unlock()
+	b := lb.slots[lb.current%len(lb.slots)]
+	lb.current++
+	return b
+}
+
+func main() {
+	backends := []*Backend{
+		{Address: "10.0.0.1:8080", Weight: 3}, // 60% of traffic
+		{Address: "10.0.0.2:8080", Weight: 2}, // 40% of traffic
+	}
+
+	rr := &RoundRobinLB{backends: backends}
+	wrr := NewWeightedRR(backends)
+
+	fmt.Println("Round-robin (first 4 requests):")
+	for i := 0; i < 4; i++ {
+		fmt.Printf("  request %d → %s\n", i+1, rr.Next().Address)
+	}
+
+	fmt.Println("Weighted round-robin (first 5 requests):")
+	for i := 0; i < 5; i++ {
+		fmt.Printf("  request %d → %s\n", i+1, wrr.Next().Address)
+	}
+}
+```
+
+Key patterns illustrated:
+- `sync.Mutex` ensures concurrent requests do not corrupt the counter — the same guarantee a production load balancer must provide
+- Weighted RR pre-expands the slot list so `Next()` is O(1) with no modular arithmetic per weight
+- The `Backend` struct is the natural extension point for adding health status, active connection count (least-connections), or latency metrics
+
+---
+
 ## Related Chapters
 
 | Chapter | Relevance |

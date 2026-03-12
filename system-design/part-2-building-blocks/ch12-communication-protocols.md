@@ -937,6 +937,99 @@ flowchart TD
 
 ---
 
+## Go Implementation Example
+
+The following shows a minimal HTTP REST server alongside a WebSocket echo server — the two most common server-side protocol implementations.
+
+```go
+package main
+
+import (
+	"encoding/json"
+	"fmt"
+	"log"
+	"net"
+	"net/http"
+)
+
+// --- HTTP REST server ---
+
+type User struct {
+	ID   int    `json:"id"`
+	Name string `json:"name"`
+}
+
+func usersHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	switch r.Method {
+	case http.MethodGet:
+		// GET /users — return a list (resource-based, stateless)
+		json.NewEncoder(w).Encode([]User{{ID: 1, Name: "Alice"}, {ID: 2, Name: "Bob"}})
+	case http.MethodPost:
+		// POST /users — create resource, respond 201
+		var u User
+		json.NewDecoder(r.Body).Decode(&u)
+		u.ID = 3 // normally assigned by DB
+		w.WriteHeader(http.StatusCreated)
+		json.NewEncoder(w).Encode(u)
+	default:
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+	}
+}
+
+// --- WebSocket echo server (raw TCP, no external library) ---
+// A real production server would use golang.org/x/net/websocket or nhooyr.io/websocket,
+// but the HTTP upgrade handshake below shows exactly what those libraries do internally.
+
+func wsEchoHandler(w http.ResponseWriter, r *http.Request) {
+	// Signal the upgrade; in production use a proper WS library for frame parsing.
+	if r.Header.Get("Upgrade") != "websocket" {
+		http.Error(w, "websocket upgrade required", http.StatusBadRequest)
+		return
+	}
+	// Hijack the raw TCP connection — this is the "Upgrade: websocket" handshake.
+	hj, ok := w.(http.Hijacker)
+	if !ok {
+		http.Error(w, "hijack not supported", http.StatusInternalServerError)
+		return
+	}
+	conn, buf, _ := hj.Hijack()
+	defer conn.Close()
+	// After hijack the connection is full-duplex — both sides may send at any time.
+	buf.WriteString("HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n\r\n")
+	buf.Flush()
+	// Echo loop: read a line and send it back (simplified frame model)
+	for {
+		line, err := buf.ReadString('\n')
+		if err != nil {
+			return // client closed connection
+		}
+		buf.WriteString("echo: " + line)
+		buf.Flush()
+	}
+}
+
+func main() {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/users", usersHandler) // REST endpoint
+	mux.HandleFunc("/ws", wsEchoHandler)   // WebSocket endpoint
+
+	// Find a free port so the example is runnable in any environment
+	ln, _ := net.Listen("tcp", "127.0.0.1:0")
+	fmt.Printf("Listening on %s\n", ln.Addr())
+	fmt.Println("  REST:      GET/POST http://<addr>/users")
+	fmt.Println("  WebSocket: ws://<addr>/ws")
+	log.Fatal(http.Serve(ln, mux))
+}
+```
+
+Key patterns illustrated:
+- `http.NewServeMux` maps URL paths to handlers — the same model as Nginx `location` blocks or ALB path-based routing rules
+- A single `switch r.Method` block implements the REST uniform interface (GET = read, POST = create) with correct status codes
+- `http.Hijacker` reveals what happens after `101 Switching Protocols`: the HTTP layer steps aside and the application owns the raw TCP connection for full-duplex communication
+
+---
+
 ## Related Chapters
 
 | Chapter | Relevance |
