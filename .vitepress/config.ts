@@ -74,6 +74,7 @@ const systemDesignSidebar = [
 export default withMermaid(
   defineConfig({
     title: "The Engineer's Handbook",
+    titleTemplate: ':title',
     description: "A comprehensive guide for software engineers — master system design, one concept at a time.",
 
     // Force dark mode only, no toggle
