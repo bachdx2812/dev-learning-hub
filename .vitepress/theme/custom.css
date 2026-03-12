@@ -351,13 +351,16 @@
   font-weight: 700;
 }
 
+/* Active sidebar item — highlighted background + bold indicator */
 .dark .VPSidebarItem.is-active > .item > .VPLink {
-  color: var(--dracula-pink);
+  color: var(--dracula-green);
+  font-weight: 600;
 }
 
-/* Active sidebar item indicator */
 .dark .VPSidebarItem.is-active > .item {
+  background: rgba(189, 147, 249, 0.1);
   border-left: 3px solid var(--dracula-purple);
+  border-radius: 0 6px 6px 0;
   padding-left: calc(var(--vp-sidebar-item-padding-left) - 3px);
 }
 
