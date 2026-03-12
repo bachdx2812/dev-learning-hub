@@ -172,7 +172,9 @@ export default withMermaid(
       },
 
       // Social links (placeholder for GitHub)
-      socialLinks: [],
+      socialLinks: [
+        { icon: 'github', link: 'https://github.com/bachdx2812/dev-learning-hub' }
+      ],
 
       // Doc metadata
       lastUpdated: true,
