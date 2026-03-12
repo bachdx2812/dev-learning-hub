@@ -166,21 +166,21 @@
   overflow: hidden;
 }
 
-/* Terminal traffic lights */
+/* Terminal traffic lights — single dot + two text-shadow copies */
 .dark .vp-doc div[class*="language-"]::before {
-  content: '● ● ●';
+  content: '●';
   display: block;
   padding: 10px 16px 8px;
   background: var(--dracula-current-line);
   font-size: 13px;
-  letter-spacing: 4px;
+  letter-spacing: 0;
   line-height: 1;
   border-bottom: 1px solid #3d3f52;
   background-image: none;
   color: var(--dracula-red);
   text-shadow:
-    14px 0 0 var(--dracula-yellow),
-    28px 0 0 var(--dracula-green);
+    18px 0 0 var(--dracula-yellow),
+    36px 0 0 var(--dracula-green);
 }
 
 /* Inline code */
@@ -205,6 +205,15 @@
   font-family: 'JetBrains Mono', monospace;
   font-size: 0.875rem;
   line-height: 1.7;
+}
+
+/* Line numbers — align with code and match line-height */
+.dark .vp-doc div[class*="language-"].line-numbers-mode .line-numbers-wrapper {
+  padding-top: 1.2em;
+  line-height: 1.7;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.875rem;
+  border-right: 1px solid var(--dracula-current-line);
 }
 
 /* Language label */
