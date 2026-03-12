@@ -637,17 +637,59 @@ Post created → [async] → Image/Text ML classifier → {SAFE | REVIEW | BLOCK
 
 ---
 
+## Related Chapters
+
+| Chapter | Relevance |
+|---------|-----------|
+| [Ch07 — Caching](/system-design/part-2-building-blocks/ch07-caching) | Redis sorted sets for per-user feed cache storage |
+| [Ch09 — SQL Databases](/system-design/part-2-building-blocks/ch09-databases-sql) | Post/user DB schema and follower graph queries |
+| [Ch11 — Message Queues](/system-design/part-2-building-blocks/ch11-message-queues) | Kafka fan-out pipeline decoupling write from feed delivery |
+| [Ch08 — CDN](/system-design/part-2-building-blocks/ch08-cdn) | CDN delivery for media (images, video) in feed posts |
+
+---
+
 ## Practice Questions
 
-1. **Celebrity threshold:** At what follower count does the hybrid model switch from push to pull? How would you measure the right threshold for your workload?
+### Beginner
 
-2. **Feed consistency:** A user follows 500 people. The system uses push fan-out. The user opens their app — what's the worst-case feed staleness and why?
+1. **Celebrity Threshold:** At what follower count should the hybrid model switch from push fan-out to pull-on-read for a celebrity user's posts? How would you measure the right threshold empirically for your specific workload?
 
-3. **Delete propagation:** You have 500M users and a post from a user with 10K followers is reported and removed. Walk through every system that needs to be updated and in what order.
+   <details>
+   <summary>Hint</summary>
+   The threshold is where fan-out write amplification (followers × write latency) exceeds the cost of a pull-on-read merge — measure p99 write latency for fan-out at different follower counts in a load test, then set the threshold just below where latency degrades.
+   </details>
 
-4. **Redis failure:** Your Redis feed cache cluster loses 20% of its nodes in a network partition. What happens to feed reads? Describe your fallback strategy step by step.
+### Intermediate
 
-5. **Ranking signals:** Design a feed ranking system that incorporates user affinity (how often Alice engages with Bob's posts). Where do you store affinity scores, how do you update them, and how do you incorporate them into the ranking pipeline without blowing your 200ms latency budget?
+2. **Feed Staleness:** A user follows 500 people. The system uses push fan-out with an async worker pool. The user opens their app 2 seconds after someone they follow posts. What is the worst-case feed staleness, and what factors in your pipeline determine it?
+
+   <details>
+   <summary>Hint</summary>
+   Staleness = time in queue + fan-out processing time for 500 followers; under normal load this is sub-second, but under a write spike, worker queue depth increases — monitor queue lag as the leading indicator of feed staleness.
+   </details>
+
+3. **Delete Propagation:** A post from a user with 10K followers is reported and must be removed within 60 seconds. Walk through every system that contains a reference to this post (feed caches, CDN, search index, notification service, activity log) and the order in which you update each.
+
+   <details>
+   <summary>Hint</summary>
+   Prioritize the user-facing read path first (invalidate Redis feed caches, CDN purge); then async cleanup of notifications and search index; the activity log is append-only and records the deletion event rather than being modified.
+   </details>
+
+4. **Redis Cluster Failure:** Your Redis feed cache cluster loses 20% of its nodes in a network partition. What happens to feed reads for users whose feeds were on the failed nodes? Describe your fallback strategy step by step, including how you rebuild the cache after recovery.
+
+   <details>
+   <summary>Hint</summary>
+   Cache misses fall back to the write-side database (posts table + follow graph); this increases DB read load — use a read replica and limit fallback concurrency with a semaphore; rebuild cache lazily on the next successful read after nodes recover.
+   </details>
+
+### Advanced
+
+5. **Feed Ranking Pipeline:** Design a feed ranking system that incorporates user affinity scores (how often Alice engages with Bob's posts). Where do you store affinity scores, how do you update them after each engagement event, and how do you incorporate them into the ranking pipeline within a 200ms total latency budget?
+
+   <details>
+   <summary>Hint</summary>
+   Store affinity scores in Redis (fast reads); update asynchronously via a Kafka consumer after each engagement event; at ranking time, fetch the top-K candidate posts from the feed cache, score them with affinity weights in-memory, and sort — the ranking computation itself must complete in < 50ms to fit the budget.
+   </details>
 
 ---
 

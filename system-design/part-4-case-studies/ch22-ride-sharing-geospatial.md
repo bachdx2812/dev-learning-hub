@@ -741,14 +741,56 @@ graph TB
 
 ---
 
+## Related Chapters
+
+| Chapter | Relevance |
+|---------|-----------|
+| [Ch09 — SQL Databases](/system-design/part-2-building-blocks/ch09-databases-sql) | PostGIS geospatial indexing for proximity queries |
+| [Ch06 — Load Balancing](/system-design/part-2-building-blocks/ch06-load-balancing) | Load balancing 250K+ GPS updates/sec across location servers |
+| [Ch07 — Caching](/system-design/part-2-building-blocks/ch07-caching) | Redis geospatial for real-time driver location lookup |
+| [Ch10 — NoSQL Databases](/system-design/part-2-building-blocks/ch10-databases-nosql) | Time-series NoSQL for GPS event ingestion at scale |
+
+---
+
 ## Practice Questions
 
-1. **Geospatial Indexing Trade-offs:** Your city deployment has a dense downtown core (50,000 drivers in 5 km²) and sparse suburbs (500 drivers in 50 km²). A fixed geohash precision 6 gives you ~0.6 km cells. Explain why this is suboptimal for both zones. How does a quadtree adaptive index address this? What are its operational complexity trade-offs vs. a fixed-precision geohash?
+### Beginner
 
-2. **Location Update Thundering Herd:** Your Location Service cluster receives 250,000 GPS updates per second normally. At 5:00 PM on a Friday, all 1 million active drivers simultaneously accelerate — their apps send a burst of 400,000 updates in a single second. Your Redis pipeline batch size is 25,000 over 100ms windows. Walk through exactly what happens to your pipeline, what queues fill up, what latency increases, and how you detect and mitigate this spike without dropping updates.
+1. **Geospatial Indexing Trade-offs:** Your city deployment has a dense downtown core (50,000 drivers in 5 km²) and sparse suburbs (500 drivers in 50 km²). Fixed geohash precision 6 (~0.6 km cells) is suboptimal for both zones. Explain why, and how a quadtree adaptive index addresses the density problem at the cost of operational complexity.
 
-3. **Driver Matching Consistency:** A rider submits a request. The Matching Service queries Redis and finds driver A as the best candidate. Before the offer is sent, driver A accepts another ride from a different city instance that also queried the same Redis and also selected driver A. Both Ride Service instances now believe driver A is assigned to their respective trips. Describe the race condition in detail and design a solution using Redis atomic operations that prevents double-assignment.
+   <details>
+   <summary>Hint</summary>
+   In dense zones, one geohash cell contains too many drivers (slow linear scan); in sparse zones, a rider's search may return zero results and must expand to adjacent cells — a quadtree subdivides dense cells and merges sparse ones automatically.
+   </details>
 
-4. **Surge Pricing Fairness:** Your surge pricing algorithm recalculates every 30 seconds. A major concert ends at 10 PM — 20,000 people request rides simultaneously in a 1 km² area. Your surge calculator has 30 seconds of lag before it detects the demand spike. During those 30 seconds, thousands of riders book at non-surge prices while supply is severely constrained. Design a system that detects demand spikes within 5 seconds and applies temporary surge pricing, without creating false surges from normal traffic variation.
+### Intermediate
 
-5. **Trip Dispute Resolution:** A rider claims the trip distance was 8 km but the fare was calculated for 15 km. Your location history in Cassandra has GPS samples every 30 seconds for cost reasons (not every 4 seconds). How do you calculate the actual trip distance from sparse samples? What is the maximum possible error from 30-second sampling at typical urban speeds? Design a dispute resolution data model that gives customer support the tools to adjudicate the claim accurately.
+2. **Driver Matching Race Condition:** A rider requests a ride. The Matching Service queries Redis and selects driver A. Before the offer is sent, a different city instance also queries Redis and also selects driver A. Both instances now try to assign driver A to different trips. Describe the race condition and design a Redis atomic solution (using `SET NX` or a Lua script) that prevents double-assignment.
+
+   <details>
+   <summary>Hint</summary>
+   Use `SET driver:{id}:lock {trip_id} NX EX 30` — only one instance succeeds; the other receives nil and must select the next-best available driver; release the lock after assignment confirmation or timeout.
+   </details>
+
+3. **Location Update Spike:** Your Location Service normally receives 250K GPS updates/second. At 5:00 PM Friday, all 1M active drivers simultaneously accelerate and send 400K updates in one second. Your Redis pipeline batches 25K updates per 100ms window. Walk through exactly what queues fill up, what latency spikes, and how you mitigate without dropping updates.
+
+   <details>
+   <summary>Hint</summary>
+   The inbound Kafka queue absorbs the burst (backpressure); the Redis writer falls behind by one batch window (100ms lag); detect via queue depth monitoring and auto-scale the Redis writer consumer group to drain the backlog.
+   </details>
+
+4. **Surge Pricing Detection:** Your surge algorithm recalculates every 30 seconds. A concert ends and 20,000 riders request rides simultaneously in a 1 km² area. The 30-second lag means thousands of bookings happen at non-surge prices. Design a system that detects demand spikes within 5 seconds and applies temporary surge, without false-surging normal traffic variation.
+
+   <details>
+   <summary>Hint</summary>
+   Maintain a sliding 5-second rolling request count per geohash cell in Redis; trigger provisional surge when the rate exceeds 3× the baseline for that cell at that time-of-week; use a hysteresis window to avoid flapping.
+   </details>
+
+### Advanced
+
+5. **Trip Dispute Resolution:** A rider disputes a 15 km fare, claiming the trip was 8 km. Your Cassandra location history has GPS samples every 30 seconds (not every 4 seconds, for cost reasons). What is the maximum possible distance error from 30-second sampling at typical urban speeds (30–50 km/h)? Design a dispute resolution data model that gives customer support the tools to adjudicate accurately.
+
+   <details>
+   <summary>Hint</summary>
+   At 50 km/h, a vehicle travels 417m in 30 seconds — GPS sampling error accumulates per segment; store the raw GPS stream in a cheap cold store (S3) for dispute resolution even if the real-time pipeline uses sampled data; the dispute model should show the reconstructed path with confidence intervals.
+   </details>

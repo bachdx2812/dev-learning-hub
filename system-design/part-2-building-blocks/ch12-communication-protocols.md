@@ -592,14 +592,237 @@ Result: fewer round-trips, reduced bandwidth (especially for mobile clients), an
 
 ---
 
+## Protocol Sequence Diagrams
+
+The following sequence diagrams show the exact message flow for each major protocol. Understanding the number of round-trips and the state transitions helps you reason about latency, connection overhead, and failure modes.
+
+### HTTP Request/Response — Full Flow with DNS
+
+A complete HTTP request involves DNS resolution, TCP setup, TLS negotiation, and then the actual request. Each step adds latency.
+
+```mermaid
+sequenceDiagram
+    participant Browser as Browser
+    participant DNS as DNS Resolver
+    participant CDN as CDN / Load Balancer
+    participant Server as Origin Server
+
+    Note over Browser,DNS: Phase 1 — DNS Resolution (~50ms first time, cached after)
+    Browser->>DNS: Resolve api.example.com
+    DNS-->>Browser: IP address (e.g. 203.0.113.10)
+
+    Note over Browser,CDN: Phase 2 — TCP + TLS Handshake (~1.5–2 RTT)
+    Browser->>CDN: TCP SYN
+    CDN-->>Browser: TCP SYN-ACK
+    Browser->>CDN: TCP ACK + TLS ClientHello
+    CDN-->>Browser: TLS ServerHello + Certificate
+    Browser->>CDN: TLS Finished
+
+    Note over Browser,Server: Phase 3 — HTTP Request (~1 RTT)
+    Browser->>CDN: GET /api/v1/users/42\nHeaders: Accept, Authorization, Cache-Control
+    CDN->>Server: Forward request (cache miss)
+    Server-->>CDN: HTTP 200 OK\nContent-Type: application/json\nCache-Control: max-age=60\nBody: {"id":42,"name":"Alice"}
+    CDN-->>Browser: HTTP 200 OK (response + sets cache)
+
+    Note over Browser,CDN: Subsequent requests — cache hit, no origin call
+    Browser->>CDN: GET /api/v1/users/42
+    CDN-->>Browser: HTTP 200 OK (from cache)
+```
+
+**Latency breakdown:** DNS (~50ms, cached to ~0ms) + TCP handshake (1 RTT) + TLS 1.2 (2 RTT) + request (1 RTT) = ~4 RTT before first byte. HTTP/3 (QUIC + TLS 1.3) reduces this to 1 RTT or 0-RTT for returning clients.
+
+### WebSocket Lifecycle — From Upgrade to Close
+
+WebSocket reuses the HTTP port and starts with an HTTP upgrade. Once upgraded, the connection becomes full-duplex and stays open.
+
+```mermaid
+sequenceDiagram
+    participant C as Client
+    participant S as Server
+
+    Note over C,S: Phase 1 — HTTP Upgrade Handshake (1 RTT)
+    C->>S: GET /ws HTTP/1.1\nUpgrade: websocket\nConnection: Upgrade\nSec-WebSocket-Key: x3JJHMbDL1EzLkh9GBhXDw==\nSec-WebSocket-Version: 13
+
+    S-->>C: HTTP/1.1 101 Switching Protocols\nUpgrade: websocket\nConnection: Upgrade\nSec-WebSocket-Accept: HSmrc0sMlYUkAGmm5OPpG2HaGWk=
+
+    Note over C,S: Phase 2 — Full-Duplex Channel Open (no request needed to send)
+    C->>S: Frame ["join", "room-42"]
+    S-->>C: Frame ["presence", "Alice joined"]
+    S-->>C: Frame ["message", "Hello from Alice"]
+    C->>S: Frame ["message", "Reply from Bob"]
+    S-->>C: Frame ["message", "Another message"]
+
+    Note over C,S: Phase 3 — Keepalive (server-initiated)
+    S->>C: Frame PING
+    C-->>S: Frame PONG
+
+    Note over C,S: Phase 4 — Graceful Close
+    C->>S: Frame CLOSE (code 1000 Normal)
+    S-->>C: Frame CLOSE (code 1000)
+    Note over C,S: TCP connection torn down
+```
+
+### gRPC Communication Patterns
+
+gRPC supports four streaming patterns. Each maps to a different `stream` keyword in the `.proto` file.
+
+```mermaid
+flowchart LR
+    subgraph U["Unary\n(standard request/response)"]
+        direction LR
+        UC["Client"] -->|"1 request"| US["Server"]
+        US -->|"1 response"| UC
+    end
+
+    subgraph SS["Server Streaming\n(server sends N responses)"]
+        direction LR
+        SSC["Client"] -->|"1 request"| SSS["Server"]
+        SSS -->|"response 1"| SSC
+        SSS -->|"response 2"| SSC
+        SSS -->|"response N..."| SSC
+    end
+
+    subgraph CS["Client Streaming\n(client sends N messages)"]
+        direction LR
+        CSC["Client"] -->|"message 1"| CSS["Server"]
+        CSC -->|"message 2"| CSS
+        CSC -->|"message N..."| CSS
+        CSS -->|"1 response (after all msgs)"| CSC
+    end
+
+    subgraph BD["Bidirectional Streaming\n(N messages each way)"]
+        direction LR
+        BDC["Client"] -->|"msg 1"| BDS["Server"]
+        BDS -->|"response A"| BDC
+        BDC -->|"msg 2"| BDS
+        BDS -->|"response B"| BDC
+    end
+```
+
+| Pattern | Proto Syntax | Typical Use Case |
+|---|---|---|
+| Unary | `rpc GetUser(Request) returns (Response)` | Fetch a single record |
+| Server streaming | `rpc ListUsers(Request) returns (stream Response)` | Paginated results, live feeds |
+| Client streaming | `rpc Upload(stream Chunk) returns (Summary)` | File upload, batch ingestion |
+| Bidirectional | `rpc Chat(stream Msg) returns (stream Msg)` | Real-time collaboration, chat |
+
+### Server-Sent Events (SSE) Flow
+
+SSE is a simple HTTP mechanism for server-to-client push. It requires no upgrade — just a long-lived HTTP response with `Content-Type: text/event-stream`.
+
+```mermaid
+sequenceDiagram
+    participant C as Client (Browser)
+    participant S as Server
+
+    Note over C,S: Client opens a persistent HTTP connection
+    C->>S: GET /events HTTP/1.1\nAccept: text/event-stream\nCache-Control: no-cache
+
+    Note over S,C: Server holds connection open and streams events
+    S-->>C: HTTP/1.1 200 OK\nContent-Type: text/event-stream\nTransfer-Encoding: chunked
+
+    S-->>C: data: {"type":"price","symbol":"AAPL","value":189.50}\n\n
+    S-->>C: data: {"type":"price","symbol":"GOOG","value":2847.20}\n\n
+
+    Note over S,C: Client-side EventSource auto-reconnects if dropped
+    S-->>C: data: {"type":"heartbeat"}\n\n
+
+    Note over C,S: Client closes when done (navigates away or calls EventSource.close())
+    C->>S: TCP FIN
+```
+
+**SSE vs WebSocket:** SSE is unidirectional (server → client only) and simpler — it is just HTTP, so it works through all proxies, supports automatic reconnection via the `EventSource` API, and requires no special server infrastructure. Use SSE for dashboards, notifications, and live feeds. Use WebSocket when the client also needs to send data frequently.
+
+### Protocol Selection Decision Tree — Expanded
+
+```mermaid
+flowchart TD
+    START(["New communication\nrequirement"]) --> Q1
+
+    Q1{"Does the client need\nto send data to the\nserver in real time?"}
+
+    Q1 -->|"Yes — bidirectional"| Q2
+    Q1 -->|"No — server push only"| SSE_NODE["Server-Sent Events\nSimple, HTTP-native,\nauto-reconnect"]
+
+    Q2{"High-frequency messages\nor persistent session\nrequired?"}
+    Q2 -->|"Yes"| WS_NODE["WebSocket\nChat, gaming,\nlive collaboration"]
+    Q2 -->|"No, occasional"| REST_RT["REST with long-poll\nor webhooks"]
+
+    Q1 -->|"Request-response\nis fine"| Q3
+
+    Q3{"Internal service-to-service\nor external / browser?"}
+    Q3 -->|"Internal microservice"| Q4
+    Q3 -->|"External / browser"| Q5
+
+    Q4{"Need streaming,\nstrong typing, or\nlow latency?"}
+    Q4 -->|"Yes"| GRPC_NODE["gRPC\nProtobuf, HTTP/2,\ngenerated stubs"]
+    Q4 -->|"No"| REST_INT["REST\nSimpler to start,\neasier debugging"]
+
+    Q5{"Multiple client types\nwith divergent\ndata needs?"}
+    Q5 -->|"Yes"| GQL_NODE["GraphQL\nClient-driven queries,\nBFF pattern"]
+    Q5 -->|"No"| REST_NODE["REST\nSimple, cacheable,\nuniversally understood"]
+
+    Q3 -->|"Loss-tolerant,\nlatency-critical"| UDP_NODE["UDP / QUIC\nDNS, VoIP, video,\ngaming transport"]
+
+    style WS_NODE fill:#4CAF50,color:#fff
+    style GRPC_NODE fill:#2196F3,color:#fff
+    style GQL_NODE fill:#9C27B0,color:#fff
+    style REST_NODE fill:#FF9800,color:#fff
+    style SSE_NODE fill:#00BCD4,color:#fff
+    style UDP_NODE fill:#F44336,color:#fff
+```
+
+---
+
+## Related Chapters
+
+| Chapter | Relevance |
+|---------|-----------|
+| [Ch11 — Message Queues](/system-design/part-2-building-blocks/ch11-message-queues) | Async messaging as alternative to synchronous protocols |
+| [Ch05 — DNS](/system-design/part-2-building-blocks/ch05-dns) | DNS resolves service endpoints for all protocol connections |
+| [Ch13 — Microservices](/system-design/part-3-architecture-patterns/ch13-microservices) | gRPC/REST protocol selection for inter-service communication |
+
+---
+
 ## Practice Questions
 
-1. **TCP Handshake Cost:** A user in Sydney connects to a server in London (RTT ≈ 280ms). Calculate the total latency before the first byte of HTTP/1.1 data is received, accounting for TCP + TLS 1.2 setup. How does HTTP/3 (QUIC + TLS 1.3) change this?
+### Beginner
 
-2. **Protocol Selection:** You are designing a stock trading platform. The frontend needs: (a) real-time price ticks for 50 symbols, (b) submitting orders, (c) fetching historical charts. Which protocol(s) would you use for each requirement and why?
+1. **TCP Handshake Cost:** A user in Sydney connects to a server in London (RTT ≈ 280ms). Calculate the total latency before the first byte of HTTP/1.1 data is received, accounting for TCP 3-way handshake plus TLS 1.2 setup. How does HTTP/3 (QUIC + TLS 1.3) reduce this, and what is the new latency?
 
-3. **gRPC vs REST Trade-offs:** Your team is building a new internal payments microservice. A junior engineer proposes REST because "everyone knows it." Make the case for gRPC, and identify one legitimate reason to stick with REST anyway.
+   <details>
+   <summary>Hint</summary>
+   HTTP/1.1 + TLS 1.2 requires 4 round trips before data (TCP SYN, TCP ACK + TLS ClientHello, TLS ServerHello, TLS Finished) = 4 × 280ms = 1,120ms; QUIC combines transport and TLS into 1 RTT (or 0-RTT on reconnect).
+   </details>
 
-4. **GraphQL N+1 Problem:** A GraphQL query fetches 100 users, and each user resolver fetches their orders separately. Explain the N+1 query problem this creates and describe two solutions (DataLoader pattern and server-side query planning).
+### Intermediate
 
-5. **WebSocket Scaling:** A live chat application runs a single WebSocket server handling 10,000 concurrent connections. You need to scale to 500,000 connections. What architectural changes are needed? Consider connection state, message routing between servers, and sticky sessions.
+2. **Protocol Selection:** You are designing a stock trading platform. The frontend needs: (a) real-time price ticks pushed for 50 symbols, (b) submitting orders (low latency, confirmed), (c) fetching historical chart data. Select the best protocol for each requirement and justify your choice.
+
+   <details>
+   <summary>Hint</summary>
+   Price ticks = WebSocket or SSE (server-push, persistent connection); order submission = REST/gRPC (request-response with confirmation); historical charts = REST (cacheable, request-response) — match the communication pattern to the protocol's strengths.
+   </details>
+
+3. **gRPC vs REST:** Your team is building an internal payments microservice that will be called by 8 other services. A junior engineer proposes REST. Make the case for gRPC on performance and contract enforcement, then identify one legitimate reason to stay with REST for this use case.
+
+   <details>
+   <summary>Hint</summary>
+   gRPC wins on: binary encoding (smaller payloads), strongly typed contracts (Protobuf IDL), and native streaming; REST wins when: the client is a browser without gRPC-web support, or when HTTP caching matters.
+   </details>
+
+4. **GraphQL N+1 Problem:** A GraphQL query fetches 100 users and each user resolver independently queries the DB for their orders. Explain the N+1 query problem and the exact number of DB queries this generates. Describe two solutions (DataLoader batching and join-based query planning).
+
+   <details>
+   <summary>Hint</summary>
+   N+1 = 1 query for users + 100 queries for orders = 101 queries; DataLoader batches the 100 individual lookups into a single `SELECT WHERE id IN (...)` query executed after all resolvers have registered their requests.
+   </details>
+
+### Advanced
+
+5. **WebSocket Scaling:** A live chat application has one WebSocket server handling 10,000 concurrent connections. You need to scale to 500,000 connections. Design the full architecture: how do you route messages between servers, handle connection state, and implement sticky sessions without single-server bottlenecks?
+
+   <details>
+   <summary>Hint</summary>
+   Use a pub/sub layer (Redis Pub/Sub or Kafka) so any server can publish to a channel that all servers subscribe to; sticky sessions at the load balancer keep each client on one server, but the pub/sub layer enables cross-server delivery.
+   </details>

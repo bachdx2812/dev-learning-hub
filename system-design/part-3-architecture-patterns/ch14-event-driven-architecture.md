@@ -693,15 +693,57 @@ CREATE TABLE outbox (
 
 ---
 
+## Related Chapters
+
+| Chapter | Relevance |
+|---------|-----------|
+| [Ch11 — Message Queues](/system-design/part-2-building-blocks/ch11-message-queues) | Kafka/SQS internals that event-driven patterns depend on |
+| [Ch13 — Microservices](/system-design/part-3-architecture-patterns/ch13-microservices) | Saga pattern for distributed transactions across services |
+| [Ch15 — Replication & Consistency](/system-design/part-3-architecture-patterns/ch15-data-replication-consistency) | Consistency guarantees in event-sourced distributed systems |
+| [Ch09 — SQL Databases](/system-design/part-2-building-blocks/ch09-databases-sql) | Distributed transactions (2PC) vs Saga trade-offs |
+
+---
+
 ## Practice Questions
 
-1. **Order fulfillment workflow**: Design an order fulfillment system using event-driven architecture. An order must trigger inventory reservation, payment charging, and shipping label creation — but if payment fails, inventory must be released. Model this with both choreography and orchestration. Which would you choose and why?
+### Beginner
 
-2. **Event sourcing trade-offs**: Your team proposes event sourcing for a high-traffic e-commerce catalog (10,000 product updates/day, 1 million reads/day). The argument is "we get audit history for free." Walk through the costs and benefits. Would you use event sourcing here? What read model strategy would you apply?
+1. **Order Fulfillment Saga:** Design an order fulfillment system using event-driven architecture. An order must trigger inventory reservation, payment charging, and shipping label creation — but if payment fails, inventory must be released. Model this with both choreography and orchestration, then choose one and justify why.
 
-3. **CQRS scaling**: A social platform's feed query is slow because it joins users, follows, and posts tables. Propose a CQRS design where the write side remains relational but the read side is a materialized feed per user. What events trigger feed updates? How do you handle eventual consistency when a user posts and immediately refreshes their own feed?
+   <details>
+   <summary>Hint</summary>
+   Choreography uses events between services (looser coupling, harder to trace); orchestration uses a central coordinator (easier to reason about compensations) — multi-step compensation workflows favor orchestration.
+   </details>
 
-4. **Schema evolution scenario**: You publish an `OrderPlaced` event with fields `{ orderId, userId, total }`. Six months later you need to add `{ discountCode, itemCount }` and rename `total` to `subtotal`. Describe your migration strategy. Which changes are safe? Which require a new topic version?
+### Intermediate
 
-5. **Idempotency challenge**: Your notification service consumes `OrderShipped` events and sends an SMS. Due to a Kafka partition rebalance, the same event is delivered twice within 30 seconds. Describe three different mechanisms to prevent duplicate SMS messages, and compare their complexity, latency impact, and failure modes.
+2. **Event Sourcing Trade-offs:** Your team proposes event sourcing for a high-traffic e-commerce catalog (10K product updates/day, 1M reads/day). Evaluate the costs (event log replay time, read complexity, schema migration) vs benefits (audit history, temporal queries). Would you use event sourcing here, and what CQRS read model strategy would you apply?
+
+   <details>
+   <summary>Hint</summary>
+   Event sourcing shines for financial ledgers and audit-heavy domains; for a product catalog where reads dominate and historical states are rarely needed, the operational overhead typically outweighs the benefits.
+   </details>
+
+3. **CQRS Feed Design:** A social platform's feed query is slow because it joins users, follows, and posts tables in real time. Propose a CQRS design where the write side remains relational but the read side materializes a feed per user in Redis. What events trigger feed updates, and how do you handle the eventual consistency gap when a user posts and immediately refreshes?
+
+   <details>
+   <summary>Hint</summary>
+   Fan-out on write (push model) updates each follower's Redis feed when a post event is published; for read-your-own-writes, read the user's own posts from the write model and merge with the cached feed at query time.
+   </details>
+
+4. **Schema Evolution:** You publish an `OrderPlaced` event with fields `{ orderId, userId, total }`. You need to add `{ discountCode, itemCount }` and rename `total` to `subtotal`. Which changes are backward-compatible? Which require a new schema version or topic? Describe the consumer migration strategy.
+
+   <details>
+   <summary>Hint</summary>
+   Adding optional fields is backward-compatible; renaming is a breaking change — publish both `total` and `subtotal` in a transitional version, then deprecate `total` after all consumers have migrated.
+   </details>
+
+### Advanced
+
+5. **Idempotency Mechanisms:** Your notification service consumes `OrderShipped` events and sends an SMS. A Kafka partition rebalance causes the same event to be delivered twice within 30 seconds. Describe three distinct mechanisms to prevent duplicate SMS (deduplication key in DB, idempotency token with provider API, consumer-side state machine). Compare each on: implementation complexity, latency impact, and failure modes.
+
+   <details>
+   <summary>Hint</summary>
+   DB deduplication key is the most reliable (persistent) but adds a write per message; provider-level idempotency keys work if the SMS provider supports them; a state machine (processed/unprocessed enum) prevents duplicates but requires careful distributed locking.
+   </details>
 

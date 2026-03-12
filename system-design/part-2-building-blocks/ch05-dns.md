@@ -500,14 +500,55 @@ Cross-reference: [Chapter 6: Load Balancing](/system-design/part-2-building-bloc
 
 ---
 
+## Related Chapters
+
+| Chapter | Relevance |
+|---------|-----------|
+| [Ch06 — Load Balancing](/system-design/part-2-building-blocks/ch06-load-balancing) | DNS global routing hands off to LB for regional distribution |
+| [Ch08 — CDN](/system-design/part-2-building-blocks/ch08-cdn) | DNS-based CDN routing for edge cache selection |
+| [Ch16 — Security & Reliability](/system-design/part-3-architecture-patterns/ch16-security-reliability) | DNSSEC, DDoS mitigation at the DNS layer |
+
+---
+
 ## Practice Questions
 
-1. Your team is planning to migrate `api.example.com` from IP `10.0.1.10` to `10.0.2.10`. The current A record TTL is 24 hours. Walk through the migration process, including what you would do 48 hours before the cutover, at cutover, and after.
+### Beginner
 
-2. Explain the difference between latency-based and geolocation DNS routing. A global SaaS company wants EU users served by EU servers for GDPR compliance — which strategy should they use and why?
+1. **DNS Migration:** Your team is planning to migrate `api.example.com` from IP `10.0.1.10` to `10.0.2.10`. The current A record TTL is 24 hours. Walk through the migration process — what do you do 48 hours before cutover, at cutover, and for the 24 hours after? What is the risk if you skip the TTL reduction step?
 
-3. A startup is using DNS round-robin across three backend servers. One server crashes at 3 AM. How long will users experience errors? What architectural change would you make to eliminate this problem?
+   <details>
+   <summary>Hint</summary>
+   Reduce TTL to 60s well before the cutover window so cached records expire quickly; after confirming the new IP is healthy, update the A record and monitor for errors during the old TTL drain period.
+   </details>
 
-4. Why can't you put a CNAME record on a root domain (e.g., `example.com`)? What proprietary DNS features solve this limitation, and what trade-offs do they introduce?
+### Intermediate
 
-5. Cloudflare uses anycast routing for `1.1.1.1`. Explain how anycast works at the BGP level and why it is superior to unicast for a globally distributed DNS resolver. What happens when a Cloudflare PoP goes offline?
+2. **Routing Policies:** Explain the difference between latency-based and geolocation DNS routing. A global SaaS company wants EU users served by EU servers for GDPR data residency compliance — which strategy should they use, and what failure mode does each strategy introduce if the target region goes down?
+
+   <details>
+   <summary>Hint</summary>
+   Geolocation enforces hard regional boundaries (required for GDPR); latency-based may route EU users to US servers if latency favors it — combine geolocation with a health-check failover policy.
+   </details>
+
+3. **DNS Round-Robin Failure:** A startup uses DNS round-robin across three backend servers. One server crashes at 3 AM. Calculate how long users will experience errors given a 300-second TTL. What architectural change eliminates this problem entirely?
+
+   <details>
+   <summary>Hint</summary>
+   Round-robin has no health awareness — DNS continues returning the crashed IP until TTL expires; a load balancer with active health checks removes unhealthy backends in seconds, not minutes.
+   </details>
+
+4. **CNAME Limitation:** Why can't you put a CNAME record on a root domain (e.g., `example.com`)? What proprietary DNS features (ALIAS/ANAME) solve this, and what vendor lock-in trade-offs do they introduce?
+
+   <details>
+   <summary>Hint</summary>
+   RFC 1034 forbids CNAMEs at the zone apex because they conflict with SOA/NS records; ALIAS records are non-standard and resolved server-side by specific DNS providers.
+   </details>
+
+### Advanced
+
+5. **Anycast Internals:** Cloudflare uses anycast routing for `1.1.1.1`. Explain how anycast works at the BGP level and why it is superior to unicast for a globally distributed DNS resolver with 300+ PoPs. What happens to in-flight DNS queries when a Cloudflare PoP goes offline, and how quickly does BGP convergence restore service?
+
+   <details>
+   <summary>Hint</summary>
+   All PoPs announce the same IP prefix; BGP routers select the shortest path, so clients automatically route to the nearest healthy PoP — convergence typically takes 30–90 seconds depending on BGP timer configuration.
+   </details>

@@ -484,53 +484,183 @@ A "write" to a database is not the same cost as a "read." Writes typically requi
 
 ---
 
+## Estimation Process Diagrams
+
+The following diagrams show the process and calculation trees for the four core estimation types. Use them as a repeatable mental model for every new problem.
+
+### How to Approach Any Estimation Problem
+
+```mermaid
+flowchart TD
+    START(["New estimation problem"]) --> C1
+
+    C1["1. Clarify scope\nWhat system? Which feature?\nWhat time window?"]
+    C1 --> C2
+
+    C2["2. Identify components\nWhat types of data exist?\nRead-heavy or write-heavy?"]
+    C2 --> C3
+
+    C3["3. State assumptions explicitly\nDAU? Actions per user?\nRecord size? Retention?"]
+    C3 --> C4
+
+    C4["4. Estimate each component\nQPS → Storage → Bandwidth\nRound to nearest power of 10"]
+    C4 --> C5
+
+    C5["5. Apply multipliers\n3× replication\n2–3× peak factor\n1.2× metadata overhead"]
+    C5 --> C6
+
+    C6["6. Validate total\nDoes the number feel right?\nDoes it change the architecture?"]
+    C6 --> C7{Architecture\nimpact?}
+
+    C7 -->|"< 1K QPS, < 1 TB"| OK["Simple architecture\nmay be sufficient.\nNote and move on."]
+    C7 -->|"> 10K QPS or > 100 TB"| DIST["Distributed architecture\nrequired. Drives design\ndecisions in Step 3."]
+    C7 -->|"In between"| WARN["Gray zone — design\nfor growth, keep\narchitecture simple for now."]
+
+    style START fill:#6272a4,color:#f8f8f2
+    style OK fill:#50fa7b,color:#282a36
+    style DIST fill:#ff5555,color:#f8f8f2
+    style WARN fill:#ffb86c,color:#282a36
+```
+
+### QPS Estimation Tree
+
+Start from DAU and decompose into per-service query rates.
+
+```mermaid
+flowchart TD
+    DAU["DAU\n(Daily Active Users)"]
+    DAU --> APD["× Actions per user per day\n(reads + writes)"]
+    APD --> TPD["= Total actions per day"]
+    TPD --> AVGQPS["÷ 86,400 seconds\n= Average QPS"]
+    AVGQPS --> SPLIT{Read/write\nratio?}
+
+    SPLIT -->|"R:W ratio e.g. 10:1"| RQPS["Read QPS\n= AvgQPS × R/(R+W)"]
+    SPLIT --> WQPS["Write QPS\n= AvgQPS × W/(R+W)"]
+
+    RQPS --> PEAK_R["Peak Read QPS\n= Read QPS × 2–3"]
+    WQPS --> PEAK_W["Peak Write QPS\n= Write QPS × 2–3"]
+
+    PEAK_R --> ARCH_R{"> 10K read QPS?"}
+    ARCH_R -->|"Yes"| CACHE["Add cache layer\n(Redis / Memcached)"]
+    ARCH_R -->|"No"| REPLICA["Read replicas\nmay suffice"]
+
+    PEAK_W --> ARCH_W{"> 5K write QPS?"}
+    ARCH_W -->|"Yes"| QUEUE["Add async queue\nor write sharding"]
+    ARCH_W -->|"No"| SINGLE["Single primary\nDB may handle it"]
+
+    style DAU fill:#6272a4,color:#f8f8f2
+    style CACHE fill:#50fa7b,color:#282a36
+    style QUEUE fill:#ff5555,color:#f8f8f2
+```
+
+### Storage Estimation Tree
+
+```mermaid
+flowchart TD
+    DM["Data model\nWhat entity types exist?\n(text, image, video, metadata)"]
+    DM --> RS["Record size per entity\n(bytes per row / object)"]
+    RS --> WPD["× Writes per day\n(DAU × write rate)"]
+    WPD --> RAW["= Raw storage per day"]
+    RAW --> RET["× Retention period\n(days / years)"]
+    RET --> TOTAL_RAW["= Total raw storage"]
+    TOTAL_RAW --> REP["× Replication factor\n(3× for durability)"]
+    REP --> META["× Metadata overhead\n(1.2–1.3× for indexes,\ntombstones, headers)"]
+    META --> FINAL["= Final storage estimate"]
+
+    FINAL --> TIER{"> 1 PB total?"}
+    TIER -->|"Yes"| OBJ["Object storage required\n(S3 / GCS / Blob)"]
+    TIER -->|"No"| BLOCK{"> 10 TB total?"}
+    BLOCK -->|"Yes"| SHARD_DB["Sharded or distributed DB\n(Cassandra / DynamoDB)"]
+    BLOCK -->|"No"| SINGLE_DB["Single DB instance\nmay be sufficient"]
+
+    style DM fill:#6272a4,color:#f8f8f2
+    style OBJ fill:#ff5555,color:#f8f8f2
+    style SHARD_DB fill:#ffb86c,color:#282a36
+    style SINGLE_DB fill:#50fa7b,color:#282a36
+```
+
+### Bandwidth Estimation Tree
+
+```mermaid
+flowchart TD
+    QPS_R["Read QPS\n(peak)"]
+    QPS_W["Write QPS\n(peak)"]
+
+    QPS_R --> PL_R["× Avg response payload\n(bytes per read response)"]
+    QPS_W --> PL_W["× Avg request payload\n(bytes per write request)"]
+
+    PL_R --> OUT["= Outbound bandwidth\n(bytes/sec egress)"]
+    PL_W --> IN["= Inbound bandwidth\n(bytes/sec ingress)"]
+
+    OUT --> OUT_SCALE{"> 1 Gbps\negress?"}
+    OUT_SCALE -->|"Yes"| CDN["CDN required\nto distribute egress"]
+    OUT_SCALE -->|"No"| OUT_OK["Standard network\ninfrastructure sufficient"]
+
+    IN --> IN_SCALE{"> 100 MB/s\ningress?"}
+    IN_SCALE -->|"Yes"| INGEST["Dedicated ingestion\npipeline (Kafka / Kinesis)"]
+    IN_SCALE -->|"No"| IN_OK["Standard write\npath sufficient"]
+
+    OUT --> TOTAL["Total bandwidth = IN + OUT\n(provision for peak, not average)"]
+
+    style QPS_R fill:#6272a4,color:#f8f8f2
+    style QPS_W fill:#6272a4,color:#f8f8f2
+    style CDN fill:#ff5555,color:#f8f8f2
+    style INGEST fill:#ffb86c,color:#282a36
+```
+
+---
+
+## Related Chapters
+
+| Chapter | Relevance |
+|---------|-----------|
+| [Ch02 — Scalability](/system-design/part-1-fundamentals/ch02-scalability) | Estimation feeds directly into scalability planning |
+| [Ch25 — Interview Framework](/system-design/part-5-modern-mastery/ch25-interview-framework-cheat-sheets) | Estimation is Step 2 of the 4-step interview framework |
+| [Ch18 — URL Shortener](/system-design/part-4-case-studies/ch18-url-shortener-pastebin) | Classic estimation walkthrough: QPS, storage, bandwidth |
+
+---
+
 ## Practice Questions
 
 Attempt each estimate before reading the hint. Write your assumptions explicitly before calculating.
 
-### 1. Instagram Storage Estimation
+### Beginner
 
-**Problem:** Estimate how much storage Instagram needs for new posts over one year.
+1. **Instagram Storage Estimation:** Estimate how much new storage Instagram requires per year, given ~500M DAU. State all assumptions (posting rate, photo/video mix, average file sizes, replication factor) before calculating. What is the monthly storage growth in petabytes?
 
-**Hints to consider:**
-- How many DAU does Instagram have (~500M)?
-- What percentage of users post each day?
-- What is the average post size (photo vs video)?
-- What replication factor does a production system need?
+   <details>
+   <summary>Hint</summary>
+   Assume ~5% of DAU post daily; photos average 3 MB, videos average 50 MB; use a 3× replication factor and roughly 20/80 photo-to-video mix for posted content.
+   </details>
 
-### 2. Uber Peak QPS Estimation
+### Intermediate
 
-**Problem:** Estimate Uber's peak QPS for ride requests during peak hours in a major city.
+2. **Uber Peak QPS Estimation:** Estimate Uber's peak QPS for ride-related API calls during rush hour (5 PM Friday) in a major metro. Uber completes ~15M rides globally per day. Account for location updates, matching calls, and payment events per ride, then apply a realistic peak-to-average multiplier.
 
-**Hints to consider:**
-- How many rides does Uber complete globally per day (~15M rides/day)?
-- What is the peak hour multiplier (e.g., 5 PM Friday)?
-- How many API calls does a single ride request generate (location updates, matching, payment)?
+   <details>
+   <summary>Hint</summary>
+   A single ride generates ~100 API calls spread over 20 minutes; peak hour sees ~3× daily average; remember global vs. metro scope if the question narrows to one city.
+   </details>
 
-### 3. WhatsApp Message Throughput
+3. **WhatsApp Message Throughput:** Estimate the peak message throughput WhatsApp must handle globally. WhatsApp has ~2B MAU. State assumptions for DAU conversion rate, messages per active user per day, and delivery receipt overhead, then calculate peak QPS.
 
-**Problem:** Estimate the peak message throughput WhatsApp must handle globally.
+   <details>
+   <summary>Hint</summary>
+   Each message generates at minimum 2 events (sent + delivered receipt); apply the standard 2–3× peak multiplier over the daily average QPS.
+   </details>
 
-**Hints to consider:**
-- WhatsApp has ~2B monthly active users. What is a reasonable DAU?
-- How many messages does an average active user send per day (~50)?
-- Account for message delivery receipts (2 events per message).
+4. **Netflix Bandwidth Estimation:** Estimate Netflix's total outbound bandwidth during peak evening hours (~8 PM local time). ~200M subscribers globally; assume 10% concurrently streaming. Use a blended bitrate of 3 Mbps across quality tiers. Express the answer in Tbps and compare to known internet backbone capacities.
 
-### 4. Netflix Bandwidth Estimation
+   <details>
+   <summary>Hint</summary>
+   20M concurrent streams × 3 Mbps = X Tbps; to sanity-check, recall that Netflix has historically been cited as ~15% of global internet traffic during peak.
+   </details>
 
-**Problem:** Estimate Netflix's total outbound bandwidth during peak evening hours.
+### Advanced
 
-**Hints to consider:**
-- ~200M subscribers globally. What fraction are watching simultaneously during peak (assume 10%)?
-- Average stream quality: 1080p HD at ~5 Mbps, but many users on mobile at 1 Mbps.
-- Use a blended average of 3 Mbps.
+5. **Google Search Index Size:** Estimate the storage required for Google's web search index. The crawled web has roughly 5–10B pages. Account for compressed HTML storage, extracted inverted index structures (roughly 3× raw data), PageRank scores, and the number of historical versions and replicas Google maintains for durability and query serving.
 
-### 5. Google Search Index Size
-
-**Problem:** Estimate the storage required for Google's web index.
-
-**Hints to consider:**
-- The web has roughly 5–10 billion indexed pages.
-- Average compressed page size for indexing: ~10 KB.
-- Google stores multiple versions (crawl history) and multiple replicas.
-- They also store extracted features, PageRank scores, and inverted indexes (roughly 3× raw data).
+   <details>
+   <summary>Hint</summary>
+   Start with raw page size (~10 KB compressed), multiply by index amplification factor and replica count; the answer should land in the tens-of-exabytes range and can be cross-checked against Google's reported data center capacity.
+   </details>

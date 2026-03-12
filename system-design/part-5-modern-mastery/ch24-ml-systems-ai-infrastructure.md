@@ -656,14 +656,56 @@ graph TB
 
 ---
 
+## Related Chapters
+
+| Chapter | Relevance |
+|---------|-----------|
+| [Ch11 — Message Queues](/system-design/part-2-building-blocks/ch11-message-queues) | Streaming data pipelines for real-time feature ingestion |
+| [Ch09 — SQL Databases](/system-design/part-2-building-blocks/ch09-databases-sql) | Feature store backed by SQL for training data retrieval |
+| [Ch23 — Cloud-Native](/system-design/part-5-modern-mastery/ch23-cloud-native-serverless) | Kubernetes for GPU workloads and model serving infrastructure |
+| [Ch07 — Caching](/system-design/part-2-building-blocks/ch07-caching) | Model prediction caching to reduce inference latency |
+
+---
+
 ## Practice Questions
 
-1. **Training-Serving Skew:** Your fraud detection model achieves 0.92 AUC in offline evaluation but only 0.78 AUC in production. Describe the three most likely causes of this gap, focusing on the training-serving skew problem. For each cause, explain what went wrong architecturally and how a feature store would have prevented or detected it.
+### Beginner
 
-2. **Distributed Training Design:** Your team needs to train a 65B parameter transformer model. A single H100 GPU has 80GB of VRAM; 65B parameters in BF16 requires 130GB. You have a cluster of 16 nodes, each with 8 H100s. Design the parallelism strategy: specify which combination of data parallelism, tensor parallelism, and pipeline parallelism you would use, how you would partition layers across nodes, and why you chose this configuration over alternatives. What is the critical bottleneck in your design?
+1. **Training-Serving Skew:** Your fraud detection model achieves 0.92 AUC offline but only 0.78 AUC in production. Describe the three most likely causes of this gap (focusing on feature computation differences), and explain how a feature store would have prevented or detected each issue.
 
-3. **RAG vs Fine-tuning:** A legal tech company wants their LLM to answer questions about their internal case law database (500,000 documents, updated weekly). They are deciding between: (a) fine-tuning a base LLM on all case law documents, and (b) building a RAG system over the documents. Compare the two approaches on: cost to build, cost to update when new cases are added, accuracy for factual recall, hallucination risk, and latency. Under what conditions would you recommend each approach?
+   <details>
+   <summary>Hint</summary>
+   The three main causes: features computed differently at training time vs serving time, training data includes future information not available at inference (data leakage), and the production distribution has drifted from the training distribution — a feature store enforces identical computation for both.
+   </details>
 
-4. **Vector Database Selection:** You are building a knowledge management system for a 10,000-person enterprise. The system stores 50 million document chunks as embeddings and needs to support: vector similarity search, full-text keyword search, filtering by department and date range, and real-time updates as documents are edited. Your team runs on AWS and already uses RDS Postgres extensively. Evaluate pgvector, Weaviate, and Pinecone for this use case. Make a recommendation and justify it, including the key trade-off you are accepting.
+### Intermediate
 
-5. **LLM Serving Cost Optimization:** Your company runs a customer support chatbot powered by a 7B parameter LLM. Current setup: 4× A100 40GB GPUs, FP32 weights, static batching with 50ms wait window, P99 latency 800ms, throughput 12 requests/second, monthly GPU cost $8,000. The business needs to reduce cost by 60% while keeping P99 under 500ms and throughput above 30 req/s. Describe a complete optimization plan across quantization, batching strategy, and serving infrastructure. Estimate the impact of each change and verify the plan meets all three constraints.
+2. **RAG vs Fine-tuning:** A legal tech company needs their LLM to answer questions over 500K internal case documents updated weekly. Compare RAG vs fine-tuning on: cost to build, cost to update when new cases are added, factual accuracy, hallucination risk, and query latency. Under what conditions would you recommend each approach?
+
+   <details>
+   <summary>Hint</summary>
+   Fine-tuning bakes knowledge into weights (expensive to update when documents change weekly); RAG retrieves from an index (cheap updates, add new docs to the vector store) but accuracy depends on retrieval quality — for frequently updated factual knowledge bases, RAG is almost always the right choice.
+   </details>
+
+3. **Vector Database Selection:** You are building a knowledge management system for a 10,000-person enterprise with 50M document chunks. Requirements: vector similarity search, full-text keyword search, department/date filtering, and real-time updates. Your team already uses RDS Postgres extensively. Evaluate pgvector, Weaviate, and Pinecone for this use case and make a justified recommendation.
+
+   <details>
+   <summary>Hint</summary>
+   pgvector is the pragmatic choice for an existing Postgres shop (no new infrastructure, ACID guarantees, SQL filtering); its limitation is ANN performance at 50M vectors — acceptable if you accept slightly lower recall vs purpose-built vector DBs.
+   </details>
+
+4. **Distributed Training Design:** Your team needs to train a 65B parameter transformer. A single H100 has 80GB VRAM; 65B params in BF16 requires 130GB. You have 16 nodes × 8 H100s. Specify which combination of data parallelism, tensor parallelism, and pipeline parallelism you would use, and identify the critical bottleneck in your design.
+
+   <details>
+   <summary>Hint</summary>
+   Use tensor parallelism within a node (split layers across 8 GPUs on shared NVLink) and pipeline parallelism across nodes (partition layers across nodes on InfiniBand); data parallelism across node groups — the critical bottleneck is inter-node bandwidth during gradient synchronization.
+   </details>
+
+### Advanced
+
+5. **LLM Serving Cost Optimization:** Your customer support chatbot uses a 7B LLM: 4× A100 40GB (FP32), static batching, P99 800ms, 12 req/s throughput, $8K/month GPU cost. You need to cut cost by 60% while keeping P99 < 500ms and throughput > 30 req/s. Describe your optimization plan across quantization, batching strategy, and infrastructure. Estimate the impact of each change and verify all three constraints are met.
+
+   <details>
+   <summary>Hint</summary>
+   INT8 quantization halves GPU memory (can run on 2× A100 or smaller GPUs, -50% cost); continuous batching (vs static) increases GPU utilization and throughput 2–4×; switch to continuous batching framework (vLLM) — together these changes can achieve 60% cost reduction while improving throughput.
+   </details>

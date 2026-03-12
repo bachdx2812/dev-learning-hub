@@ -914,14 +914,56 @@ Netflix's deployment philosophy is: **investment in deployment tooling enables f
 
 ---
 
+## Related Chapters
+
+| Chapter | Relevance |
+|---------|-----------|
+| [Ch13 — Microservices](/system-design/part-3-architecture-patterns/ch13-microservices) | Kubernetes orchestrates the microservices deployed here |
+| [Ch17 — Monitoring & Observability](/system-design/part-3-architecture-patterns/ch17-monitoring-observability) | Cloud-native monitoring stack: Prometheus, Grafana |
+| [Ch15 — Replication & Consistency](/system-design/part-3-architecture-patterns/ch15-data-replication-consistency) | Stateful workload consistency in Kubernetes environments |
+| [Ch16 — Security & Reliability](/system-design/part-3-architecture-patterns/ch16-security-reliability) | Chaos engineering and reliability patterns in cloud deployments |
+
+---
+
 ## Practice Questions
 
-1. **Container Optimization:** A team's Docker image for their Python API is 1.4 GB and takes 4 minutes to build in CI. Describe three specific changes to the Dockerfile and build process that would reduce both image size and build time. Explain why each change helps, referencing the layer caching model.
+### Beginner
 
-2. **Kubernetes Autoscaling:** Your e-commerce API is deployed on Kubernetes with HPA configured at 70% CPU target, min 3 replicas, max 20 replicas. During a flash sale, traffic spikes 10x in 30 seconds, but you observe a 2-minute gap before new pods come online, causing 503 errors. Diagnose the likely bottleneck (HPA, Cluster Autoscaler, container startup) and describe how you would eliminate or reduce the gap.
+1. **Container Optimization:** A team's Docker image for their Python API is 1.4 GB and takes 4 minutes to build in CI. Describe three specific changes to the Dockerfile and build process that reduce both image size and build time. Explain why each change helps, referencing Docker's layer caching model.
 
-3. **Serverless Trade-offs:** A startup is building a document processing pipeline: users upload PDFs, the system extracts text, runs ML inference, and stores results. Documents vary from 10KB to 500MB. Processing time ranges from 2 seconds to 25 minutes. Design the compute architecture. Would you use Lambda, Fargate, EC2, or a combination? Justify the boundary between serverless and containerized components, and explain how you handle the 15-minute Lambda timeout constraint.
+   <details>
+   <summary>Hint</summary>
+   Use a slim base image (python:3.12-slim vs python:3.12), add a multi-stage build to exclude build tools from the final image, and move `COPY requirements.txt` before `COPY .` so the dependency layer is cached unless requirements change.
+   </details>
 
-4. **Service Mesh Decision:** Your platform runs 15 microservices. Security requires mTLS between all services and full audit logs of all inter-service calls. A junior engineer suggests implementing mTLS in each service's HTTP client. A senior engineer proposes Istio. Evaluate both approaches on four dimensions: implementation effort, operational overhead, security guarantees, and observability. Make a recommendation with justification.
+### Intermediate
 
-5. **Cost Architecture:** Your analytics platform runs 24/7 and processes events in two modes: real-time dashboard queries (P99 < 200ms, up to 5,000 req/s during business hours, near-zero at night) and batch aggregations (run at 2 AM, take 45 minutes, require 64 cores). Design the compute architecture to minimize cost while meeting SLAs. Specify which workload uses Reserved EC2, Spot, Fargate, or Lambda, and explain the cost reasoning for each choice.
+2. **Kubernetes Autoscaling Gap:** Your e-commerce API has HPA configured at 70% CPU, min 3 / max 20 replicas. During a flash sale, traffic spikes 10× in 30 seconds but new pods take 2 minutes to serve traffic, causing 503 errors. Diagnose which bottleneck is responsible (HPA polling interval, Cluster Autoscaler node provisioning, or container startup time) and describe how to eliminate the gap.
+
+   <details>
+   <summary>Hint</summary>
+   HPA polls every 15s, Cluster Autoscaler provisions nodes in 60–90s, and container startup adds 30–60s — pre-warm capacity with a scheduled scale-out before the known event, and use `PodDisruptionBudget` + over-provisioning to maintain buffer nodes.
+   </details>
+
+3. **Serverless Architecture Boundary:** A startup builds a document processing pipeline: PDFs from 10KB to 500MB, processing time from 2 seconds to 25 minutes. Would you use Lambda, Fargate, EC2, or a combination? Justify where you draw the boundary between serverless and containerized, and how you handle the 15-minute Lambda timeout.
+
+   <details>
+   <summary>Hint</summary>
+   Use Lambda for small documents (fast, cheap, no idle cost); use Fargate for large/long documents (no 15-minute limit, runs to completion) — route by estimated processing time calculated from file size at ingestion time.
+   </details>
+
+4. **Service Mesh vs Per-Service mTLS:** Your platform runs 15 microservices requiring mTLS between all services and full inter-service audit logs. Evaluate per-service mTLS implementation vs Istio on: implementation effort, operational overhead, security guarantees, and observability. Make a recommendation with justification.
+
+   <details>
+   <summary>Hint</summary>
+   Per-service mTLS requires each team to implement certificate management, rotation, and logging (high implementation effort, inconsistent security); Istio centralizes all of this in the data plane with zero application code changes — the operational overhead of Istio is justified at 15+ services.
+   </details>
+
+### Advanced
+
+5. **Cost Architecture:** Your analytics platform needs: real-time dashboard queries (P99 < 200ms, up to 5,000 req/s during business hours, near-zero at night) and batch aggregations (2 AM daily, 45 minutes, 64 cores needed). Design the compute architecture specifying Reserved EC2, Spot, Fargate, or Lambda for each workload, with cost reasoning.
+
+   <details>
+   <summary>Hint</summary>
+   Real-time queries: Reserved EC2 (predictable business-hours load, 1-year reservation saves 40%); night idle: scale to zero with Fargate or Lambda; batch aggregation: Spot instances (2 AM = low demand, 60–80% cheaper) with On-Demand fallback if Spot is interrupted.
+   </details>

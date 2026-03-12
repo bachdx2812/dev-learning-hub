@@ -799,14 +799,56 @@ Financial systems require **defense-in-depth**: no single pattern prevents all f
 
 ---
 
+## Related Chapters
+
+| Chapter | Relevance |
+|---------|-----------|
+| [Ch05 — DNS](/system-design/part-2-building-blocks/ch05-dns) | DNSSEC and DNS-layer DDoS mitigation |
+| [Ch06 — Load Balancing](/system-design/part-2-building-blocks/ch06-load-balancing) | Rate limiting and WAF at the LB/API gateway layer |
+| [Ch13 — Microservices](/system-design/part-3-architecture-patterns/ch13-microservices) | Auth (JWT/OAuth2) in API gateway security model |
+| [Ch17 — Monitoring & Observability](/system-design/part-3-architecture-patterns/ch17-monitoring-observability) | Security event detection via observability pipeline |
+
+---
+
 ## Practice Questions
 
-1. A user complains they were logged out even though their session "should still be valid." Walk through the JWT validation steps that could cause a rejection — which claims matter and why?
+### Beginner
 
-2. Your API is being hit by a DDoS attack generating 500,000 requests/second from 50,000 different IP addresses. Rate limiting per IP is ineffective. What additional mitigation strategies would you layer on, and in what order?
+1. **JWT Validation:** A user complains they were logged out even though their session "should still be valid." Walk through every JWT validation step that could cause a rejection — which claims (`exp`, `iss`, `aud`, `nbf`) are checked and what failure does each indicate?
 
-3. Your payment service depends on three downstream services: fraud detection, currency conversion, and ledger. If any one of these becomes slow, all payment requests hang. Design a reliability architecture using bulkheads and circuit breakers to isolate these dependencies.
+   <details>
+   <summary>Hint</summary>
+   Check `exp` (token expired), `nbf` (token not yet valid — clock skew issue), `iss` (wrong issuer — misconfigured auth server), `aud` (wrong audience — token issued for a different service); also verify the signature with the correct public key.
+   </details>
 
-4. A startup is choosing between RPO=1h (daily backups, cold standby) and RPO=1min (continuous replication, warm standby). The cost difference is $8,000/month. What questions do you ask to help them decide?
+### Intermediate
 
-5. You are designing rate limiting for a public REST API. Compare the token bucket and sliding window counter algorithms across: accuracy, memory usage, implementation complexity, and burst handling. Which would you choose for a payment API vs. a social media feed API?
+2. **DDoS Mitigation:** Your API is receiving 500,000 requests/second from 50,000 different IP addresses. Per-IP rate limiting is ineffective. What additional mitigation layers would you apply, in what order, and at which network/application layer does each operate?
+
+   <details>
+   <summary>Hint</summary>
+   Layer in order: CDN-level anycast absorption (Cloudflare/Akamai), BGP-level traffic scrubbing, challenge-response (CAPTCHA) for suspected bots, then application-level behavioral analysis (request pattern anomalies).
+   </details>
+
+3. **Bulkhead + Circuit Breaker:** Your payment service calls fraud detection, currency conversion, and ledger sequentially. If fraud detection becomes slow (P99 = 8s), all payment requests time out. Design a reliability architecture using bulkheads (separate thread pools) and circuit breakers for each dependency to isolate failures.
+
+   <details>
+   <summary>Hint</summary>
+   Give each downstream service its own connection pool (bulkhead) so a slow fraud detection service exhausts only its pool, not the shared thread pool; add a circuit breaker per service with a 2s timeout threshold.
+   </details>
+
+4. **RPO vs Cost Decision:** A startup is choosing between RPO=1h ($2K/month, cold standby) and RPO=1min ($10K/month, warm standby with continuous replication). What business questions do you ask to help them decide, and how do you translate the answer into a cost-of-downtime calculation?
+
+   <details>
+   <summary>Hint</summary>
+   Ask: what is the revenue per minute during peak hours, and what is the cost per data-loss incident (regulatory fines, customer churn) — if one hour of lost transactions exceeds $8K, the warm standby pays for itself.
+   </details>
+
+### Advanced
+
+5. **Rate Limiting Algorithms:** Compare token bucket and sliding window counter algorithms for rate limiting across: burst handling accuracy, memory usage per user, implementation complexity, and behavior at window boundaries. Which algorithm would you choose for a payment API (strict accuracy required) vs a social media feed API (burst-tolerant)?
+
+   <details>
+   <summary>Hint</summary>
+   Token bucket allows smooth bursts (good for feeds); sliding window log is most accurate but uses O(requests) memory; fixed window counter has a boundary doubling flaw; the sliding window counter approximation balances accuracy and memory — choose based on whether bursts are acceptable.
+   </details>

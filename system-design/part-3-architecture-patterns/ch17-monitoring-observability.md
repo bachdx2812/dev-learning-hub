@@ -523,14 +523,55 @@ flowchart TD
 
 ---
 
+## Related Chapters
+
+| Chapter | Relevance |
+|---------|-----------|
+| [Ch16 — Security & Reliability](/system-design/part-3-architecture-patterns/ch16-security-reliability) | Reliability SLOs and incident response complement observability |
+| [Ch13 — Microservices](/system-design/part-3-architecture-patterns/ch13-microservices) | Distributed tracing across microservice boundaries |
+| [Ch23 — Cloud-Native](/system-design/part-5-modern-mastery/ch23-cloud-native-serverless) | Cloud-native monitoring: Prometheus, Grafana, CloudWatch |
+
+---
+
 ## Practice Questions
 
-1. A microservices request takes 3 seconds end-to-end, but each individual service logs less than 100ms of processing time. How would you use distributed tracing to find the missing ~2.7 seconds?
+### Beginner
 
-2. Your team's SLO is 99.9% availability. After a 2-hour outage, the SRE lead says you have "used 2.7× your monthly error budget in one incident." What does this mean, and what are the operational consequences?
+1. **Distributed Tracing:** A microservices request takes 3 seconds end-to-end, but each individual service logs less than 100ms of processing time. How would you use distributed tracing (spans, trace IDs) to locate the missing ~2.7 seconds? What are the most common hidden latency sources in microservice chains?
 
-3. You are designing a readiness probe for a service that connects to PostgreSQL, Redis, and calls a third-party payment API. The payment API is sometimes slow (2–5s). How do you design the readiness check so that a slow payment API does not pull your service out of the load balancer rotation?
+   <details>
+   <summary>Hint</summary>
+   Spans capture wall-clock time including network hops and queue wait time that individual service logs don't measure — look for gaps between the end of one span and the start of the next child span.
+   </details>
 
-4. Compare Prometheus + Grafana (self-hosted) vs. Datadog (SaaS) for a team of 5 engineers running 50 microservices. What are the real hidden costs on each side that rarely appear in vendor comparisons?
+### Intermediate
 
-5. Your on-call engineer receives 200 alerts in one week. 180 resolve automatically within 10 minutes, 15 require investigation but no action, and 5 require actual fixes. Design an alert restructuring plan to reduce noise while ensuring no critical alert is missed.
+2. **Error Budget:** Your team's SLO is 99.9% availability (43.8 min/month error budget). After a 2-hour outage, the SRE lead says you have "used 2.7× your monthly error budget in one incident." What does this mean operationally — what features or deployments must now be frozen, and for how long?
+
+   <details>
+   <summary>Hint</summary>
+   Burning the error budget triggers a freeze on non-critical feature releases until the budget resets (typically monthly); the team must focus entirely on reliability improvements before new features ship.
+   </details>
+
+3. **Readiness Probe Design:** You are designing a readiness probe for a service that depends on PostgreSQL, Redis, and a third-party payment API. The payment API is sometimes slow (2–5s). How do you design the probe so a slow payment API does not remove your service from the load balancer rotation?
+
+   <details>
+   <summary>Hint</summary>
+   Separate critical dependencies (PostgreSQL, Redis — required for the service to function) from non-critical ones (payment API); probe only critical deps for readiness, and use a separate circuit breaker for the payment API.
+   </details>
+
+4. **Observability Stack Decision:** Compare Prometheus + Grafana (self-hosted) vs Datadog (SaaS) for a team of 5 engineers running 50 microservices. What hidden costs on each side are rarely surfaced in vendor comparisons?
+
+   <details>
+   <summary>Hint</summary>
+   Prometheus hidden costs: storage sizing, alert manager maintenance, and engineering time managing the stack; Datadog hidden costs: per-host + per-custom-metric pricing that scales steeply with microservice count and cardinality.
+   </details>
+
+### Advanced
+
+5. **Alert Noise Reduction:** Your on-call engineer receives 200 alerts per week: 180 auto-resolve in 10 minutes, 15 require investigation but no action, and 5 require actual fixes. Design an alert restructuring plan (severity tiers, grouping, inhibition rules) to reduce noise while ensuring no critical alert is missed.
+
+   <details>
+   <summary>Hint</summary>
+   Demote self-resolving alerts to warnings or eliminate them; add alert inhibition (suppress child alerts when a parent alert fires); use Alertmanager grouping to collapse 50 pod-restart alerts into one service-level alert — target a ratio where >80% of pages require action.
+   </details>

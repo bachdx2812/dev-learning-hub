@@ -470,14 +470,86 @@ Cloudflare operates one of the most unique CDN architectures:
 
 ---
 
+## CDN Comparison Tables
+
+### CDN Provider Comparison (as of 2026)
+
+| Provider | PoP Count | Pricing Model | DDoS Protection | Edge Compute | Best For |
+|----------|-----------|--------------|----------------|--------------|----------|
+| **Cloudflare** | 300+ cities, 100+ countries | Flat-rate plans (free tier available); bandwidth-based enterprise | Industry-leading — absorbs multi-Tbps attacks via anycast absorption | Cloudflare Workers (JS/WASM at edge, ~0ms cold start) | Security-first deployments, full-stack edge apps, cost-sensitive teams |
+| **AWS CloudFront** | 600+ edge locations + 13 regional edge caches | Pay-per-GB + per-10K requests | AWS Shield Standard (free); Shield Advanced ($3K+/mo) | Lambda@Edge (Node.js/Python); CloudFront Functions (JS, sub-ms) | AWS-native stacks; S3/ALB integration; enterprise compliance requirements |
+| **Akamai** | 4,000+ PoPs — largest edge network | Enterprise contracts; volume-based | Prolexic dedicated DDoS mitigation platform | EdgeWorkers (JS) | Largest enterprises; media delivery; regulated industries |
+| **Fastly** | 90+ PoPs | Pay-per-GB; real-time billing | Standard DDoS included; Signal Sciences WAF | Compute@Edge (Rust/WASM, ultra-low cold start) | Programmable edge; real-time purge (150ms propagation); API-first teams |
+| **Google Cloud CDN** | 100+ PoPs (Google backbone) | Pay-per-GB outbound; cache fill charged | Cloud Armor WAF + DDoS integration | Cloud Run at edge (preview) | GCP-native workloads; YouTube-proven infrastructure; global anycast |
+
+> **Rule of thumb:** Cloudflare for cost + security; CloudFront for AWS-native; Akamai for largest enterprise SLAs; Fastly for programmable edge + fast purge; Google CDN for GCP-native.
+
+---
+
+### Push vs Pull CDN Detailed Comparison
+
+| Dimension | Pull CDN | Push CDN |
+|-----------|----------|----------|
+| **Content upload** | Automatic — CDN fetches from origin on first cache miss per PoP | Manual — developer/pipeline uploads to CDN storage or API |
+| **Storage cost** | Low — only caches requested content | High — content stored at every PoP regardless of access frequency |
+| **Cache miss behavior** | First request per PoP pays full origin round-trip latency | Zero misses — content pre-cached before any user request |
+| **TTL management** | Set via `Cache-Control` / `s-maxage` headers on origin responses | Managed explicitly; delete/replace API calls required |
+| **Origin dependency** | Origin must be available for cache fills | Origin not needed after upload; fully decoupled |
+| **Ideal content type** | Web assets, APIs, HTML pages, user-generated thumbnails | Large static files: video segments, software downloads, game assets |
+| **Setup complexity** | Low — point DNS at CDN, set Cache-Control headers | High — requires upload pipeline + content lifecycle management |
+| **Real-world example** | Cloudflare for website assets; CloudFront for REST APIs | Netflix Open Connect for video; Steam for game downloads |
+
+---
+
+## Related Chapters
+
+| Chapter | Relevance |
+|---------|-----------|
+| [Ch05 — DNS](/system-design/part-2-building-blocks/ch05-dns) | DNS-based CDN routing and anycast selection |
+| [Ch06 — Load Balancing](/system-design/part-2-building-blocks/ch06-load-balancing) | CDN sits in front of LB; origin shielding reduces LB load |
+| [Ch07 — Caching](/system-design/part-2-building-blocks/ch07-caching) | CDN is a specialized cache; shares TTL and invalidation concepts |
+
+---
+
 ## Practice Questions
 
-1. **Design a CDN architecture for a video streaming platform** that serves 100 million daily active users across 6 continents. How do you decide between Push and Pull CDN? How do you handle cache invalidation when a video is removed for rights violations?
+### Beginner
 
-2. **A news website experiences cache hit ratio of only 45%** despite serving mostly static HTML. What are three likely causes and how would you diagnose and fix each?
+1. **Push vs Pull CDN:** Design a CDN caching strategy for a video streaming platform serving 100M DAU across 6 continents, with a library of 50M videos (most rarely watched). How do you decide between Push and Pull CDN for this workload? How do you handle cache invalidation when a video is removed for rights violations within 1 hour?
 
-3. **Explain origin shielding.** Draw a request flow showing how it reduces origin load during a cache purge event for a CDN with 200 PoPs globally.
+   <details>
+   <summary>Hint</summary>
+   Pull CDN suits large catalogs with cold content (only cache what's requested); Push is better for small, hot content sets — rights removal requires an API-triggered purge, not waiting for TTL expiry.
+   </details>
 
-4. **An e-commerce platform has product pages that include personalized pricing** (logged-in users see member discounts). How would you structure CDN caching to serve the base page quickly while keeping personalized sections fresh?
+### Intermediate
 
-5. **Compare the trade-offs** of versioned URL cache-busting (`app.abc123.js`) vs manual CDN purge on deploy. When would you use each, and what problems does each introduce?
+2. **Low Cache Hit Ratio:** A news website achieves only a 45% CDN cache hit ratio despite serving mostly static HTML pages. Identify three likely causes and explain how you would diagnose and fix each one.
+
+   <details>
+   <summary>Hint</summary>
+   Common culprits: `Cache-Control: no-store` headers set by the app framework, query string variations treated as unique cache keys, and personalized response headers (cookies) bypassing the cache.
+   </details>
+
+3. **Origin Shielding:** Explain origin shielding. Describe the request flow with and without shielding when a cache purge event fires across a CDN with 200 PoPs globally. How many origin requests does shielding prevent during the purge fill?
+
+   <details>
+   <summary>Hint</summary>
+   Without shielding, each PoP independently misses on the first request after purge (up to 200 origin hits per object); with shielding, all 200 PoPs pull from one shield PoP, reducing origin load to 1 hit per object.
+   </details>
+
+4. **Partial Personalization:** An e-commerce platform has product pages that include personalized pricing for logged-in members. How would you structure CDN caching to serve the base page quickly while keeping personalized sections accurate? Consider edge-side includes (ESI) and client-side hydration as options.
+
+   <details>
+   <summary>Hint</summary>
+   Cache the shell HTML at the CDN; deliver personalized data via a separate authenticated API call from the browser — or use ESI to stitch cached and non-cached fragments at the edge.
+   </details>
+
+### Advanced
+
+5. **Cache-Busting Strategies:** Compare versioned URL cache-busting (`app.abc123.js`) versus manual CDN purge on deploy. When would you use each, and what operational failures does each strategy introduce at scale (1,000 deploys/day, 500 PoPs)?
+
+   <details>
+   <summary>Hint</summary>
+   Versioned URLs never need purging (immutable by design) but require build tooling to inject hashes; manual purge is simpler to implement but introduces a propagation delay window where stale assets serve alongside new HTML.
+   </details>

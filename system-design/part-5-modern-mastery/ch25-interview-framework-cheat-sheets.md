@@ -564,14 +564,345 @@ Work through each scenario using the 5-10-20-10 framework. The goal is not to pr
 
 ---
 
+## Reference Architecture Diagrams
+
+The following diagrams are high-density visual references for the patterns you will apply in almost every interview. Study them until you can redraw them from memory.
+
+### Read-Heavy System Reference Architecture
+
+Use this pattern when reads outnumber writes by 10:1 or more (social feeds, product catalogs, content platforms).
+
+```mermaid
+flowchart TD
+    Client["Client\n(Browser / Mobile)"]
+    Client -->|"Static assets"| CDN["CDN\n(CloudFront / Fastly)\nEdge cache: images, JS, CSS"]
+    Client -->|"API requests"| LB["Load Balancer\n(Layer 7, TLS termination)"]
+
+    LB --> APP["App Servers\n(Stateless, horizontally scaled)\nAuto-scaling group"]
+
+    APP -->|"Read — cache hit"| CACHE["Distributed Cache\n(Redis Cluster)\nHot data, sessions, computed results"]
+    APP -->|"Read — cache miss"| READ_REPLICA["Read Replicas\n(2–4 replicas)\nServe all SELECT queries"]
+    APP -->|"Write"| PRIMARY["Primary DB\n(PostgreSQL / MySQL)\nAll writes, strong consistency"]
+
+    PRIMARY -->|"Async replication\n~10–100ms lag"| READ_REPLICA
+    READ_REPLICA -->|"Populate cache\non miss"| CACHE
+
+    APP -->|"Media upload"| BLOB["Object Storage\n(S3 / GCS)\nImages, video, documents"]
+    CDN -->|"Cache miss"| BLOB
+
+    style CDN fill:#00BCD4,color:#fff
+    style CACHE fill:#FF9800,color:#fff
+    style READ_REPLICA fill:#4CAF50,color:#fff
+    style PRIMARY fill:#F44336,color:#fff
+    style BLOB fill:#9C27B0,color:#fff
+```
+
+**Key trade-offs to narrate:** Read replicas introduce eventual consistency — reads may return slightly stale data. Cache-aside requires explicit invalidation on write. CDN cached content may lag behind origin by the configured TTL.
+
+### Write-Heavy System Reference Architecture
+
+Use this pattern when writes are frequent, order matters, or downstream processing is expensive (event pipelines, analytics ingestion, financial systems).
+
+```mermaid
+flowchart TD
+    Producers["Producers\n(App servers, IoT, services)"]
+    Producers -->|"Write events"| QUEUE["Message Queue / Log\n(Kafka / Kinesis)\nOrdered, durable, replayable"]
+
+    QUEUE -->|"Fan-out to\nmultiple consumers"| WK1["Consumer Group A\n(Real-time processing)\nSearch indexing, notifications"]
+    QUEUE --> WK2["Consumer Group B\n(Aggregation)\nMetrics, analytics"]
+    QUEUE --> WK3["Consumer Group C\n(Async writes)\nPrimary DB writer"]
+
+    WK3 -->|"Batched writes"| SHARD_DB["Sharded Primary DB\n(Cassandra / DynamoDB)\nSharded by user/tenant/time"]
+
+    WK1 --> SEARCH["Search Index\n(Elasticsearch)\nFull-text search"]
+    WK2 --> TSDB["Time-Series Store\n(InfluxDB / TimescaleDB)\nMetrics & analytics"]
+
+    SHARD_DB -->|"Event sourcing:\nappend-only log"| REPLAY["Replay / Audit Log\nReconstruct any state\nfrom event history"]
+
+    QUEUE -->|"Dead-letter queue\n(failed messages)"| DLQ["DLQ\nFailed message\ninspection & retry"]
+
+    style QUEUE fill:#FF5722,color:#fff
+    style SHARD_DB fill:#3F51B5,color:#fff
+    style SEARCH fill:#009688,color:#fff
+    style DLQ fill:#9E9E9E,color:#fff
+```
+
+**Key trade-offs to narrate:** Message queues decouple producers from consumers (spikes are absorbed) but introduce eventual consistency. Event sourcing gives full audit history but replay cost grows with event volume. Dead-letter queues prevent silent data loss on consumer failures.
+
+### Database Selection Decision Tree
+
+```mermaid
+flowchart TD
+    START(["What data are\nyou storing?"]) --> Q1
+
+    Q1{"Does the data have\ncomplex relationships\nor need ACID joins?"}
+    Q1 -->|"Yes"| SQL["Relational DB\n(PostgreSQL, MySQL)\nACID, foreign keys, complex queries\nEx: users, orders, payments"]
+    Q1 -->|"No"| Q2
+
+    Q2{"Is the schema\nflexible or\nhighly variable?"}
+    Q2 -->|"Yes"| DOC["Document Store\n(MongoDB, Firestore)\nJSON documents, flexible schema\nEx: product catalogs, user profiles"]
+    Q2 -->|"No"| Q3
+
+    Q3{"Is write throughput\nthe primary concern\n(> 10K writes/sec)?"}
+    Q3 -->|"Yes"| WIDE["Wide-Column Store\n(Cassandra, DynamoDB)\nMassive write scale, tunable consistency\nEx: time-series, IoT, messages"]
+    Q3 -->|"No"| Q4
+
+    Q4{"Is the data primarily\nrelationships between\nentities?"}
+    Q4 -->|"Yes"| GRAPH["Graph DB\n(Neo4j, Neptune)\nRelationship traversal, social graphs\nEx: recommendations, fraud detection"]
+    Q4 -->|"No"| Q5
+
+    Q5{"Is the data timestamped\nmetrics or events?"}
+    Q5 -->|"Yes"| TSDB["Time-Series DB\n(InfluxDB, TimescaleDB)\nTime-partitioned, downsampling\nEx: monitoring, analytics"]
+    Q5 -->|"No"| Q6
+
+    Q6{"Do you need\nfull-text relevance\nranking?"}
+    Q6 -->|"Yes"| SEARCH["Search Engine\n(Elasticsearch, OpenSearch)\nInverted index, BM25 scoring\nEx: e-commerce search, logs"]
+    Q6 -->|"No"| SQL2["Default to PostgreSQL\nIt handles more cases\nthan most engineers expect"]
+
+    style SQL fill:#2196F3,color:#fff
+    style DOC fill:#4CAF50,color:#fff
+    style WIDE fill:#FF9800,color:#fff
+    style GRAPH fill:#9C27B0,color:#fff
+    style TSDB fill:#00BCD4,color:#fff
+    style SEARCH fill:#FF5722,color:#fff
+    style SQL2 fill:#607D8B,color:#fff
+```
+
+### Scaling Strategy Decision Tree
+
+```mermaid
+flowchart TD
+    PROBLEM(["System is\nstruggling under load"]) --> IDENTIFY
+
+    IDENTIFY{"Where is\nthe bottleneck?"}
+
+    IDENTIFY -->|"Application servers\nare CPU/memory bound"| APP_SCALE
+    IDENTIFY -->|"Database reads\nare slow"| DB_READ_SCALE
+    IDENTIFY -->|"Database writes\nare slow"| DB_WRITE_SCALE
+    IDENTIFY -->|"Static content\ndelivery is slow"| CDN_SCALE
+    IDENTIFY -->|"Network bandwidth\nexhausted"| NET_SCALE
+
+    APP_SCALE{"Current server\nsize?"} -->|"Still small VMs"| VERT["Vertical scale\nUpgrade to larger\ninstance type first"]
+    APP_SCALE -->|"Already large VMs"| HORIZ["Horizontal scale\nAdd more instances\n+ load balancer"]
+    HORIZ --> STATELESS["Ensure stateless\nMove sessions to Redis,\nno local disk state"]
+
+    DB_READ_SCALE -->|"First"| ADD_CACHE["Add cache layer\n(Redis / Memcached)\nServe hot reads from memory"]
+    ADD_CACHE -->|"Still slow"| ADD_REPLICA["Add read replicas\n(accept eventual consistency)"]
+    ADD_REPLICA -->|"Still slow"| CQRS_PATTERN["CQRS pattern\nSeparate read and\nwrite data stores"]
+
+    DB_WRITE_SCALE -->|"First"| QUEUE_BUFFER["Add write queue\n(Kafka / SQS)\nBuffer and batch writes"]
+    QUEUE_BUFFER -->|"Still slow"| SHARD["Horizontal sharding\nPartition by user ID,\nregion, or hash key"]
+    SHARD -->|"Cross-shard queries\nbecome painful"| DENORM["Denormalize reads\nDuplicate data to\navoid cross-shard joins"]
+
+    CDN_SCALE --> CDN_ADD["Add CDN\n(CloudFront / Fastly)\nServe static assets\nfrom edge nodes"]
+
+    NET_SCALE --> COMPRESS["Enable compression\n(gzip / brotli)\nReduce payload sizes"]
+    COMPRESS --> CDN_ADD
+
+    style ADD_CACHE fill:#FF9800,color:#fff
+    style SHARD fill:#F44336,color:#fff
+    style CDN_ADD fill:#00BCD4,color:#fff
+    style HORIZ fill:#4CAF50,color:#fff
+```
+
+### 45-Minute Interview Time Allocation
+
+```mermaid
+flowchart LR
+    subgraph Timeline["45-Minute Interview — Time Budget"]
+        direction TB
+        S1["Requirements & Clarification\n5 minutes\n— Functional requirements\n— Non-functional requirements\n— Confirm scope with interviewer"]
+
+        S2["Estimation & Scale Analysis\n10 minutes\n— QPS, storage, bandwidth\n— Identify scale category\n— Note architectural implications"]
+
+        S3["High-Level Design\n20 minutes\n— API design\n— Data model\n— Core component diagram\n— Walk read + write paths\n— Add components for bottlenecks"]
+
+        S4["Deep Dive\n10 minutes\n— Bottleneck component\n— Failure scenario\n— Scale scenario\n— Summarize trade-offs"]
+
+        S1 --> S2 --> S3 --> S4
+    end
+
+    style S1 fill:#6272a4,color:#f8f8f2
+    style S2 fill:#6272a4,color:#f8f8f2
+    style S3 fill:#bd93f9,color:#282a36
+    style S4 fill:#50fa7b,color:#282a36
+```
+
+**What each minute buys you:** The 20 minutes for high-level design is the most valuable real estate in the interview. Every minute spent over-running on requirements is a minute taken from the component where interviewers collect the most signal. Set a mental timer after your first clarifying question round.
+
+### Common Building Blocks Overview
+
+This diagram shows how the standard building blocks connect in a typical large-scale system. Most interview designs are a subset of this graph.
+
+```mermaid
+flowchart TD
+    USERS["Users\n(Browser / Mobile / API client)"]
+
+    USERS --> DNS_BB["DNS\nDomain → IP resolution"]
+    DNS_BB --> CDN_BB["CDN\nEdge cache for\nstatic assets + some APIs"]
+    CDN_BB --> LB_BB["Load Balancer\nL7 routing, TLS termination,\nhealth checks"]
+
+    LB_BB --> APP_BB["Application Servers\n(Stateless cluster)\nBusiness logic, auth, validation"]
+
+    APP_BB --> CACHE_BB["Cache\n(Redis / Memcached)\nSession store, hot data,\nrate limiting counters"]
+    APP_BB --> DB_BB["Primary Database\n(SQL or NoSQL)\nSource of truth for writes"]
+    APP_BB --> QUEUE_BB["Message Queue\n(Kafka / SQS / RabbitMQ)\nAsync processing,\nevent streaming"]
+    APP_BB --> SEARCH_BB["Search Index\n(Elasticsearch)\nFull-text search"]
+    APP_BB --> BLOB_BB["Object Storage\n(S3 / GCS)\nMedia files,\nstatic assets"]
+
+    DB_BB -->|"Async replication"| REPLICA_BB["Read Replicas\nRead scale-out"]
+    REPLICA_BB --> CACHE_BB
+
+    QUEUE_BB --> WORKERS["Background Workers\nEmail, push notifications,\ntranscoding, ML inference"]
+    WORKERS --> DB_BB
+
+    APP_BB --> OBS["Observability Stack\nMetrics (Prometheus)\nLogs (ELK / Loki)\nTraces (Jaeger / Zipkin)"]
+
+    style CDN_BB fill:#00BCD4,color:#fff
+    style LB_BB fill:#607D8B,color:#fff
+    style APP_BB fill:#3F51B5,color:#fff
+    style CACHE_BB fill:#FF9800,color:#fff
+    style DB_BB fill:#F44336,color:#fff
+    style QUEUE_BB fill:#FF5722,color:#fff
+    style BLOB_BB fill:#9C27B0,color:#fff
+    style SEARCH_BB fill:#009688,color:#fff
+    style WORKERS fill:#4CAF50,color:#fff
+    style OBS fill:#795548,color:#fff
+```
+
+**Interview usage:** When you finish drawing your high-level design, mentally walk through each box in this diagram and ask: "Have I addressed this? Is it needed for my specific problem?" This prevents the common mistake of forgetting the CDN (static content), object storage (media), or observability layer.
+
+---
+
+## Mini Case Study: Web Crawler
+
+A web crawler is one of the most frequently asked system design questions. It combines distributed systems concerns (scale, coordination), data engineering (deduplication, storage), and domain-specific constraints (politeness, robots.txt).
+
+### Requirements
+
+**Functional:**
+- Accept seed URLs; recursively discover and fetch new URLs from parsed HTML
+- Crawl ~1B pages; refresh popular pages every 24h, others weekly
+- Respect `robots.txt` crawl-delay directives per domain
+- Deduplicate URLs (same page reachable via multiple links)
+- Store raw HTML + metadata (URL, crawl timestamp, content hash)
+
+**Non-functional:**
+- Scale: ~5,000 pages/sec sustained throughput
+- Politeness: max 1 request/sec per domain
+- Deduplication must work at URL frontier scale (billions of URLs)
+- Fault-tolerant: worker crashes should not lose queued URLs
+
+---
+
+### High-Level Design
+
+```mermaid
+flowchart LR
+    Seeds["Seed URLs"] --> Frontier["URL Frontier\n(Priority Queue\nper domain bucket)"]
+    Frontier --> Fetcher["Fetcher Workers\n(distributed, stateless)\nrespects robots.txt + rate limits"]
+    Fetcher --> ContentStore["Content Store\n(S3 / HDFS)\nraw HTML + metadata"]
+    Fetcher --> Parser["HTML Parser\n(extract links,\ncontent fingerprint)"]
+    Parser --> Dedup["Dedup Filter\n(Bloom Filter\n+ URL normalizer)"]
+    Dedup -->|"new URL"| Frontier
+    Dedup -->|"seen URL"| Drop["Discard"]
+    Parser --> ContentStore
+```
+
+**Request flow:** Scheduler pulls the highest-priority URL from the frontier for each domain → Fetcher downloads the page (obeying crawl-delay) → Parser extracts outgoing links + computes content hash → Bloom filter checks each discovered URL → unseen URLs are normalized and enqueued back into the frontier.
+
+---
+
+### Key Challenges
+
+| Challenge | Problem | Solution |
+|-----------|---------|----------|
+| **Politeness** | Crawling too fast gets the crawler blocked; harms target servers | Per-domain rate limiting (max 1 req/sec); read and obey `robots.txt` Crawl-delay; use dedicated domain buckets in frontier |
+| **URL deduplication** | Same page reachable via millions of link variations | Bloom filter (space-efficient probabilistic; false positives acceptable — missing a URL is OK); URL normalization (lowercase, strip `#fragments`, canonicalize query strings) |
+| **Distributed crawling** | Naive distribution causes multiple workers fetching the same domain simultaneously | Consistent hashing: assign each domain to exactly one worker; prevents duplicate politeness violations + hot-domain conflicts |
+| **Priority / freshness** | Popular pages change hourly; rare pages change monthly | Multi-tier priority queue: tier by PageRank-like score + recency-of-change; re-crawl interval proportional to observed change frequency |
+
+---
+
+### Key Design Decisions
+
+**BFS vs DFS crawl order:** BFS (breadth-first) is preferred. DFS risks getting trapped in deep link trees (e.g., calendar pages generating infinite date URLs). BFS discovers high-PageRank pages sooner because links from well-connected pages are visited before deep niche paths.
+
+**Consistent hashing for domain partitioning:** Hash each domain name to a worker node. All URLs for `example.com` go to the same worker, which owns the per-domain rate limiter. When workers scale up/down, consistent hashing minimizes URL reassignment (~1/N of URLs remapped per topology change).
+
+**Bloom filter for URL dedup:** A Bloom filter with 10B URLs requires ~12 GB at 1% false-positive rate — fits in memory. False positives mean occasionally skipping a valid new URL (acceptable). False negatives are impossible (no missed dedup). Periodically compact with a secondary persistent store (Redis Set or RocksDB) to handle Bloom filter resets without losing state.
+
+---
+
+## Related Chapters
+
+| Chapter | Relevance |
+|---------|-----------|
+| [Ch04 — Estimation](/system-design/part-1-fundamentals/ch04-estimation) | Step 2 of the framework: back-of-envelope estimation skills |
+| [Ch03 — Core Trade-offs](/system-design/part-1-fundamentals/ch03-core-tradeoffs) | Trade-off vocabulary used throughout the interview framework |
+| [Ch02 — Scalability](/system-design/part-1-fundamentals/ch02-scalability) | Scalability patterns referenced across all cheat sheets |
+| [Ch01 — Introduction](/system-design/part-1-fundamentals/ch01-introduction-to-system-design) | Foundation 4-step framework this chapter expands into cheat sheets |
+
+---
+
+## Quick Reference: Topic-to-Chapter Map
+
+| Interview Topic | Primary Chapters | Supporting Chapters |
+|---|---|---|
+| Scalability & load handling | Ch02, Ch06 | Ch07, Ch08, Ch09 |
+| Database selection & design | Ch09, Ch10 | Ch03, Ch15 |
+| Caching strategies | Ch07 | Ch08, Ch09, Ch19 |
+| Communication & protocols | Ch12 | Ch05, Ch11, Ch20 |
+| Consistency & replication | Ch03, Ch15 | Ch09, Ch10, Ch14 |
+| Microservices & APIs | Ch13 | Ch06, Ch11, Ch14, Ch23 |
+| Event-driven & messaging | Ch11, Ch14 | Ch13, Ch15 |
+| Security & auth | Ch16 | Ch05, Ch13 |
+| Monitoring & reliability | Ch17 | Ch16, Ch23 |
+| Back-of-envelope estimation | Ch04 | Ch02, Ch25 |
+| Cloud-native & deployment | Ch23 | Ch13, Ch17 |
+| ML & AI infrastructure | Ch24 | Ch11, Ch23 |
+
+---
+
 ## Practice Questions
 
-1. **Framework Application:** You are asked to "Design Instagram." Walk through all four steps of the framework for this system. For Step 2, produce a concrete estimate for storage requirements given 500M DAU, 100M photos uploaded per day, and 10-year retention. For Step 3, identify the three most critical architectural decisions and justify each. For Step 4, choose one component and describe two failure scenarios with mitigations.
+### Beginner
 
-2. **Trade-off Reasoning:** An interviewer asks you to design a notification system and then follows up: "What if a downstream push notification provider (APNs, FCM) goes down for 20 minutes?" Walk through how your design handles this scenario. What changes if the SLA requires notifications to be delivered within 60 seconds of the triggering event vs within 24 hours?
+1. **Framework Application:** You are asked to "Design Instagram." Walk through all four steps of the interview framework. For Step 2, produce a concrete storage estimate given 500M DAU, 100M photos uploaded per day, and 10-year retention. For Step 3, identify the three most critical architectural decisions and justify each.
 
-3. **Estimation Under Pressure:** Without a calculator, estimate: how many servers are needed to serve YouTube at 1 billion video views per day, assuming each view streams 50 MB of data over 10 minutes, and each server can sustain 1 Gbps of outbound bandwidth? Show all steps. What would change if 90% of traffic is served by CDN?
+   <details>
+   <summary>Hint</summary>
+   Step 2 estimate: 100M photos/day × ~3 MB avg × 3 replicas × 365 × 10 years ≈ ~3 exabytes raw; critical decisions include: object storage for media, CDN for delivery, and a read-optimized feed architecture (fan-out on write vs pull).
+   </details>
 
-4. **Pattern Selection Defense:** You are designing a social media feed and propose fan-out on write (pre-compute feeds in Redis). The interviewer asks: "A user has 10 million followers and posts 5 times a day. How does your system handle that?" Describe the problem, explain why fan-out on write breaks at that scale, and propose a hybrid approach. Justify the threshold at which you switch strategies.
+2. **Trade-off Reasoning Under Follow-up:** You design a notification system and the interviewer asks: "What if APNs/FCM goes down for 20 minutes?" Walk through your design's response. How does your answer change if the SLA is "deliver within 60 seconds" vs "deliver within 24 hours"?
 
-5. **Red Flag Recovery:** Midway through a design interview, you realize your initial architecture cannot support the write throughput you estimated in Step 2 — you designed for 100 writes/sec but your estimation shows 10,000 writes/sec. How do you handle this moment in the interview? What do you say, what architectural changes do you make, and how do you demonstrate that discovering and correcting mistakes mid-interview is actually a signal of strength?
+   <details>
+   <summary>Hint</summary>
+   Buffer notifications in a durable queue (Kafka/SQS) during the outage; 60-second SLA requires aggressive retry with exponential backoff and short timeouts; 24-hour SLA tolerates a dead-letter queue with a scheduled retry job — the queue is the key component in both cases.
+   </details>
+
+### Intermediate
+
+3. **Estimation Under Pressure:** Without a calculator, estimate how many servers serve YouTube at 1 billion video views/day, assuming each view streams 50 MB over 10 minutes and each server sustains 1 Gbps outbound. Show all steps. How does the answer change if 90% of traffic is served by CDN?
+
+   <details>
+   <summary>Hint</summary>
+   1B views × 50 MB = 50 PB/day = ~578 Gbps average; at 1 Gbps per server = ~578 servers for average load; apply a 3× peak multiplier = ~1,700 servers; with 90% CDN, only 10% hits origin = ~170 origin servers — CDN is the economic multiplier that makes YouTube viable.
+   </details>
+
+4. **Pattern Selection Defense:** You design a social media feed using fan-out on write (pre-compute feeds in Redis). The interviewer asks: "A user has 10 million followers and posts 5 times a day — how does your system handle that?" Describe the write amplification problem, why pure fan-out breaks, and propose a justified hybrid threshold.
+
+   <details>
+   <summary>Hint</summary>
+   10M followers × 5 posts/day = 50M Redis writes per celebrity per day; above ~50K followers, switch to pull-on-read for celebrity posts; the threshold is where fan-out write latency exceeds your SLA — measure this empirically in your system.
+   </details>
+
+### Advanced
+
+5. **Mid-Interview Recovery:** Midway through a design interview, you realize your architecture handles 100 writes/sec but your Step 2 estimation shows you need 10,000 writes/sec. Walk through exactly how you handle this moment: what you say to the interviewer, what architectural changes you make, and how you demonstrate this discovery is a strength rather than a failure.
+
+   <details>
+   <summary>Hint</summary>
+   Narrate the discovery out loud ("I notice my write estimate doesn't match my architecture — let me fix that"); propose the scaling fix (write buffer, DB sharding, or a queue in front of the DB); interviewers reward self-correction because it shows you can validate your own designs under pressure.
+   </details>

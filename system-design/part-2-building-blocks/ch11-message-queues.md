@@ -483,14 +483,55 @@ For async cache invalidation patterns (where message queues propagate cache evic
 
 ---
 
+## Related Chapters
+
+| Chapter | Relevance |
+|---------|-----------|
+| [Ch14 — Event-Driven Architecture](/system-design/part-3-architecture-patterns/ch14-event-driven-architecture) | Event sourcing and Saga patterns built on message queues |
+| [Ch12 — Communication Protocols](/system-design/part-2-building-blocks/ch12-communication-protocols) | Async vs sync protocol trade-offs complement queue design |
+| [Ch13 — Microservices](/system-design/part-3-architecture-patterns/ch13-microservices) | Queues enable async inter-service communication |
+
+---
+
 ## Practice Questions
 
-1. **Design an order processing system** where placing an order triggers inventory reservation, payment processing, and email notification — all asynchronously. What queues, topics, and failure handling do you need?
+### Beginner
 
-2. **Exactly-once vs at-least-once**: Your payment service charges a credit card in response to a Kafka message. The consumer crashes after charging but before committing the offset. How do you prevent double-charging?
+1. **Async Order Processing:** Design an order processing system where placing an order triggers inventory reservation, payment processing, and email notification — all asynchronously. Specify the queues or topics needed, the failure handling for each step, and how you ensure no step is silently skipped.
 
-3. **Back pressure scenario**: Your email notification service consumes from a queue at 500 emails/second. Marketing sends a campaign that generates 50,000 messages in 10 seconds. Walk through three different back pressure strategies and their trade-offs.
+   <details>
+   <summary>Hint</summary>
+   Use a single `order.placed` topic with multiple consumer groups (one per downstream service); each consumer handles its own retries and dead-letter queue independently.
+   </details>
 
-4. **Kafka partition design**: You're designing a Kafka topic for user activity events (clicks, views, purchases). Users must see their own events in order, but global ordering across all users is not required. How do you partition the topic? What happens when you add partitions later?
+### Intermediate
 
-5. **Fan-out vs fan-in**: An e-commerce platform needs to (a) send a receipt email, (b) update inventory, (c) trigger loyalty points, and (d) log to analytics — all when an order is placed. Compare implementing this with fan-out (one topic, many consumers) vs fan-in (many queues feeding one processor). When would you choose each?
+2. **Idempotent Payments:** Your payment service charges a credit card in response to a Kafka message. The consumer crashes after charging but before committing the offset. The message is redelivered. How do you prevent double-charging using idempotency keys?
+
+   <details>
+   <summary>Hint</summary>
+   Store a `payment_attempt_id` (derived from the Kafka offset or a UUID in the message) in the database with a UNIQUE constraint before charging; duplicate delivery hits the constraint and is safely ignored.
+   </details>
+
+3. **Back Pressure:** Your email service processes at 500 emails/second. Marketing launches a campaign that enqueues 50,000 messages in 10 seconds. Describe three back pressure strategies (queue buffering, rate limiting at producer, consumer scaling) and compare their trade-offs for this workload.
+
+   <details>
+   <summary>Hint</summary>
+   Queue buffering absorbs the burst but risks memory exhaustion; producer rate limiting prevents the burst entirely but requires coordination; horizontal consumer scaling adds throughput but has a warm-up lag — consider which failure mode is least acceptable.
+   </details>
+
+4. **Kafka Partition Design:** You're designing a Kafka topic for user activity events (clicks, views, purchases) for 10M DAU. Users must see their own events in order, but global ordering across all users is not required. How do you set the partition key, how many partitions do you create, and what breaks if you add more partitions later?
+
+   <details>
+   <summary>Hint</summary>
+   Partition by `user_id` to guarantee per-user ordering; adding partitions later remaps some keys to new partitions, breaking the ordering guarantee for affected users during the transition window.
+   </details>
+
+### Advanced
+
+5. **Fan-out vs Fan-in:** An e-commerce platform must respond to order placement by: (a) sending a receipt email, (b) updating inventory, (c) triggering loyalty points, and (d) logging to analytics. Compare fan-out (one topic, multiple consumer groups) vs fan-in (multiple queues feeding one processor) on: operational coupling, failure isolation, and scalability. When would you choose each pattern?
+
+   <details>
+   <summary>Hint</summary>
+   Fan-out decouples consumers so a slow email service doesn't affect inventory updates; fan-in centralizes logic but creates a single point of failure — fan-out is the right default when consumers have different SLAs or scaling needs.
+   </details>

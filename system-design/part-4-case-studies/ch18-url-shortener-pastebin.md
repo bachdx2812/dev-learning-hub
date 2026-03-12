@@ -815,14 +815,56 @@ flowchart TD
 
 ---
 
+## Related Chapters
+
+| Chapter | Relevance |
+|---------|-----------|
+| [Ch04 — Estimation](/system-design/part-1-fundamentals/ch04-estimation) | Classic QPS/storage estimation walkthrough for URL shortener |
+| [Ch09 — SQL Databases](/system-design/part-2-building-blocks/ch09-databases-sql) | DB schema design and sharding for short-URL lookups |
+| [Ch07 — Caching](/system-design/part-2-building-blocks/ch07-caching) | Redis cache-aside for hot URL redirects |
+| [Ch05 — DNS](/system-design/part-2-building-blocks/ch05-dns) | DNS resolution before URL redirect occurs |
+
+---
+
 ## Practice Questions
 
-1. **ID Generation:** You have 10 app servers generating short codes using MD5 truncation. Two servers simultaneously hash different long URLs that produce the same 7-character prefix. Walk through exactly how your system detects and resolves this collision without serving the wrong redirect.
+### Beginner
 
-2. **Cache Stampede:** A tweet from a 100M-follower account contains your short URL. Within 30 seconds, 500,000 requests hit your system. The URL was not previously cached. Describe exactly what happens to your Redis cache and PostgreSQL DB, and how your system survives.
+1. **301 vs 302 Trade-off:** Your product manager asks to switch all redirects from 302 to 301 to reduce server load. What are the analytics implications of each status code? Under what conditions is 301 acceptable, and how would you implement a per-URL setting to support both redirect types?
 
-3. **301 vs 302 Trade-off:** Your product manager asks you to switch all redirects from 302 to 301 to reduce server costs. What are the analytics implications? Under what conditions is this acceptable? How would you implement a per-URL setting for redirect type?
+   <details>
+   <summary>Hint</summary>
+   301 is cached permanently by browsers (future clicks never hit your server — no click analytics); 302 is never cached (every click hits your server — full analytics); use 301 for marketing links that don't need tracking, 302 for analytics-dependent campaigns.
+   </details>
 
-4. **Expiration at Scale:** You have 50 billion stored URLs and need to expire 1 billion of them tonight (a policy change). Your background job normally deletes 10,000 rows/minute. How do you accomplish this without impacting redirect latency or triggering DB lock contention?
+### Intermediate
 
-5. **Pastebin Extension:** Extend the URL shortener design to support Pastebin (storing text blobs up to 10 MB). What changes in the data model, read path, write path, and caching strategy? How does content-addressable storage (deduplication by content hash) change the key generation approach?
+2. **ID Generation Collision:** You have 10 app servers generating short codes using MD5 truncation to 7 characters. Two servers simultaneously hash different long URLs that produce the same 7-character prefix. Walk through exactly how your system detects and resolves this collision without ever serving the wrong redirect.
+
+   <details>
+   <summary>Hint</summary>
+   Use a unique constraint on the short_code column — the second insert fails with a constraint violation; the app server retries with a new code (append a random suffix or increment a counter); never serve until the write succeeds.
+   </details>
+
+3. **Cache Stampede:** A tweet from a 100M-follower account contains your short URL. Within 30 seconds, 500,000 requests arrive and the URL is not in cache. Describe exactly what happens to your Redis cache and PostgreSQL DB, and what techniques (mutex lock, probabilistic early expiration, warm-up) prevent a stampede.
+
+   <details>
+   <summary>Hint</summary>
+   Without protection, all 500K requests miss the cache simultaneously and hammer the DB — use a Redis `SETNX` lock so only the first requester fetches from DB and populates the cache; others wait and retry.
+   </details>
+
+4. **Expiration at Scale:** You have 50 billion stored URLs and must expire 1 billion of them due to a policy change. Your background job normally deletes 10,000 rows/minute. How do you delete 1 billion rows without impacting redirect latency or causing DB lock contention?
+
+   <details>
+   <summary>Hint</summary>
+   Soft-delete first (mark `expired=true`) so redirect reads immediately skip expired entries; run the hard delete in small batches (1K rows at a time with a sleep between batches) during off-peak hours to avoid lock escalation.
+   </details>
+
+### Advanced
+
+5. **Pastebin Extension:** Extend the URL shortener design to support Pastebin (storing text blobs up to 10 MB). What changes in the data model, read path, write path, and caching strategy are needed? How does content-addressable storage (deduplication by content hash) change the key generation approach compared to the URL shortener?
+
+   <details>
+   <summary>Hint</summary>
+   Store blob content in object storage (S3), not the database; the short code maps to the object key; content-addressable storage means identical pastes share the same object (hash the content to generate the key, not a random ID).
+   </details>

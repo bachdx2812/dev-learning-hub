@@ -521,17 +521,59 @@ See [Ch18 — Unique ID Generation](/system-design/part-4-case-studies/ch18-url-
 
 ---
 
+## Related Chapters
+
+| Chapter | Relevance |
+|---------|-----------|
+| [Ch09 — SQL Databases](/system-design/part-2-building-blocks/ch09-databases-sql) | SQL vs NoSQL comparison for data model selection |
+| [Ch03 — Core Trade-offs](/system-design/part-1-fundamentals/ch03-core-tradeoffs) | CAP theorem directly drives NoSQL design choices |
+| [Ch15 — Replication & Consistency](/system-design/part-3-architecture-patterns/ch15-data-replication-consistency) | Eventual consistency and replication in NoSQL clusters |
+| [Ch20 — Chat Messaging](/system-design/part-4-case-studies/ch20-chat-messaging-system) | Cassandra as the canonical NoSQL chat storage example |
+
+---
+
 ## Practice Questions
 
-1. **Data model design:** Design the Cassandra schema for a ride-sharing app's trip history. What is your partition key and clustering key? What queries does this enable and what does it prevent?
+### Beginner
 
-2. **CAP trade-off:** Your startup's chat app uses MongoDB. During a network partition, MongoDB refuses writes. A customer complains they cannot send messages. How would you redesign using a different store to prioritize availability over consistency?
+1. **Key-Value Limits:** You store user profiles in Redis as JSON strings, keyed by user ID. A product manager asks: "Can we find all users who signed up in January 2024?" Why is this query fundamentally problematic for a key-value store, and what should you use instead for this access pattern?
 
-3. **Key-value limits:** You store user profiles in Redis as JSON strings. A product manager wants to "find all users who signed up in January 2024." Why is this query problematic for a key-value store? What should you use instead?
+   <details>
+   <summary>Hint</summary>
+   Key-value stores only support point lookups by key — range queries and filtering require a secondary index or a different data model (relational DB or a search index like Elasticsearch).
+   </details>
 
-4. **Graph vs SQL:** You have a fraud detection requirement: "Find all accounts connected within 3 hops via shared phone numbers or devices." Write the conceptual SQL (with JOINs) vs the conceptual Cypher query. What is the performance difference at 100M accounts?
+### Intermediate
 
-5. **Hybrid architecture:** A fintech company needs: (a) ACID transactions for fund transfers, (b) sub-millisecond session lookups, (c) fraud graph analysis, (d) audit log retention for 7 years. How many different database technologies would you use and why?
+2. **Cassandra Data Modeling:** Design the Cassandra schema for a ride-sharing app's trip history. Specify your partition key and clustering key. What queries does this schema enable efficiently, and what access patterns does it prevent?
+
+   <details>
+   <summary>Hint</summary>
+   Partition by `driver_id` (or `rider_id`) to colocate a user's trips on the same node; cluster by `trip_start_time DESC` to support "get last N trips" — cross-driver range queries are not supported without a secondary index.
+   </details>
+
+3. **CAP Trade-off in Practice:** Your chat app uses MongoDB with default write concern. During a network partition, MongoDB refuses writes. A customer complains they cannot send messages. How would you redesign the data layer using a store that prioritizes availability over consistency for this use case?
+
+   <details>
+   <summary>Hint</summary>
+   AP stores like Cassandra (tunable consistency) or DynamoDB (eventual consistency default) continue accepting writes during partitions — accept that some messages may be temporarily out of order and reconcile on read.
+   </details>
+
+4. **Graph vs SQL Performance:** You have a fraud detection requirement: "Find all accounts connected within 3 hops via shared phone numbers or devices." Sketch the conceptual SQL (with self-JOINs) vs the conceptual Cypher query. Explain the performance difference at 100M accounts and why SQL degrades superlinearly with hop depth.
+
+   <details>
+   <summary>Hint</summary>
+   SQL requires N self-joins for N hops (exponential intermediate result set growth); graph databases traverse adjacency lists in constant time per hop, making them orders of magnitude faster for multi-hop traversals.
+   </details>
+
+### Advanced
+
+5. **Hybrid Architecture:** A fintech company needs: (a) ACID transactions for fund transfers, (b) sub-millisecond session lookups, (c) fraud graph analysis, (d) audit log retention for 7 years at low cost. Specify which database technology handles each requirement, justify each choice, and describe how you keep data consistent across these systems.
+
+   <details>
+   <summary>Hint</summary>
+   Map requirements to: PostgreSQL (ACID), Redis (sub-ms reads), Neo4j/Neptune (graph traversal), S3 + Athena or ClickHouse (cold audit logs) — use event sourcing or CDC (Debezium) to propagate writes across stores.
+   </details>
 
 ---
 

@@ -885,17 +885,59 @@ Option 2 is preferred: keeps regional services autonomous, uses Kafka for cross-
 
 ---
 
+## Related Chapters
+
+| Chapter | Relevance |
+|---------|-----------|
+| [Ch11 — Message Queues](/system-design/part-2-building-blocks/ch11-message-queues) | Kafka for offline message delivery and fan-out |
+| [Ch12 — Communication Protocols](/system-design/part-2-building-blocks/ch12-communication-protocols) | WebSocket protocol for persistent bidirectional connections |
+| [Ch10 — NoSQL Databases](/system-design/part-2-building-blocks/ch10-databases-nosql) | Cassandra as message storage (partitioned by conversation_id) |
+| [Ch15 — Replication & Consistency](/system-design/part-3-architecture-patterns/ch15-data-replication-consistency) | Message ordering and at-least-once delivery guarantees |
+
+---
+
 ## Practice Questions
 
-1. **Connection scaling:** Your chat service has 250M concurrent WebSocket connections distributed across 4,000 servers. A data center failure takes out 500 servers suddenly. Walk through exactly what happens to the affected 30M+ users' connections and messages in flight. What recovery mechanisms fire, in what order?
+### Beginner
 
-2. **Message ordering:** Alice sends three messages to Bob in rapid succession: "Hey", "Are you there?", "Hello??". Due to a network hiccup, message 2 arrives at the server before message 1. How do you guarantee Bob sees them in the original order? Describe your message ID scheme and any server-side buffering.
+1. **Message Ordering:** Alice sends three messages to Bob in rapid succession: "Hey", "Are you there?", "Hello??". A network hiccup causes message 2 to arrive at the server before message 1. How do you guarantee Bob sees them in Alice's original order? Describe your message ID scheme and any server-side buffering needed.
 
-3. **Group chat at scale:** Your platform introduces public channels with up to 100,000 members (Discord-style). The current small-group push fan-out model breaks immediately. Redesign the message delivery path for large channels. What does the client need to do differently? How do you handle the "unread count" badge without fan-out?
+   <details>
+   <summary>Hint</summary>
+   Assign monotonically increasing sequence numbers per conversation at the server (not the client); clients hold messages in a buffer until they receive the expected sequence number, requesting any gaps via a fetch API.
+   </details>
 
-4. **Presence at scale:** You're launching in a market where users check their phone 100 times per day (on/off cycles). With 50M DAU in that region, each cycling 3 times/hour, calculate the presence update rate. Is your heartbeat-based Redis design still viable? Propose an optimization.
+### Intermediate
 
-5. **E2E encryption + message history:** A business customer requires 90-day searchable message history (for compliance) AND end-to-end encryption between their employees. These goals seem contradictory. How would you design a system that satisfies both? What trust model and key management approach does it require?
+2. **Connection Scaling:** Your chat service has 250M concurrent WebSocket connections across 4,000 servers. A data center failure suddenly takes out 500 servers. Walk through exactly what happens to the 30M+ affected users' connections and in-flight messages. What recovery mechanisms fire, in what order?
+
+   <details>
+   <summary>Hint</summary>
+   Client WebSockets drop and reconnect (exponential backoff with jitter); the load balancer routes reconnections to surviving servers; in-flight messages are recovered from the message store (Kafka/Cassandra) on reconnect since they were persisted before delivery.
+   </details>
+
+3. **Large Channel Fan-out:** Your platform introduces public channels with 100,000 members (Discord-style). The existing push fan-out model creates 100K writes per message. Redesign the message delivery path. What does the client do differently, and how do you handle the unread count badge without fan-out?
+
+   <details>
+   <summary>Hint</summary>
+   Switch to pull-on-open (clients poll for new messages when the channel is opened); store a single message in the channel's append-only log; for unread counts, store a per-user last-read pointer and compute the count on read rather than maintaining a counter via fan-out.
+   </details>
+
+4. **Presence at Scale:** Calculate the presence update rate for a market with 50M DAU where users cycle online/offline 3 times/hour. Is your heartbeat-based Redis design (one write per heartbeat every 30s) still viable? What optimization reduces write amplification while maintaining accurate presence?
+
+   <details>
+   <summary>Hint</summary>
+   50M × 3 transitions/hr × 2 events (on+off) = 300M presence events/hr = ~83K events/sec; optimize by batching heartbeats, reducing heartbeat frequency for low-activity users, or using a hierarchical presence system that aggregates by region.
+   </details>
+
+### Advanced
+
+5. **E2E Encryption + Compliance:** A business customer requires 90-day searchable message history for compliance AND end-to-end encryption between employees. These goals appear contradictory. Design a system that satisfies both, specifying the trust model, key management architecture, and what the compliance search index looks like.
+
+   <details>
+   <summary>Hint</summary>
+   Use a key escrow model: messages are E2E encrypted between users, but the organization's compliance key can decrypt the message-level encryption key (stored separately); the search index stores encrypted keywords that the compliance system can query without decrypting full messages.
+   </details>
 
 ---
 

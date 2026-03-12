@@ -698,34 +698,59 @@ This structure shows the interviewer you understand the *why* behind the databas
 
 ---
 
+## Related Chapters
+
+| Chapter | Relevance |
+|---------|-----------|
+| [Ch09 — SQL Databases](/system-design/part-2-building-blocks/ch09-databases-sql) | PACELC/consistency models applied to SQL replication |
+| [Ch10 — NoSQL Databases](/system-design/part-2-building-blocks/ch10-databases-nosql) | CAP theorem in practice: eventual vs strong consistency |
+| [Ch15 — Replication & Consistency](/system-design/part-3-architecture-patterns/ch15-data-replication-consistency) | Deep dive into consistency models from trade-offs here |
+| [Ch02 — Scalability](/system-design/part-1-fundamentals/ch02-scalability) | Applying trade-offs to scale decisions |
+
+---
+
 ## Practice Questions
 
-1. **CAP Analysis:** A startup is building a collaborative document editor (like Google Docs). During a
-   network partition, should users be able to continue editing with their changes saved locally (risking
-   conflicts on merge), or should editing be blocked until the partition heals? Which CAP trade-off does
-   each option represent, and which would you choose?
+### Beginner
 
-2. **ACID vs BASE:** An e-commerce platform stores its shopping cart in DynamoDB (AP/eventual consistency)
-   and its order processing in PostgreSQL (ACID). A customer adds an item to their cart on Node A, but
-   their checkout request hits Node B before replication completes. Describe what happens and how you
-   would handle this at the application layer.
+1. **CAP Analysis:** A startup is building a collaborative document editor (like Google Docs) for 1M users. During a network partition, should users be able to continue editing with their changes saved locally (risking conflicts on merge), or should editing be blocked until the partition heals? Which CAP trade-off does each option represent, and which would you choose?
 
-3. **Consistency Models:** Your team is building a distributed counter for tracking the number of active
-   users online (displayed in a UI as "1,234 users online"). Which consistency model would you choose for
-   this counter — strong, causal, or eventual? Justify your answer considering both correctness requirements
-   and performance implications.
+   <details>
+   <summary>Hint</summary>
+   Blocking = CP (consistency over availability); allowing local edits = AP (availability over consistency) — consider how often partitions occur vs. how disruptive blocking the UI would be.
+   </details>
 
-4. **Availability Patterns:** A payment processing service currently uses active-passive failover with a
-   30-second health check interval. The SLA requires 99.99% uptime (~52 minutes downtime/year). During
-   a recent incident, failover took 45 seconds. Calculate whether this meets the SLA, and propose a
-   specific architecture change to reduce failover time to under 5 seconds.
+2. **Consistency Models:** Your team is building a distributed counter for tracking the number of active users online (displayed in a UI as "1,234 users online"). Which consistency model would you choose — strong, causal, or eventual? Justify your answer considering both correctness requirements and the performance cost at 50M concurrent users.
 
-5. **Latency vs Throughput:** You are designing an event ingestion pipeline for IoT sensors sending
-   temperature readings every second. The system receives 100,000 sensor readings per second.
-   Option A writes each reading to the database immediately (2ms per write).
-   Option B batches 500 readings and writes every 500ms (50ms per batch).
-   Calculate the throughput and per-reading latency for each option. Which would you choose for a
-   dashboard showing "current temperature" vs. for a billing system that charges per reading?
+   <details>
+   <summary>Hint</summary>
+   Ask whether being off by a few hundred users for a few seconds matters — if not, eventual consistency with a CRDT or approximate counter avoids expensive coordination.
+   </details>
+
+### Intermediate
+
+3. **ACID vs BASE:** An e-commerce platform stores its shopping cart in DynamoDB (AP/eventual consistency) and its order processing in PostgreSQL (ACID). A customer adds an item to their cart on Node A, but their checkout request hits Node B before replication completes. Describe what happens and how you would handle this at the application layer to prevent overselling inventory.
+
+   <details>
+   <summary>Hint</summary>
+   The cart read may be stale (BASE); the fix is to re-validate cart contents against the source of truth (SQL) at checkout time, not at add-to-cart time.
+   </details>
+
+4. **Availability Patterns:** A payment processing service uses active-passive failover with a 30-second health check interval. The SLA requires 99.99% uptime (~52 min downtime/year). During a recent incident, failover took 45 seconds. Calculate whether this meets the SLA, and propose a specific architecture change to reduce failover time to under 5 seconds.
+
+   <details>
+   <summary>Hint</summary>
+   One 45-second outage uses 86% of the annual error budget; consider active-active with a consensus protocol (Raft/Paxos) to eliminate the detection-then-promote delay.
+   </details>
+
+### Advanced
+
+5. **Latency vs Throughput:** You are designing an event ingestion pipeline for IoT sensors sending temperature readings every second. The system receives 100,000 sensor readings per second. Option A writes each reading to the database immediately (2ms per write). Option B batches 500 readings and writes every 500ms (50ms per batch). Calculate the throughput and per-reading latency for each option. Which would you choose for a real-time alerting system vs. a billing system, and why does the use case change the answer?
+
+   <details>
+   <summary>Hint</summary>
+   Option A needs 200,000 write ops/s (100K × 2ms); Option B needs 200 ops/s at the cost of 500ms end-to-end latency — map each latency profile to the tolerance of the downstream consumer.
+   </details>
 
 ---
 

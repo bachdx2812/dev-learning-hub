@@ -723,14 +723,56 @@ graph TB
 
 ---
 
+## Related Chapters
+
+| Chapter | Relevance |
+|---------|-----------|
+| [Ch08 — CDN](/system-design/part-2-building-blocks/ch08-cdn) | CDN is the primary delivery layer absorbing petabytes of traffic |
+| [Ch07 — Caching](/system-design/part-2-building-blocks/ch07-caching) | Metadata and manifest caching for playback start latency |
+| [Ch11 — Message Queues](/system-design/part-2-building-blocks/ch11-message-queues) | Transcoding job queue for parallel video processing |
+| [Ch06 — Load Balancing](/system-design/part-2-building-blocks/ch06-load-balancing) | Load balancing across transcoding workers and upload servers |
+
+---
+
 ## Practice Questions
 
-1. **Chunked Upload Resumability:** A creator is uploading a 10 GB raw video. At chunk 847 of 2,000, their laptop closes and reopens 6 hours later. Walk through exactly how your system supports resuming from chunk 848. What state is stored server-side, where, and what happens when the upload_id expires before they reconnect?
+### Beginner
 
-2. **ABR Oscillation:** A viewer's home internet is fluctuating between 2 Mbps and 20 Mbps every 30 seconds. Your throughput-based ABR algorithm keeps switching between 480p and 1080p on every segment boundary, causing jarring quality changes. Describe two alternative ABR strategies that would stabilize rendition selection. What is the trade-off each makes between peak quality and stability?
+1. **Chunked Upload Resumability:** A creator is uploading a 10 GB raw video. At chunk 847 of 2,000, their laptop loses connectivity and reconnects 6 hours later. Walk through exactly how your system supports resuming from chunk 848 — what state is stored server-side, where, and what happens if the upload session expires before they reconnect?
 
-3. **Cold Content:** Your platform has 50 billion videos. The bottom 90% by view count collectively receive less than 1% of traffic but represent 85% of storage costs. Design a tiered storage strategy that reduces costs without degrading the experience for the rare viewer who plays cold content. How long is an acceptable first-play latency for a video that was last watched 3 years ago?
+   <details>
+   <summary>Hint</summary>
+   Store an upload manifest (upload_id, chunks_received bitmap, expiry timestamp) in Redis or S3; on reconnect, the client queries for the last confirmed chunk; if the session has expired, restart the upload from chunk 0 with a new upload_id.
+   </details>
 
-4. **Live Stream Scaling:** A major sports event starts in 10 minutes and you expect 5 million concurrent viewers. Your CDN has 200 edge PoPs. The live stream will produce one 2-second segment every 2 seconds. Estimate the total requests-per-second your CDN must handle. How does prefetch / push vs pull CDN architecture change this number?
+### Intermediate
 
-5. **Transcoding Cost Optimization:** Your transcoding farm spends $2M/month on compute. An engineer proposes: "Only transcode 480p and 1080p on upload. Generate 240p, 720p, and 4K lazily on first request for that rendition." What are the latency, UX, and infrastructure implications of this approach? What signals would you use to decide which resolutions to pre-transcode vs generate lazily?
+2. **ABR Oscillation:** A viewer's home internet fluctuates between 2 Mbps and 20 Mbps every 30 seconds. Your throughput-based ABR algorithm switches between 480p and 1080p on every segment boundary, causing jarring quality changes. Describe two ABR strategies that stabilize rendition selection and explain the quality-vs-stability trade-off each makes.
+
+   <details>
+   <summary>Hint</summary>
+   Buffer-based ABR (selects quality based on buffer level, not instantaneous throughput) adds stability by absorbing short bandwidth drops; BOLA (buffer occupancy based) uses a utility function — both sacrifice peak quality during brief spikes to avoid oscillation.
+   </details>
+
+3. **Cold Content Tiering:** Your platform has 50 billion videos. The bottom 90% by view count represent 85% of storage costs but <1% of traffic. Design a tiered storage strategy (hot/warm/cold) that reduces costs without degrading experience for the rare viewer of cold content. What is an acceptable first-play latency for a video last watched 3 years ago?
+
+   <details>
+   <summary>Hint</summary>
+   Store hot content on SSD-backed object storage (instant access), warm on standard S3, cold in S3 Glacier (retrieval in minutes); restore cold videos to warm tier on first access and cache for 30 days before moving back — 5–15 minute first-play latency is acceptable for archival content.
+   </details>
+
+4. **Live Stream CDN Scaling:** A major sports event starts in 10 minutes and you expect 5M concurrent viewers. Your CDN has 200 edge PoPs. The live stream generates one 2-second segment every 2 seconds. Estimate total CDN requests/second. How does push (pre-populate edge) vs pull (fetch on request) CDN architecture change this number?
+
+   <details>
+   <summary>Hint</summary>
+   5M viewers × 1 segment request / 2 seconds = 2.5M req/s total; with pull CDN, each PoP independently fetches the segment from origin on first miss (up to 200 origin requests per segment); with push, origin pushes each segment to all PoPs proactively (1 origin push per segment regardless of viewer count).
+   </details>
+
+### Advanced
+
+5. **Lazy Transcoding Economics:** Your transcoding farm costs $2M/month. An engineer proposes: only transcode 480p and 1080p on upload; generate 240p, 720p, and 4K lazily on first request. Analyze the latency, UX, and infrastructure implications. What signals (view count trajectory, device distribution) would you use to decide which resolutions to pre-transcode vs generate lazily?
+
+   <details>
+   <summary>Hint</summary>
+   Lazy transcoding saves upfront compute cost but creates a first-viewer latency spike (the transcoding job must run before the first playback); use a hybrid: pre-transcode the most common resolutions (480p, 720p, 1080p) immediately; generate 240p and 4K lazily, with a 30-second timeout fallback to the nearest available rendition.
+   </details>

@@ -529,14 +529,97 @@ Facebook's 2013 paper *"Scaling Memcache at Facebook"* (Nishtala et al.) describ
 
 ---
 
+## Caching Comparison Tables
+
+### Cache Eviction Policies
+
+| Policy | How It Works | Best For | Weakness | Time Complexity |
+|--------|-------------|----------|----------|-----------------|
+| **LRU** (Least Recently Used) | Evicts the entry accessed least recently; maintained via doubly-linked list + hashmap | General-purpose; most workloads where recent access predicts future access | Scan-resistant — a full cache scan (e.g., batch report) thrashes the hot set | O(1) get/put |
+| **LFU** (Least Frequently Used) | Evicts entry with lowest total access count; tracks frequency per key | Stable hot sets with long-lived popular keys (product catalog, config) | Slow to adapt after access pattern shifts; new popular keys evicted before counters rise | O(log N) naively; O(1) with min-heap + buckets |
+| **FIFO** (First In, First Out) | Evicts oldest-inserted entry regardless of access | Time-ordered streams where oldest data is naturally stale | Ignores access frequency — evicts hot data if inserted early | O(1) via queue |
+| **TTL-based** | Evicts entry with shortest remaining time-to-live | When freshness guarantees matter more than recency (auth tokens, financial data) | May evict rarely-accessed items that still have value before stale-but-hot items | O(log N) via min-heap; O(1) with lazy expiry |
+| **Random** | Evicts a randomly selected entry | When overhead matters more than hit rate; simple embedded caches | Unpredictable — can evict the hottest item in the cache | O(1) |
+
+> **Redis default:** `allkeys-lru`. Use `volatile-lru` when only TTL-bearing keys should be evicted (mixed cache + persistent data in same Redis instance).
+
+---
+
+### Caching Strategies Comparison
+
+| Strategy | Read Path | Write Path | Consistency | Data Loss Risk | Best Use Case |
+|----------|-----------|-----------|-------------|----------------|---------------|
+| **Cache-Aside** | App checks cache; on miss reads DB and populates cache | App writes DB only; cache updated on next miss or explicit invalidation | Eventual (stale window = TTL or until invalidation) | None | Read-heavy CRUD: user profiles, product pages |
+| **Read-Through** | App reads cache; cache auto-fetches DB on miss transparently | App writes DB; cache updated on next miss | Eventual | None | Simplify app read logic; cache library handles DB fallback |
+| **Write-Through** | Low latency (cache always warm after first write) | App writes cache; cache synchronously writes DB before ack | Strong — cache and DB always consistent | None | Consistency-critical reads: inventory counts, account balances |
+| **Write-Behind** | Low latency (cache always warm) | App writes cache only; cache asynchronously flushes to DB | Eventual — DB lags behind cache | Medium — unflushed writes lost if cache crashes | Write-intensive, eventual-consistency-tolerant: counters, analytics, leaderboards |
+| **Refresh-Ahead** | Always low (stale-while-revalidate) | Background refresh before TTL expiry; no write path change | Near-real-time (refresh threshold tunable) | None | Expensive computed data with predictable access: dashboards, recommendation scores |
+
+---
+
+### Cache Layer Comparison
+
+| Layer | Typical Latency | Typical Capacity | Invalidation Complexity | Typical TTL |
+|-------|----------------|-----------------|------------------------|-------------|
+| **Browser Cache** | ~0 ms (local disk/memory) | MB range (per user) | Hard — requires versioned URL or user action; no server-side control | Hours to 1 year (`Cache-Control: max-age`) |
+| **CDN Edge** | 1–20 ms (nearest PoP) | TB range (distributed globally) | Medium — API purge propagates in seconds; TTL passive expiry | Seconds to 1 year (`s-maxage`) |
+| **Application Cache (Redis)** | 0.1–1 ms (in-datacenter) | GB–TB (Redis Cluster) | Low — direct `DEL` or pub/sub invalidation broadcast | Seconds to hours |
+| **Database Buffer Pool** | 0.5–5 ms (in-DB-host memory) | = RAM of DB host | Automatic — managed by DB engine transparently on write | N/A (DB-managed) |
+
+> **Stack Overflow insight:** Their primary SQL Server has 384 GB RAM so the entire working dataset fits in the buffer pool — effectively making the DB itself the cache. This is why they serve 1.3B page views/month with ~9 web servers.
+
+---
+
+## Related Chapters
+
+| Chapter | Relevance |
+|---------|-----------|
+| [Ch06 — Load Balancing](/system-design/part-2-building-blocks/ch06-load-balancing) | LB distributes traffic; caching reduces what reaches backends |
+| [Ch08 — CDN](/system-design/part-2-building-blocks/ch08-cdn) | CDN is edge caching; shares TTL and invalidation patterns |
+| [Ch09 — SQL Databases](/system-design/part-2-building-blocks/ch09-databases-sql) | DB buffer pool and query cache complement application cache |
+| [Ch11 — Message Queues](/system-design/part-2-building-blocks/ch11-message-queues) | Queue-based cache invalidation for fan-out scenarios |
+
+---
+
 ## Practice Questions
 
-1. You are designing a product catalog for an e-commerce site with 10 million SKUs. 1% of products account for 80% of traffic. Which caching strategy do you use, and how do you handle price updates that must be reflected within 60 seconds?
+### Beginner
 
-2. Your Redis cache is running at 85% memory capacity. The eviction policy is `noeviction` (returns errors instead of evicting). How do you resolve this without taking the cache offline, and which eviction policy would you switch to and why?
+1. **Hot Key Caching:** You are designing a product catalog for an e-commerce site with 10 million SKUs. 1% of products account for 80% of traffic. Which caching strategy (write-through, write-behind, cache-aside) do you use, and how do you handle price updates that must be reflected within 60 seconds across all cache nodes?
 
-3. A user's session data is stored in Redis. The user changes their password and you immediately revoke their session by deleting the Redis key. Twenty seconds later, the user reports they are still logged in. What is the likely cause, and how do you fix the architecture?
+   <details>
+   <summary>Hint</summary>
+   Cache-aside with a short TTL (60s) handles the hot-key pattern and the freshness constraint; write-through would require cache access on every write, which hurts write throughput.
+   </details>
 
-4. Your team proposes using write-behind caching for an e-commerce order management system to improve checkout latency. A senior engineer objects on reliability grounds. What are the concrete failure scenarios, and under what conditions (if any) would you accept write-behind for this use case?
+### Intermediate
 
-5. Describe how you would use Redis to implement a rate limiter that enforces a maximum of 100 requests per user per minute, using only atomic Redis operations. What Redis data structure and commands would you use?
+2. **Cache Eviction:** Your Redis cache is running at 85% memory capacity with `noeviction` policy (returns errors when full). How do you resolve this without downtime, and which eviction policy (`allkeys-lru`, `volatile-lru`, `allkeys-lfu`) would you switch to for a product catalog workload?
+
+   <details>
+   <summary>Hint</summary>
+   Scale Redis memory or add nodes first; then switch to `allkeys-lru` for a cache-aside pattern where all keys can be evicted, or `volatile-lru` if only TTL-keyed entries should be candidates.
+   </details>
+
+3. **Session Revocation Gap:** A user changes their password; your app deletes their Redis session key immediately. Twenty seconds later, they report still being logged in on another device. What is the likely cause (think multi-layer caching or CDN), and how do you fix the architecture?
+
+   <details>
+   <summary>Hint</summary>
+   An upstream CDN or reverse proxy may be caching authenticated responses — check for HTTP cache headers (`Cache-Control: private`) and whether a local in-memory cache on app servers replicated the session.
+   </details>
+
+4. **Write-Behind Risk:** Your team proposes write-behind caching for an e-commerce order management system to improve checkout latency. Describe the concrete failure scenarios if the cache crashes before the async write completes. Under what conditions (workload, data type) would you accept write-behind for this use case?
+
+   <details>
+   <summary>Hint</summary>
+   Write-behind risks data loss on cache failure before the deferred write; it is acceptable only when the written data is reconstructible or tolerable to lose (e.g., view counts, not financial transactions).
+   </details>
+
+### Advanced
+
+5. **Redis Rate Limiter:** Implement a rate limiter in Redis that enforces a maximum of 100 requests per user per minute using only atomic operations (no race conditions). Describe the Redis data structure, the specific commands used, and how you handle the fixed vs. sliding window trade-off.
+
+   <details>
+   <summary>Hint</summary>
+   A sliding window log uses a sorted set (`ZADD` + `ZREMRANGEBYSCORE` + `ZCARD`) in a `MULTI/EXEC` pipeline; a fixed window uses `INCR` with `EXPIRE` — compare their accuracy at window boundaries and memory usage.
+   </details>

@@ -306,14 +306,213 @@ Amazon's retail platform evolved from a monolith to a service-oriented architect
 
 ---
 
+## How to Use This Handbook
+
+This handbook is designed to be read cover-to-cover the first time and used as a reference on every subsequent visit. The learning path is linear — each part builds vocabulary and intuitions that the next part depends on.
+
+### Recommended Learning Path
+
+```mermaid
+flowchart TD
+    P1["Part 1 — Fundamentals\nCh 1–4\nVocabulary, trade-offs,\nestimation skills"]
+    P1 --> P2
+
+    P2["Part 2 — Building Blocks\nCh 5–12\nLoad balancers, caches,\ndatabases, queues, APIs"]
+    P2 --> P3
+
+    P3["Part 3 — Architecture Patterns\nCh 13–17\nMicroservices, event-driven,\nreliability, security"]
+    P3 --> P4A & P4B
+
+    P4A["Part 4 — Case Studies\nCh 18–24\nApply everything to\nrealistic interview problems"]
+    P4B["Part 5 — Modern Mastery\nCh 25–28\nInterview cheat sheets,\nML systems, global distribution"]
+
+    P4A --> DONE["Interview Ready"]
+    P4B --> DONE
+
+    style P1 fill:#6272a4,color:#f8f8f2
+    style P2 fill:#6272a4,color:#f8f8f2
+    style P3 fill:#bd93f9,color:#282a36
+    style P4A fill:#50fa7b,color:#282a36
+    style P4B fill:#50fa7b,color:#282a36
+    style DONE fill:#ff79c6,color:#282a36
+```
+
+### Reading Strategies
+
+**Sequential (recommended for beginners):** Read Part 1 → Part 2 → Part 3 → Part 4 → Part 5. This is the fastest path to interview readiness because later chapters reference concepts introduced earlier.
+
+**Topic-based (for experienced engineers):** Jump directly to Part 2 building blocks or Part 4 case studies. Use the mind maps at the start of each chapter to quickly orient yourself. Cross-references link to prerequisite concepts.
+
+**Cheat-sheet mode (for interview prep):** Start with Chapter 25 (interview framework), then use the case studies in Part 4 as practice. Return to Part 2 building blocks when a case study references a component you are unfamiliar with.
+
+### Prerequisite Knowledge
+
+Before starting Part 1, you should be comfortable with:
+- [ ] Basic networking concepts (what TCP/IP is, what HTTP means)
+- [ ] Relational databases (tables, indexes, queries)
+- [ ] At least one cloud provider (AWS, GCP, or Azure) at a beginner level
+- [ ] Data structures and algorithms at an intermediate level
+
+You do **not** need production distributed systems experience. This handbook teaches distributed systems concepts from first principles.
+
+---
+
+## System Design in the Software Lifecycle
+
+System design is not a phase that happens once before coding begins. It is a continuous activity that spans the entire software development lifecycle and influences every subsequent phase.
+
+```mermaid
+flowchart LR
+    R["Requirements\nWhat must\nthe system do?"]
+    R --> D
+
+    D["System Design\nHow will the system\nbe structured?"]
+    D --> I
+
+    I["Implementation\nCode the components\nper the design"]
+    I --> T
+
+    T["Testing\nVerify correctness,\nperformance, failures"]
+    T --> Dep
+
+    Dep["Deployment\nRelease to production,\nmonitor behavior"]
+    Dep --> O
+
+    O["Operations\nIncidents, capacity\nplanning, scaling"]
+    O -->|"New requirements\nor scalability limits"| R
+
+    style D fill:#bd93f9,color:#282a36,stroke:#44475a
+```
+
+System design decisions made early become the most expensive to change later. A poor choice of data model discovered at implementation costs days. The same mistake discovered in production costs weeks of migration work and potential data loss.
+
+### Junior vs Senior Engineer Thinking
+
+The biggest difference between junior and senior engineers is not knowledge of specific technologies — it is the instinct to ask different questions at each stage.
+
+| Design Dimension | Junior Engineer Instinct | Senior Engineer Instinct |
+|---|---|---|
+| **Starting point** | "What technology should I use?" | "What does the system need to do?" |
+| **Data model** | Design tables to match code objects | Design data model to match access patterns |
+| **Scale** | "It works for the demo" | "What breaks first at 10× traffic?" |
+| **Failure modes** | Happy path only | "What happens when X component is down?" |
+| **Consistency** | Strong consistency assumed everywhere | Explicit trade-off per data type |
+| **Components** | Add layers to solve every problem | Add layers only when a concrete bottleneck demands it |
+| **Database choice** | Default to familiar database | Choose based on query patterns and scaling requirements |
+| **Caching** | Introduced reactively after slowdowns | Designed into read path from the start |
+| **Monitoring** | Added post-launch | Defined alongside the architecture |
+| **Security** | Addressed in a separate "security sprint" | Baked into data flow and API design from day one |
+
+The purpose of this handbook is to develop senior-engineer instincts — not just knowledge of what Redis is, but judgment about when Redis is the right tool and when it is not.
+
+---
+
+## The Four-Step Framework in Depth
+
+The four-step interview framework introduced earlier in this chapter is not just interview theater. It mirrors the actual process a senior engineer uses when designing a new system. Here is the framework with the critical decision points made explicit.
+
+```mermaid
+flowchart TD
+    START(["New System Design Problem"]) --> S1
+
+    S1["STEP 1 — Requirements\n5 minutes"]
+    S1 --> S1A{"Are functional\nrequirements clear?"}
+    S1A -->|"No"| S1B["Ask clarifying questions:\nWho are the users?\nWhat are the core actions?\nWhat is out of scope?"]
+    S1B --> S1A
+    S1A -->|"Yes"| S1C{"Are non-functional\nrequirements defined?"}
+    S1C -->|"No"| S1D["Probe for scale:\nDAU? Latency SLA?\nAvailability target?\nConsistency model?"]
+    S1D --> S1C
+    S1C -->|"Yes"| S1E["Summarize back:\n'We are building X with Y constraints.\nOut of scope: Z. Agreed?'"]
+    S1E --> S2
+
+    S2["STEP 2 — Estimation\n5-10 minutes"]
+    S2 --> S2A["Calculate write QPS\nand read QPS"]
+    S2A --> S2B["Calculate storage\nneeds at 1 and 5 years"]
+    S2B --> S2C["Calculate bandwidth\n(QPS × payload size)"]
+    S2C --> S2D{"Does a single\nserver suffice?"}
+    S2D -->|"Yes, < 1K QPS"| S2E["Note: simple architecture\nmay be sufficient"]
+    S2D -->|"No, > 1K QPS"| S2F["Note: distributed\narchitecture required"]
+    S2E & S2F --> S3
+
+    S3["STEP 3 — High-Level Design\n15-20 minutes"]
+    S3 --> S3A["Define API endpoints\n(inputs, outputs, HTTP verbs)"]
+    S3A --> S3B["Define core data model\n(entities, relationships, key fields)"]
+    S3B --> S3C["Draw core component diagram\n(clients, LB, app servers, DB, cache)"]
+    S3C --> S3D["Trace the primary\nread path end-to-end"]
+    S3D --> S3E["Trace the primary\nwrite path end-to-end"]
+    S3E --> S3F{"Bottlenecks\nidentified?"}
+    S3F -->|"Yes"| S3G["Add components to address\neach bottleneck — justify each addition"]
+    S3G --> S4
+    S3F -->|"None obvious"| S4
+
+    S4["STEP 4 — Deep Dive\n10 minutes"]
+    S4 --> S4A{"Interviewer directs\na specific area?"}
+    S4A -->|"Yes"| S4B["Go deep on that area:\nbottleneck, failure mode, or scaling"]
+    S4A -->|"No"| S4C["Self-select the most\ninteresting trade-off to explore"]
+    S4B & S4C --> S4D["Summarize:\nkey decisions, alternatives considered,\nwhat you'd revisit with more time"]
+    S4D --> DONE(["Design Complete"])
+
+    style S1 fill:#6272a4,color:#f8f8f2
+    style S2 fill:#6272a4,color:#f8f8f2
+    style S3 fill:#bd93f9,color:#282a36
+    style S4 fill:#50fa7b,color:#282a36
+    style DONE fill:#ff79c6,color:#282a36
+```
+
+The most important insight from this diagram: **the first two steps are almost entirely about gathering information, not producing output.** The architecture you draw in Step 3 is only as good as the requirements and scale numbers you established in Steps 1 and 2. Candidates who skip straight to drawing boxes typically design for the wrong problem.
+
+---
+
+## Related Chapters
+
+| Chapter | Relevance |
+|---------|-----------|
+| [Ch02 — Scalability](/system-design/part-1-fundamentals/ch02-scalability) | Next step: applying design principles at scale |
+| [Ch03 — Core Trade-offs](/system-design/part-1-fundamentals/ch03-core-tradeoffs) | CAP/PACELC foundations for every design decision |
+| [Ch04 — Estimation](/system-design/part-1-fundamentals/ch04-estimation) | Back-of-envelope skills used in Step 2 of the framework |
+| [Ch25 — Interview Framework](/system-design/part-5-modern-mastery/ch25-interview-framework-cheat-sheets) | Full interview cheat sheets built on this foundation |
+
+---
+
 ## Practice Questions
 
-1. A startup's single-server web application is struggling under growing traffic. The CTO says "just upgrade the server." What are the limits of this approach, and what would you recommend instead?
+### Beginner
 
-2. Define the difference between availability and reliability. Give an example of a system that is highly available but not highly reliable.
+1. **Vertical vs Horizontal Scaling:** A startup's single-server web application is struggling under growing traffic. The CTO says "just upgrade the server." What are the limits of this approach, and what would you recommend instead for a system expecting 10× growth over 12 months?
 
-3. You are designing a social media feed system. List five functional requirements and five non-functional requirements you would clarify in Step 1 of the interview framework.
+   <details>
+   <summary>Hint</summary>
+   Consider the ceiling of vertical scaling (hardware limits, cost curve) and what becomes possible once the application is stateless.
+   </details>
 
-4. A system has 99.9% availability. How many minutes of downtime per month does that allow? If the business requires 99.99%, what architectural changes would you consider?
+2. **Availability vs Reliability:** Define the difference between availability and reliability. Give an example of a system that is highly available but not highly reliable, and explain how that state is possible.
 
-5. Google serves 8.5 billion searches per day. Without looking up the answer, estimate the average queries per second (QPS) this represents. What does this imply about the minimum number of servers Google needs if each server handles 1,000 QPS?
+   <details>
+   <summary>Hint</summary>
+   A system can always respond (available) while frequently returning incorrect results (unreliable) — think of a cache returning stale data.
+   </details>
+
+### Intermediate
+
+3. **Requirements Clarification:** You are designing a social media feed system for 50M DAU. List five functional requirements and five non-functional requirements you would clarify in Step 1 of the interview framework, and explain why each matters for architecture.
+
+   <details>
+   <summary>Hint</summary>
+   Distinguish between what the system does (functional) and how well it must do it — latency, throughput, consistency, and durability are non-functional.
+   </details>
+
+4. **Availability Math:** A system has 99.9% availability. How many minutes of downtime per month does that allow? If the business requires 99.99%, what specific architectural changes (redundancy, failover, deployment strategy) would you consider to close that gap?
+
+   <details>
+   <summary>Hint</summary>
+   Monthly minutes = 43,800; work out the allowed downtime at each SLA tier, then map each change (active-active, rolling deploys, multi-AZ) to the failure modes it eliminates.
+   </details>
+
+### Advanced
+
+5. **Estimation + Capacity Planning:** Google serves 8.5 billion searches per day. Without a calculator, estimate the average QPS this represents. If each server handles 1,000 QPS and must maintain 30% headroom, how many servers are needed for peak load (assume peak is 3× average)? What does this imply about Google's data center strategy?
+
+   <details>
+   <summary>Hint</summary>
+   Break the day into seconds, apply the peak multiplier, add the headroom factor, then reason about geographic distribution and redundancy for fault tolerance.
+   </details>

@@ -622,14 +622,56 @@ Cross-reference: API Gateway patterns are covered in [Chapter 13: Microservices 
 
 ---
 
+## Related Chapters
+
+| Chapter | Relevance |
+|---------|-----------|
+| [Ch05 — DNS](/system-design/part-2-building-blocks/ch05-dns) | DNS global routing precedes LB regional distribution |
+| [Ch07 — Caching](/system-design/part-2-building-blocks/ch07-caching) | Cache-aside behind LB reduces backend load |
+| [Ch08 — CDN](/system-design/part-2-building-blocks/ch08-cdn) | CDN sits in front of LB for static content offloading |
+| [Ch13 — Microservices](/system-design/part-3-architecture-patterns/ch13-microservices) | API gateway as specialized LB for microservice routing |
+
+---
+
 ## Practice Questions
 
-1. You are designing the backend for a multi-tenant SaaS application. You need requests to `/api/v1/*` to go to your API cluster, `/uploads/*` to go to a file processing cluster, and all other requests to the main web cluster. What type of load balancer would you use and why? Describe the routing rules.
+### Beginner
 
-2. Explain consistent hashing. A distributed cache has 4 servers using consistent hashing. A 5th server is added. Approximately what percentage of cache keys need to be remapped? Compare this to the percentage that would need remapping with a simple modulo hash.
+1. **Layer 7 Routing:** You are designing the backend for a multi-tenant SaaS application. You need requests to `/api/v1/*` to go to your API cluster, `/uploads/*` to go to a file processing cluster, and all other requests to the main web cluster. What type of load balancer would you use and why? Write out the routing rules.
 
-3. Compare active-passive and active-active load balancer high availability. A financial services firm values zero-downtime over resource efficiency. Which would you recommend, and what failover time can they expect?
+   <details>
+   <summary>Hint</summary>
+   Layer 7 (application) load balancers can inspect HTTP path, headers, and hostnames to make content-based routing decisions — Layer 4 only sees TCP/IP and cannot route by URL path.
+   </details>
 
-4. Why does SSL termination at the load balancer create a trade-off between operational simplicity and security? For a healthcare application handling PHI (Protected Health Information), how would you address this concern?
+### Intermediate
 
-5. You have a pool of 10 backend servers behind an ALB with round-robin routing. Two servers are processing a large batch job and are at 95% CPU. The other 8 are at 20% CPU. What problem does round-robin create here, and which alternative algorithm would solve it? What configuration change would you make?
+2. **Consistent Hashing:** Explain consistent hashing. A distributed cache has 4 servers using consistent hashing. A 5th server is added. Approximately what percentage of cache keys need to be remapped? Compare this to the percentage with a simple modulo hash (`hash(key) % n`).
+
+   <details>
+   <summary>Hint</summary>
+   Consistent hashing remaps only ~1/n keys (≈20%); modulo hashing remaps nearly all keys because the denominator changes — this is why consistent hashing is standard for distributed caches.
+   </details>
+
+3. **HA Strategies:** Compare active-passive and active-active load balancer high availability. A financial services firm values zero-downtime over resource efficiency. Which would you recommend, what failover time can they expect with each, and what does active-active require from the application layer?
+
+   <details>
+   <summary>Hint</summary>
+   Active-active provides instant failover but requires session state to be shared (sticky sessions or a distributed session store); active-passive has a brief failover window during VIP handoff.
+   </details>
+
+4. **SSL Termination Trade-off:** Why does SSL termination at the load balancer create a trade-off between operational simplicity and internal security? For a healthcare application handling PHI (Protected Health Information) under HIPAA, how would you address this concern without sacrificing load balancer visibility?
+
+   <details>
+   <summary>Hint</summary>
+   Traffic between the LB and backends is plaintext — mitigate with private network isolation plus re-encryption (SSL passthrough or re-encrypt mode) for the backend hop.
+   </details>
+
+### Advanced
+
+5. **Algorithm Mismatch:** You have 10 backend servers behind an ALB with round-robin routing. Two servers are processing a long-running batch job and are at 95% CPU. The other 8 are at 20% CPU. What specific problem does round-robin create, and which algorithm would solve it? What are the operational trade-offs of that alternative at scale with 200+ backends?
+
+   <details>
+   <summary>Hint</summary>
+   Least connections or least response time algorithms route based on real server load rather than uniform distribution — but require the LB to track per-server state, which adds overhead at very high backend counts.
+   </details>

@@ -742,14 +742,56 @@ flowchart TD
 
 ---
 
+## Related Chapters
+
+| Chapter | Relevance |
+|---------|-----------|
+| [Ch03 — Core Trade-offs](/system-design/part-1-fundamentals/ch03-core-tradeoffs) | CAP/PACELC theoretical foundations for consistency models |
+| [Ch09 — SQL Databases](/system-design/part-2-building-blocks/ch09-databases-sql) | SQL replication: leader-follower, synchronous vs async |
+| [Ch14 — Event-Driven Architecture](/system-design/part-3-architecture-patterns/ch14-event-driven-architecture) | Distributed transactions requiring replication guarantees |
+| [Ch13 — Microservices](/system-design/part-3-architecture-patterns/ch13-microservices) | Per-service DB consistency in distributed system design |
+
+---
+
 ## Practice Questions
 
-1. **Quorum math**: A Cassandra cluster has N=5 replicas. You configure W=3, R=2. Is this a valid quorum? Does W+R>N hold? What is the minimum number of nodes that can be down before reads may return stale data?
+### Beginner
 
-2. **Conflict scenario**: Two users simultaneously update a shared Google Doc title — one in Tokyo (multi-leader EU node), one in London (multi-leader EU node). The leaders are different. Describe the full conflict lifecycle: detection, representation, and three distinct resolution strategies with their trade-offs.
+1. **Quorum Math:** A Cassandra cluster has N=5 replicas. You configure W=3, R=2. Does W+R>N hold, making this a valid quorum? What is the minimum number of nodes that can be down before reads may return stale data? What would happen if you changed to W=1, R=1?
 
-3. **Raft vs async replication**: A startup uses PostgreSQL with one leader and two async followers. They experience a leader crash with 500ms of replication lag. What data is lost? How would switching to Raft-based consensus (e.g., etcd or CockroachDB) change the durability story, and at what cost?
+   <details>
+   <summary>Hint</summary>
+   W+R=5 > N=5 is false (5 > 5 is false) — this is not a strict quorum; change to W=3, R=3 (or W=2, R=4) for W+R>N; with W=3, R=2, one node failure could break quorum if it's one of the three write nodes.
+   </details>
 
-4. **Consistency model selection**: You are designing a collaborative note-taking app (like Notion). Users in the same team need to see each other's changes quickly. Ordering of operations matters (a delete of a section should not appear before the section was created). Which consistency model fits best — linearizability, causal consistency, or eventual consistency? Justify your choice with specific guarantees needed.
+### Intermediate
 
-5. **TrueTime deep dive**: Google Spanner uses TrueTime to achieve external consistency. If TrueTime reports an uncertainty interval of [t-ε, t+ε], and a transaction commits at physical time t, why must Spanner wait until t+ε before releasing the commit timestamp? What happens if two transactions overlap in their uncertainty windows?
+2. **Multi-Leader Conflict:** Two users simultaneously update a shared Google Doc title — one connecting to a Tokyo leader, one to a London leader. The leaders are different. Describe the full conflict lifecycle: how it's detected, how it's represented in the system, and three distinct resolution strategies with their trade-offs.
+
+   <details>
+   <summary>Hint</summary>
+   Detection happens during replication when vector clocks diverge; strategies include last-write-wins (simple but loses data), merge (safe for CRDTs), and explicit user resolution (correct but disruptive) — choose based on data sensitivity.
+   </details>
+
+3. **Raft vs Async Replication:** A startup uses PostgreSQL with one leader and two async followers. The leader crashes with 500ms of replication lag. How much data is lost? How does switching to synchronous replication (or a Raft-based system like CockroachDB) change the durability story, and what is the performance trade-off?
+
+   <details>
+   <summary>Hint</summary>
+   500ms of lag = all writes in the last 500ms are lost; synchronous replication ensures zero data loss but adds one network round trip to every write (higher latency, lower throughput).
+   </details>
+
+4. **Consistency Model Selection:** You are designing a collaborative note-taking app (like Notion). Users in the same team need to see each other's changes within seconds. The ordering of operations matters (a section delete must not appear before the section's creation). Which consistency model fits — linearizability, causal consistency, or eventual consistency? Justify with specific guarantees.
+
+   <details>
+   <summary>Hint</summary>
+   Causal consistency is the right fit: it preserves cause-before-effect ordering (delete after create) without the coordination overhead of linearizability, which would require global consensus for every edit.
+   </details>
+
+### Advanced
+
+5. **TrueTime and External Consistency:** Google Spanner uses TrueTime to achieve external consistency. If TrueTime reports an uncertainty interval of [t-ε, t+ε], why must Spanner wait until t+ε before releasing the commit timestamp? What happens if two transactions' uncertainty windows overlap, and how does Spanner resolve the ordering?
+
+   <details>
+   <summary>Hint</summary>
+   Waiting until t+ε ensures no future transaction can be assigned a timestamp earlier than the current transaction's commit time, preserving global ordering — Spanner uses GPS and atomic clocks to keep ε under 7ms.
+   </details>

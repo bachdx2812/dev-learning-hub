@@ -746,17 +746,59 @@ graph LR
 
 ---
 
+## Related Chapters
+
+| Chapter | Relevance |
+|---------|-----------|
+| [Ch03 — Core Trade-offs](/system-design/part-1-fundamentals/ch03-core-tradeoffs) | PACELC model underpins SQL consistency choices |
+| [Ch10 — NoSQL Databases](/system-design/part-2-building-blocks/ch10-databases-nosql) | Compare SQL vs NoSQL trade-offs for data model decisions |
+| [Ch15 — Replication & Consistency](/system-design/part-3-architecture-patterns/ch15-data-replication-consistency) | Replication mechanics for read replicas and failover |
+| [Ch14 — Event-Driven Architecture](/system-design/part-3-architecture-patterns/ch14-event-driven-architecture) | Distributed transactions (2PC, Saga) across SQL databases |
+
+---
+
 ## Practice Questions
 
-1. **Replication lag:** A user updates their profile picture, then immediately loads their profile and sees the old picture. What caused this and how would you fix it?
+### Beginner
 
-2. **Sharding key selection:** You are sharding a `messages` table. Your options are: shard by `sender_id`, `receiver_id`, or `conversation_id`. Which do you choose and why?
+1. **Replication Lag:** A user updates their profile picture, then immediately loads their profile page and sees the old picture. Explain the root cause (read replica lag) and describe two architectural fixes at different layers of the stack.
 
-3. **Federation trade-off:** An order service needs to display "orders with customer names." The orders DB and users DB are federated. How do you handle this JOIN efficiently?
+   <details>
+   <summary>Hint</summary>
+   The read was routed to a replica that hasn't received the write yet — fix either by reading from the primary for the user's own profile, or by using read-your-writes consistency via session-sticky routing.
+   </details>
 
-4. **Resharding:** Your hash-based sharding uses `hash(id) % 4` across 4 shards. You need to add a 5th shard. Describe the migration challenge and how consistent hashing solves it.
+2. **Denormalization Decision:** An e-commerce site stores `product_price` in the `order_line_items` table (a denormalized copy from `products`). A junior engineer says this is wrong because prices are duplicated. Is it wrong? Defend your answer with reference to what the data represents.
 
-5. **Denormalization decision:** An e-commerce site stores `product_price` in the `order_line_items` table (denormalized copy from `products`). A junior engineer says this is wrong because prices are duplicated. Is it wrong? Defend your answer.
+   <details>
+   <summary>Hint</summary>
+   Order line items record the price *at time of purchase* — denormalization is intentional here because the historical order must not change if the product price is later updated.
+   </details>
+
+### Intermediate
+
+3. **Sharding Key Selection:** You are sharding a `messages` table across 8 shards. Your options are: shard by `sender_id`, `receiver_id`, or `conversation_id`. Which do you choose, what queries does your choice enable, and what queries become expensive or impossible?
+
+   <details>
+   <summary>Hint</summary>
+   Shard by `conversation_id` to keep all messages for a conversation on one shard, enabling efficient history queries; sharding by sender or receiver scatters a conversation across shards.
+   </details>
+
+4. **Federation Trade-off:** An order service needs to display "orders with customer names." The orders DB and users DB are federated into separate databases. How do you handle the JOIN efficiently without cross-database queries, and what consistency guarantees does your approach make?
+
+   <details>
+   <summary>Hint</summary>
+   Denormalize `customer_name` into the orders table at write time, or perform the join at the application layer with a batch lookup — both avoid cross-database JOINs at the cost of some consistency.
+   </details>
+
+### Advanced
+
+5. **Resharding Migration:** Your hash-based sharding uses `hash(id) % 4` across 4 shards. You need to add a 5th shard without downtime. Describe the full migration challenge (what percentage of rows must move), how consistent hashing reduces that percentage, and what double-write strategy you would use during the transition window.
+
+   <details>
+   <summary>Hint</summary>
+   Modulo resharding moves ~80% of rows; consistent hashing moves ~20% — use a shadow write to the new shard topology while reads still go to the old, then cut over after backfill validation.
+   </details>
 
 ---
 

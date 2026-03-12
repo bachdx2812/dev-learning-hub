@@ -472,14 +472,98 @@ Stack Overflow co-locates servers in a data center rather than running on AWS or
 
 ---
 
+## Scaling Strategy Comparison Tables
+
+### Horizontal vs Vertical Scaling
+
+| Dimension | Vertical Scaling | Horizontal Scaling |
+|-----------|-----------------|-------------------|
+| **Cost curve** | Exponential (diminishing returns at top tier) | Linear (~same cost per additional node) |
+| **Complexity** | Low — no code changes required | High — stateless design, load balancer, distributed state |
+| **Failure domain** | Full outage on single machine failure | Partial degradation (N-1 nodes continue serving) |
+| **Max capacity** | Hardware ceiling (~128 cores, few TB RAM today) | Theoretically unlimited |
+| **Data consistency** | Strong — single node owns all state | Requires external shared store (Redis, DB) |
+| **Upgrade downtime** | Required — machine must restart | Zero-downtime rolling deploys |
+| **Use case** | Databases (hard to shard), early-stage apps, batch jobs | Web/API servers, microservices, stateless workers |
+| **Cloud equivalent** | Instance resize (`t3.large` → `r5.4xlarge`) | Auto Scaling Group, Kubernetes HPA |
+
+---
+
+### Auto-Scaling Patterns
+
+| Pattern | Trigger | Latency to Scale | Cost Efficiency | Best For |
+|---------|---------|-----------------|----------------|----------|
+| **Reactive** | CPU > 70%, memory > 80%, request queue depth | 2–5 minutes (instance boot + health check) | Medium — may over-provision during rapid spikes | Steady, gradual load growth |
+| **Predictive** | ML model forecasting future load based on history | Pre-warmed — capacity ready before spike | High — no reactive over-provisioning lag | Workloads with predictable daily/weekly patterns |
+| **Scheduled** | Time-of-day rule (e.g., scale up at 08:00, down at 22:00) | Near-zero — capacity added on schedule | High for known patterns, wasteful if pattern changes | Known fixed events: business hours, TV air times |
+| **Custom metrics** | Business KPI: queue depth, active WebSocket connections, orders/min | Depends on metric polling interval (30–60s typical) | Very high — scales on actual business signal | Real-time queues, streaming pipelines, game servers |
+
+> **Note:** Most production systems combine reactive (floor safety net) + scheduled (known patterns) + predictive (ML-assisted) for optimal cost and headroom.
+
+---
+
+### Real-World Scaling Approaches (as of 2026)
+
+| Company | Scaling Approach | Approximate Scale | Key Trade-off |
+|---------|-----------------|-------------------|---------------|
+| **Netflix** | 700+ stateless microservices on AWS Auto Scaling; own CDN (Open Connect) inside ISPs | 260M+ subscribers, ~15% of global downstream internet bandwidth | Massive operational complexity; hundreds of teams, sophisticated tooling required |
+| **Stack Overflow** | ~9 on-premises web servers; single primary SQL Server (384 GB RAM); aggressive Redis caching | 1.3B+ page views/month | Monolith discipline required; vertical-first approach limits elastic scaling for sudden spikes |
+| **Wikipedia** | MediaWiki PHP monolith; Varnish reverse proxy cache; read replicas per region; edge Nginx caches | ~20B page views/month (mostly reads) | Globally distributed read replicas add replication lag; write throughput still limited by single primary |
+| **Discord** | Migrated from Python to Rust (performance); Cassandra for messages; Elixir for presence | 200M+ registered users, 19M concurrent daily | Cassandra write-heavy model makes historical message queries expensive; hot partition problem at scale |
+
+---
+
+## Related Chapters
+
+| Chapter | Relevance |
+|---------|-----------|
+| [Ch01 — Introduction](/system-design/part-1-fundamentals/ch01-introduction-to-system-design) | Core framework this chapter extends to scale |
+| [Ch03 — Core Trade-offs](/system-design/part-1-fundamentals/ch03-core-tradeoffs) | CAP/PACELC trade-offs behind every scaling decision |
+| [Ch06 — Load Balancing](/system-design/part-2-building-blocks/ch06-load-balancing) | Horizontal scaling entry point for distributing load |
+| [Ch07 — Caching](/system-design/part-2-building-blocks/ch07-caching) | Caching as primary scaling lever for read-heavy systems |
+| [Ch09 — SQL Databases](/system-design/part-2-building-blocks/ch09-databases-sql) | DB scaling: read replicas, sharding, connection pooling |
+
+---
+
 ## Practice Questions
 
-1. You are designing the backend for a photo-sharing app. The app is currently running on a single $500/month server at 70% CPU capacity, and the team expects 5× growth in the next year. Walk through the scaling strategy you would recommend, step by step.
+### Beginner
 
-2. Explain why stateless application servers are a prerequisite for horizontal scaling. What happens if you attempt to horizontally scale a stateful application server? What are the workarounds and their trade-offs?
+1. **Scaling Strategy:** You are designing the backend for a photo-sharing app. The app is currently running on a single $500/month server at 70% CPU capacity, and the team expects 5× growth in the next year. Walk through the scaling strategy you would recommend, step by step, from quick wins to long-term architecture.
 
-3. A read-heavy social media platform has a single primary PostgreSQL database. Reads are slow even with proper indexing. Describe at least three architectural changes you would make to address this, in the order you would implement them.
+   <details>
+   <summary>Hint</summary>
+   Start with what can be done without code changes (vertical scale, CDN, caching), then address stateless app servers before horizontal scaling becomes viable.
+   </details>
 
-4. Compare JWT-based sessions to Redis-based sessions. For a banking application where instant session revocation (on logout or suspicious activity) is critical, which would you choose and why?
+### Intermediate
 
-5. Netflix built their own CDN (Open Connect) rather than using a commercial CDN like Cloudflare or Akamai. What business and technical motivations might drive that decision? What are the trade-offs of building vs. buying infrastructure like a CDN?
+2. **Stateless Servers:** Explain why stateless application servers are a prerequisite for horizontal scaling. What happens if you attempt to horizontally scale a stateful application server? Describe two workarounds and their trade-offs.
+
+   <details>
+   <summary>Hint</summary>
+   Think about what "state" means for load balancer routing — sticky sessions, shared session stores (Redis), and their consistency and availability implications.
+   </details>
+
+3. **Read Scaling:** A read-heavy social media platform has a single primary PostgreSQL database serving 500K reads/min. Reads are slow even with proper indexing. Describe at least three architectural changes you would make to address this, in the order you would implement them.
+
+   <details>
+   <summary>Hint</summary>
+   Order by implementation risk and impact: read replicas first, then caching layer, then considering sharding only when the other layers are exhausted.
+   </details>
+
+4. **Session Architecture:** Compare JWT-based sessions to Redis-based sessions for a banking application where instant session revocation (on suspicious activity detection) is critical. Which would you choose, and how does your answer change if the system has 10M concurrent users?
+
+   <details>
+   <summary>Hint</summary>
+   JWTs are stateless (can't be revoked without a denylist), while Redis sessions require a network hop per request — consider where each approach breaks under your scale and security requirements.
+   </details>
+
+### Advanced
+
+5. **Build vs Buy Infrastructure:** Netflix built their own CDN (Open Connect) rather than using Cloudflare or Akamai. What business and technical motivations drove that decision? What are the trade-offs of building vs. buying CDN infrastructure, and at what traffic volume does building become economically justified?
+
+   <details>
+   <summary>Hint</summary>
+   Consider Netflix's specific traffic patterns (large video files, predictable burst), ISP peering relationships, and the cost curve of commercial CDN per-GB pricing at petabyte scale.
+   </details>

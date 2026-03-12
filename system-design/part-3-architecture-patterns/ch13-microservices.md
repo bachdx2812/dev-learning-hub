@@ -800,14 +800,57 @@ Internal microservices (service-to-service) can use a lighter versioning strateg
 
 ---
 
+## Related Chapters
+
+| Chapter | Relevance |
+|---------|-----------|
+| [Ch06 — Load Balancing](/system-design/part-2-building-blocks/ch06-load-balancing) | API gateway is a specialized LB for service mesh routing |
+| [Ch11 — Message Queues](/system-design/part-2-building-blocks/ch11-message-queues) | Async inter-service communication via Kafka/SQS |
+| [Ch14 — Event-Driven Architecture](/system-design/part-3-architecture-patterns/ch14-event-driven-architecture) | Saga pattern for distributed transactions across services |
+| [Ch15 — Replication & Consistency](/system-design/part-3-architecture-patterns/ch15-data-replication-consistency) | Per-service database consistency in a microservices system |
+| [Ch23 — Cloud-Native](/system-design/part-5-modern-mastery/ch23-cloud-native-serverless) | Kubernetes orchestration for microservice deployments |
+
+---
+
 ## Practice Questions
 
-1. **Boundary Design:** An e-commerce startup wants to decompose their monolith into microservices. They have a single `users` table joined in 15 places across the codebase. Describe the strangler fig migration strategy step by step. What service do you extract first, and why?
+### Beginner
 
-2. **Circuit Breaker Tuning:** Your payment service has a circuit breaker configured with a 50% failure threshold over a 10-second window and a 30-second open timeout. Under a flash sale, the payment processor becomes slow (P99 = 8s) but not failing. Explain why the circuit breaker may not trip, and what additional resilience mechanism you would add.
+1. **Strangler Fig Migration:** An e-commerce startup wants to decompose their monolith. They have a single `users` table joined in 15 places. Describe the strangler fig migration strategy step by step. Which service would you extract first and why? What is the risk if you try to extract the `users` service first?
 
-3. **Saga Trade-offs:** You are building a travel booking system that must atomically book a flight, hotel, and car rental across three external APIs. Compare choreography-based and orchestration-based sagas for this use case. Which would you choose and why? How do you handle the case where the car rental is unavailable after the flight and hotel are already confirmed?
+   <details>
+   <summary>Hint</summary>
+   Extract services with the fewest inbound dependencies first (leaf services like email notifications); extracting a heavily-joined entity like `users` first creates a distributed monolith with synchronous coupling everywhere.
+   </details>
 
-4. **Service Mesh Justification:** Your team runs 8 microservices. A senior engineer proposes adopting Istio. A skeptical teammate says "that's too much complexity for our scale." What criteria would you evaluate to decide? At what point does a service mesh pay for itself?
+### Intermediate
 
-5. **API Gateway vs BFF:** A fintech company has three client types: a web dashboard (data-heavy, many charts), a mobile app (bandwidth-constrained), and a partner API (versioned, metered). Design the gateway layer. Would you use a single API gateway or the BFF pattern? Justify your choice and describe what each BFF would do differently.
+2. **Circuit Breaker Tuning:** Your payment service has a circuit breaker with a 50% failure threshold over 10 seconds and a 30-second open timeout. During a flash sale, the payment processor becomes slow (P99 = 8s) but returns 200 OK. Explain why the circuit breaker does not trip, and what additional resilience mechanism (timeout + bulkhead) you would add.
+
+   <details>
+   <summary>Hint</summary>
+   The circuit breaker counts failures, not slowness — add a request timeout (e.g., 2s) so slow responses are classified as failures, allowing the circuit breaker to trip and shed load during latency spikes.
+   </details>
+
+3. **Saga Compensation:** You are building a travel booking system that must atomically book a flight, hotel, and car rental across three external APIs. Compare choreography vs orchestration sagas for this use case. Which do you choose, and how do you handle the car rental being unavailable after flight and hotel are already confirmed?
+
+   <details>
+   <summary>Hint</summary>
+   Orchestration is clearer for complex compensations with explicit rollback sequences; when car rental fails, the orchestrator explicitly calls the hotel and flight cancellation APIs in reverse order.
+   </details>
+
+4. **Service Mesh Decision:** Your team runs 8 microservices and security requires mTLS between all services. A senior engineer proposes Istio; a skeptic says it's too complex. What criteria (team size, service count, compliance requirements, existing tooling) would you use to decide? At what scale does a service mesh clearly pay for itself?
+
+   <details>
+   <summary>Hint</summary>
+   Evaluate: does your team have the Kubernetes expertise to operate Istio? Are you implementing mTLS, circuit breaking, or traffic splitting in every service's code already? If yes to both, a mesh reduces per-service complexity.
+   </details>
+
+### Advanced
+
+5. **API Gateway vs BFF:** A fintech company has three client types: a web dashboard (data-heavy, many charts), a mobile app (bandwidth-constrained), and a partner API (versioned, metered). Design the gateway layer. Would you use a single API gateway or Backend-for-Frontend (BFF)? Describe what each BFF would do differently from the others.
+
+   <details>
+   <summary>Hint</summary>
+   BFF is justified when clients have meaningfully different data-shaping needs (web = large aggregated responses, mobile = minimal payloads, partner = versioned contracts with rate limiting) — a single gateway forces all clients to over-fetch or under-fetch.
+   </details>
