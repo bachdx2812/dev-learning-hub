@@ -82,6 +82,10 @@ export default withMermaid(
     // Clean URLs without .html extension
     cleanUrls: true,
 
+    sitemap: {
+      hostname: 'https://bachdx-learning-hub.vercel.app'
+    },
+
     // Exclude internal planning files from the built site
     srcExclude: ['**/plans/**', '**/plans_*', '**/plans_reports_*'],
 
@@ -97,6 +101,18 @@ export default withMermaid(
         href: 'https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap'
       }],
       ['meta', { name: 'theme-color', content: '#282a36' }],
+      // Meta description
+      ['meta', { name: 'description', content: 'Learn system design from zero to expert with 25 hands-on chapters covering scaling, distributed systems, and real-world interview prep.' }],
+      // Open Graph
+      ['meta', { property: 'og:title', content: "The Engineer's Handbook — Master System Design" }],
+      ['meta', { property: 'og:description', content: '25 hands-on chapters on system design fundamentals, architecture patterns, and deep dives.' }],
+      ['meta', { property: 'og:type', content: 'website' }],
+      ['meta', { property: 'og:url', content: 'https://bachdx-learning-hub.vercel.app/' }],
+      ['meta', { property: 'og:site_name', content: "The Engineer's Handbook" }],
+      // Twitter Card
+      ['meta', { name: 'twitter:card', content: 'summary_large_image' }],
+      ['meta', { name: 'twitter:title', content: "The Engineer's Handbook — Master System Design" }],
+      ['meta', { name: 'twitter:description', content: '25 hands-on chapters on system design fundamentals, architecture patterns, and deep dives.' }],
     ],
 
     // Shiki dracula theme for code blocks

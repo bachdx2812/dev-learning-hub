@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://bachdx-learning-hub.vercel.app/sitemap.xml

@@ -16,31 +16,31 @@ hero:
 features:
   - icon: 🏗️
     title: Part 1 — Fundamentals
-    details: "Scale from zero to millions of users. Back-of-envelope estimation, rate limiting, consistent hashing. The bedrock every engineer must know."
+    details: "Scalability principles, CAP & PACELC trade-offs, back-of-envelope estimation, and tail latency analysis. The bedrock every engineer must know."
     link: /system-design/part-1-fundamentals/
     linkText: Start here
 
   - icon: 🧱
     title: Part 2 — Building Blocks
-    details: "Key-value stores, unique ID generators, URL shorteners, web crawlers, notification systems. The Lego bricks of distributed systems."
+    details: "DNS, load balancing, caching, CDN, SQL & NoSQL databases, message queues, and communication protocols. The Lego bricks of distributed systems."
     link: /system-design/part-2-building-blocks/
     linkText: Build something
 
   - icon: 🔀
-    title: Part 3 — Architecture Patterns
-    details: "News feeds, real-time chat, autocomplete, video streaming, cloud storage. Proven patterns behind products you use daily."
+    title: Part 3 — Architecture & Patterns
+    details: "Microservices, event-driven architecture, data replication, security & reliability, monitoring & observability. Proven patterns for production systems."
     link: /system-design/part-3-architecture-patterns/
     linkText: See patterns
 
   - icon: 📐
     title: Part 4 — Case Studies
-    details: "Proximity services, live location sharing, mapping systems, message queues, metrics monitoring. Deep dives into real-world complexity."
+    details: "URL shortener, social media feed, chat messaging, video streaming, ride-sharing & geospatial. Full deep-dives into real-world system designs."
     link: /system-design/part-4-case-studies/
     linkText: Dive deep
 
   - icon: 🚀
     title: Part 5 — Modern Mastery
-    details: "Ad click aggregation, reservation systems, email infrastructure, object storage, real-time leaderboards. Interview-grade, production-ready thinking."
+    details: "Cloud-native & serverless, ML systems & AI infrastructure, and a comprehensive interview framework with cheat sheets. Production-ready thinking."
     link: /system-design/part-5-modern-mastery/
     linkText: Go advanced
 ---
@@ -57,5 +57,11 @@ features:
 │  $ cd system-design && cat README.md                    │
 └─────────────────────────────────────────────────────────┘
 ```
+
+</div>
+
+<div style="text-align: center; margin: 2em auto; max-width: 640px; color: #6272a4; font-family: 'JetBrains Mono', monospace; font-size: 0.75em; line-height: 1.6;">
+
+*Inspired by Alex Xu's System Design Interview series, Martin Kleppmann's Designing Data-Intensive Applications, and the Google SRE books. All interpretations, diagrams, and additions are original.*
 
 </div>
