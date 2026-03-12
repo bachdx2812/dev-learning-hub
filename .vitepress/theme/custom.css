@@ -642,3 +642,82 @@ mark {
 .vp-doc ol li::marker {
   color: var(--dracula-comment);
 }
+
+/* --------------------------------------------------------------------------
+   Accessibility — WCAG 2.1 AA
+   -------------------------------------------------------------------------- */
+
+/* Skip to content link */
+.skip-to-content {
+  position: absolute;
+  top: -100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--dracula-purple);
+  color: var(--dracula-bg);
+  padding: 0.75em 1.5em;
+  border-radius: 0 0 8px 8px;
+  font-weight: 700;
+  font-size: 0.9em;
+  z-index: 999;
+  text-decoration: none;
+  transition: top 0.2s ease;
+}
+
+.skip-to-content:focus {
+  top: 0;
+  color: var(--dracula-bg) !important;
+}
+
+/* Enhanced focus indicators for keyboard navigation */
+*:focus-visible {
+  outline: 2px solid var(--dracula-purple) !important;
+  outline-offset: 2px !important;
+  border-radius: 4px;
+}
+
+/* Remove outline for mouse clicks, keep for keyboard */
+*:focus:not(:focus-visible) {
+  outline: none !important;
+}
+
+/* Ensure interactive elements have visible focus */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+.VPButton:focus-visible,
+.VPLink:focus-visible {
+  outline: 2px solid var(--dracula-purple) !important;
+  outline-offset: 2px !important;
+  box-shadow: 0 0 0 4px rgba(189, 147, 249, 0.3) !important;
+}
+
+/* Reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .VPHero .tagline::after {
+    animation: none !important;
+  }
+}
+
+/* Ensure minimum touch target sizes on mobile */
+@media (max-width: 768px) {
+  .VPButton,
+  .VPNavBarMenuLink,
+  .VPSidebarItem .item {
+    min-height: 44px;
+    min-width: 44px;
+    display: flex;
+    align-items: center;
+  }
+}

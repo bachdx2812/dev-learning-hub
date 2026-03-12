@@ -10,11 +10,12 @@
     "generate-images": "npx tsx scripts/generate-chapter-images.ts"
   },
   "devDependencies": {
+    "mermaid": "latest",
     "vitepress": "latest",
-    "vitepress-plugin-mermaid": "latest",
-    "mermaid": "latest"
+    "vitepress-plugin-mermaid": "latest"
   },
   "dependencies": {
+    "@giscus/vue": "^3.1.1",
     "@google/genai": "latest"
   }
 }

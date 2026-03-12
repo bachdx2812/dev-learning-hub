@@ -113,6 +113,21 @@ export default withMermaid(
       ['meta', { name: 'twitter:card', content: 'summary_large_image' }],
       ['meta', { name: 'twitter:title', content: "The Engineer's Handbook — Master System Design" }],
       ['meta', { name: 'twitter:description', content: '25 hands-on chapters on system design fundamentals, architecture patterns, and deep dives.' }],
+      // JSON-LD structured data
+      ['script', { type: 'application/ld+json' }, JSON.stringify({
+        "@context": "https://schema.org",
+        "@type": "Course",
+        "name": "The Engineer's Handbook",
+        "description": "Master system design with 25 hands-on chapters covering scaling, distributed systems, and real-world interview prep.",
+        "provider": {
+          "@type": "Person",
+          "name": "Bach Duong"
+        },
+        "numberOfCredits": 25,
+        "educationalLevel": "Intermediate",
+        "isAccessibleForFree": true,
+        "inLanguage": "en"
+      })],
     ],
 
     // Shiki dracula theme for code blocks
@@ -131,6 +146,7 @@ export default withMermaid(
       // Top navigation
       nav: [
         { text: 'System Design', link: '/system-design/' },
+        { text: 'About', link: '/about' },
       ],
 
       // Sidebar navigation
