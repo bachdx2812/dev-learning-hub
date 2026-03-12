@@ -14,6 +14,10 @@ const twitterUrl = computed(() =>
   `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareTitle.value)}&url=${encodeURIComponent(shareUrl.value)}`
 )
 
+const facebookUrl = computed(() =>
+  `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl.value)}`
+)
+
 const linkedinUrl = computed(() =>
   `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl.value)}`
 )
@@ -39,6 +43,15 @@ const copyLink = () => {
       aria-label="Share on Twitter"
     >
       𝕏 Twitter
+    </a>
+    <a
+      :href="facebookUrl"
+      target="_blank"
+      rel="noopener noreferrer"
+      class="share-btn"
+      aria-label="Share on Facebook"
+    >
+      f Facebook
     </a>
     <a
       :href="linkedinUrl"
