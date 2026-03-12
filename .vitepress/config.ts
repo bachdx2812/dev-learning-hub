@@ -90,11 +90,26 @@ export default withMermaid(
     // Exclude internal planning files from the built site
     srcExclude: ['**/plans/**', '**/plans_*', '**/plans_reports_*'],
 
-    // Ignore localhost links in plan reports
-    ignoreDeadLinks: [/^http:\/\/localhost/],
+    // Ignore localhost links in plan reports and root LICENSE file link
+    ignoreDeadLinks: [/^http:\/\/localhost/, './LICENSE'],
+
+    // Canonical URL per page
+    transformHead({ pageData }) {
+      const canonicalUrl = `https://bachdx-learning-hub.vercel.app/${pageData.relativePath}`
+        .replace(/index\.md$/, '')
+        .replace(/\.md$/, '')
+      return [
+        ['link', { rel: 'canonical', href: canonicalUrl }]
+      ]
+    },
 
     // Head metadata
     head: [
+      // Favicon
+      ['link', { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' }],
+      // OG Image
+      ['meta', { property: 'og:image', content: 'https://bachdx-learning-hub.vercel.app/og-image.png' }],
+      ['meta', { name: 'twitter:image', content: 'https://bachdx-learning-hub.vercel.app/og-image.png' }],
       ['link', { rel: 'preconnect', href: 'https://fonts.googleapis.com' }],
       ['link', { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' }],
       ['link', {

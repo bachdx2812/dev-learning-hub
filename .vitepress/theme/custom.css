@@ -1,10 +1,10 @@
 /* ==========================================================================
    The Engineer's Handbook — Dracula Theme
-   Full monospace hacker aesthetic with JetBrains Mono everywhere
+   Body text: Inter (proportional) | Headings + code: JetBrains Mono
    ========================================================================== */
 
-/* Google Fonts: JetBrains Mono */
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap');
+/* Google Fonts: Inter + JetBrains Mono */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap');
 
 /* --------------------------------------------------------------------------
    Dracula Color Palette
@@ -100,65 +100,74 @@
 }
 
 /* Force dark mode — hide light mode toggle */
+/* !important required: overrides VitePress component inline/scoped style */
 .VPSwitchAppearance {
   display: none !important;
 }
 
 /* --------------------------------------------------------------------------
-   Typography — JetBrains Mono Everywhere
+   Typography — Body: Inter, Headings + Code: JetBrains Mono
    -------------------------------------------------------------------------- */
-*:not(.mermaid *) {
-  font-family: 'JetBrains Mono', 'Cascadia Code', 'Fira Code', monospace !important;
-}
 
-body {
-  font-family: 'JetBrains Mono', monospace !important;
-  background-color: var(--dracula-bg) !important;
-  color: var(--dracula-fg) !important;
+/* Body text — proportional for readability */
+.dark body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  background-color: var(--dracula-bg);
+  color: var(--dracula-fg);
   font-size: 15px;
   line-height: 1.75;
-  letter-spacing: -0.01em;
+  letter-spacing: 0;
 }
 
-/* Headings */
-h1, h2, h3, h4, h5, h6 {
-  font-family: 'JetBrains Mono', monospace !important;
-  font-weight: 700 !important;
+/* Headings — monospace for hacker aesthetic */
+.dark h1,
+.dark h2,
+.dark h3,
+.dark h4,
+.dark h5,
+.dark h6 {
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 700;
   letter-spacing: -0.02em;
 }
 
-h1 { color: var(--dracula-purple) !important; }
-h2 { color: var(--dracula-pink) !important; border-bottom: 1px solid var(--dracula-current-line) !important; padding-bottom: 0.5em; }
-h3 { color: var(--dracula-cyan) !important; }
-h4 { color: var(--dracula-green) !important; }
+/* Heading colors */
+.dark .vp-doc h1 { color: var(--dracula-purple); }
+.dark .vp-doc h2 {
+  color: var(--dracula-pink);
+  border-bottom: 1px solid var(--dracula-current-line);
+  padding-bottom: 0.5em;
+}
+.dark .vp-doc h3 { color: var(--dracula-cyan); }
+.dark .vp-doc h4 { color: var(--dracula-green); }
 
 /* Links */
-a {
-  color: var(--dracula-purple) !important;
+.dark a {
+  color: var(--dracula-purple);
   text-decoration: none;
   transition: color 0.2s ease;
 }
 
-a:hover {
-  color: var(--dracula-pink) !important;
+.dark a:hover {
+  color: var(--dracula-pink);
   text-decoration: underline;
 }
 
 /* --------------------------------------------------------------------------
    Code Blocks — Terminal Style with Traffic Lights
    -------------------------------------------------------------------------- */
-.vp-doc div[class*="language-"] {
+.dark .vp-doc div[class*="language-"] {
   position: relative;
-  background: #1e1f29 !important;
-  border: 1px solid var(--dracula-current-line) !important;
-  border-left: 4px solid var(--dracula-purple) !important;
-  border-radius: 8px !important;
-  margin: 1.5em 0 !important;
+  background: #1e1f29;
+  border: 1px solid var(--dracula-current-line);
+  border-left: 4px solid var(--dracula-purple);
+  border-radius: 8px;
+  margin: 1.5em 0;
   overflow: hidden;
 }
 
 /* Terminal traffic lights */
-.vp-doc div[class*="language-"]::before {
+.dark .vp-doc div[class*="language-"]::before {
   content: '● ● ●';
   display: block;
   padding: 10px 16px 8px;
@@ -167,13 +176,7 @@ a:hover {
   letter-spacing: 4px;
   line-height: 1;
   border-bottom: 1px solid #3d3f52;
-  /* Red, Yellow, Green traffic lights */
   background-image: none;
-}
-
-/* Color the traffic lights via a custom trick using gradient text won't work,
-   so we'll style the pseudo element text with a consistent look */
-.vp-doc div[class*="language-"]::before {
   color: var(--dracula-red);
   text-shadow:
     14px 0 0 var(--dracula-yellow),
@@ -181,158 +184,169 @@ a:hover {
 }
 
 /* Inline code */
-.vp-doc :not(pre) > code {
-  background: var(--dracula-current-line) !important;
-  color: var(--dracula-pink) !important;
-  border: 1px solid #3d3f52 !important;
-  border-radius: 4px !important;
-  padding: 1px 6px !important;
-  font-size: 0.9em !important;
+.dark .vp-doc :not(pre) > code {
+  background: var(--dracula-current-line);
+  color: var(--dracula-pink);
+  border: 1px solid #3d3f52;
+  border-radius: 4px;
+  padding: 1px 6px;
+  font-size: 0.9em;
+  font-family: 'JetBrains Mono', monospace;
 }
 
 /* Code block content */
-.vp-doc div[class*="language-"] pre {
-  padding: 1.2em 1.5em !important;
-  margin: 0 !important;
-  background: transparent !important;
+.dark .vp-doc div[class*="language-"] pre {
+  padding: 1.2em 1.5em;
+  margin: 0;
+  background: transparent;
 }
 
-.vp-doc div[class*="language-"] code {
-  font-family: 'JetBrains Mono', monospace !important;
-  font-size: 0.875rem !important;
-  line-height: 1.7 !important;
+.dark .vp-doc div[class*="language-"] code {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.875rem;
+  line-height: 1.7;
 }
 
 /* Language label */
-.vp-doc div[class*="language-"] .lang {
-  top: 10px !important;
-  right: 50px !important;
-  color: var(--dracula-comment) !important;
-  font-size: 11px !important;
-  font-family: 'JetBrains Mono', monospace !important;
+.dark .vp-doc div[class*="language-"] .lang {
+  top: 10px;
+  right: 50px;
+  color: var(--dracula-comment);
+  font-size: 11px;
+  font-family: 'JetBrains Mono', monospace;
 }
 
 /* --------------------------------------------------------------------------
    Blockquotes — Key Takeaway Boxes
    -------------------------------------------------------------------------- */
-.vp-doc blockquote {
-  background: rgba(80, 250, 123, 0.06) !important;
-  border-left: 4px solid var(--dracula-green) !important;
-  border-radius: 0 8px 8px 0 !important;
-  margin: 1.5em 0 !important;
-  padding: 1em 1.5em !important;
-  color: var(--dracula-fg) !important;
+.dark .vp-doc blockquote {
+  background: rgba(80, 250, 123, 0.06);
+  border-left: 4px solid var(--dracula-green);
+  border-radius: 0 8px 8px 0;
+  margin: 1.5em 0;
+  padding: 1em 1.5em;
+  color: var(--dracula-fg);
 }
 
-.vp-doc blockquote p {
-  color: var(--dracula-fg) !important;
-  margin: 0 !important;
+.dark .vp-doc blockquote p {
+  color: var(--dracula-fg);
+  margin: 0;
 }
 
-.vp-doc blockquote::before {
+.dark .vp-doc blockquote::before {
   content: '// KEY TAKEAWAY';
   display: block;
-  color: var(--dracula-green) !important;
-  font-size: 11px !important;
-  font-weight: 700 !important;
-  letter-spacing: 0.1em !important;
-  margin-bottom: 0.5em !important;
+  color: var(--dracula-green);
+  font-size: 11px;
+  font-weight: 700;
+  font-family: 'JetBrains Mono', monospace;
+  letter-spacing: 0.1em;
+  margin-bottom: 0.5em;
 }
 
 /* --------------------------------------------------------------------------
    Custom Containers — Dracula Styled
    -------------------------------------------------------------------------- */
-.vp-doc .custom-block {
-  border-radius: 8px !important;
-  border: 1px solid !important;
-  padding: 1em 1.5em !important;
-  margin: 1.5em 0 !important;
+.dark .vp-doc .custom-block {
+  border-radius: 8px;
+  border: 1px solid;
+  padding: 1em 1.5em;
+  margin: 1.5em 0;
 }
 
-.vp-doc .custom-block.tip {
-  background: rgba(80, 250, 123, 0.06) !important;
-  border-color: var(--dracula-green) !important;
+.dark .vp-doc .custom-block.tip {
+  background: rgba(80, 250, 123, 0.06);
+  border-color: var(--dracula-green);
 }
 
-.vp-doc .custom-block.info {
-  background: rgba(139, 233, 253, 0.06) !important;
-  border-color: var(--dracula-cyan) !important;
+.dark .vp-doc .custom-block.info {
+  background: rgba(139, 233, 253, 0.06);
+  border-color: var(--dracula-cyan);
 }
 
-.vp-doc .custom-block.warning {
-  background: rgba(241, 250, 140, 0.06) !important;
-  border-color: var(--dracula-yellow) !important;
+.dark .vp-doc .custom-block.warning {
+  background: rgba(241, 250, 140, 0.06);
+  border-color: var(--dracula-yellow);
 }
 
-.vp-doc .custom-block.danger {
-  background: rgba(255, 85, 85, 0.06) !important;
-  border-color: var(--dracula-red) !important;
+.dark .vp-doc .custom-block.danger {
+  background: rgba(255, 85, 85, 0.06);
+  border-color: var(--dracula-red);
 }
 
-.vp-doc .custom-block-title {
-  font-weight: 700 !important;
-  font-size: 0.85em !important;
-  letter-spacing: 0.08em !important;
-  text-transform: uppercase !important;
+.dark .vp-doc .custom-block-title {
+  font-weight: 700;
+  font-size: 0.85em;
+  font-family: 'JetBrains Mono', monospace;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 /* --------------------------------------------------------------------------
    Tables
    -------------------------------------------------------------------------- */
-.vp-doc table {
-  border-collapse: collapse !important;
-  width: 100% !important;
-  margin: 1.5em 0 !important;
-  font-size: 0.9em !important;
+.dark .vp-doc table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 1.5em 0;
+  font-size: 0.9em;
 }
 
-.vp-doc th {
-  background: var(--dracula-current-line) !important;
-  color: var(--dracula-purple) !important;
-  padding: 0.75em 1em !important;
-  text-align: left !important;
-  font-weight: 700 !important;
-  border-bottom: 2px solid var(--dracula-purple) !important;
+.dark .vp-doc th {
+  background: var(--dracula-current-line);
+  color: var(--dracula-purple);
+  padding: 0.75em 1em;
+  text-align: left;
+  font-weight: 700;
+  border-bottom: 2px solid var(--dracula-purple);
 }
 
-.vp-doc td {
-  padding: 0.65em 1em !important;
-  border-bottom: 1px solid var(--dracula-current-line) !important;
-  color: var(--dracula-fg) !important;
+.dark .vp-doc td {
+  padding: 0.65em 1em;
+  border-bottom: 1px solid var(--dracula-current-line);
+  color: var(--dracula-fg);
 }
 
-.vp-doc tr:hover td {
-  background: rgba(68, 71, 90, 0.4) !important;
+.dark .vp-doc tr:hover td {
+  background: rgba(68, 71, 90, 0.4);
 }
 
 /* --------------------------------------------------------------------------
    Navigation — Dracula Styled
    -------------------------------------------------------------------------- */
-.VPNav {
-  background: var(--dracula-bg) !important;
-  border-bottom: 1px solid var(--dracula-current-line) !important;
+.dark .VPNav {
+  background: var(--dracula-bg);
+  border-bottom: 1px solid var(--dracula-current-line);
 }
 
-.VPNavBar {
-  background: var(--dracula-bg) !important;
+.dark .VPNavBar {
+  background: var(--dracula-bg);
 }
 
-.VPSidebar {
-  background: #21222c !important;
-  border-right: 1px solid var(--dracula-current-line) !important;
+.dark .VPNav,
+.dark .VPNavBar,
+.dark .VPNavBarMenuLink,
+.dark .VPNavBarMenuGroup {
+  font-family: 'JetBrains Mono', monospace;
 }
 
-.VPSidebarItem.level-0 > .item > .VPLink {
-  color: var(--dracula-purple) !important;
-  font-weight: 700 !important;
+.dark .VPSidebar {
+  background: #21222c;
+  border-right: 1px solid var(--dracula-current-line);
+  font-family: 'JetBrains Mono', monospace;
 }
 
-.VPSidebarItem.is-active > .item > .VPLink {
-  color: var(--dracula-pink) !important;
+.dark .VPSidebarItem.level-0 > .item > .VPLink {
+  color: var(--dracula-purple);
+  font-weight: 700;
+}
+
+.dark .VPSidebarItem.is-active > .item > .VPLink {
+  color: var(--dracula-pink);
 }
 
 /* Active sidebar item indicator */
-.VPSidebarItem.is-active > .item {
+.dark .VPSidebarItem.is-active > .item {
   border-left: 3px solid var(--dracula-purple);
   padding-left: calc(var(--vp-sidebar-item-padding-left) - 3px);
 }
@@ -363,25 +377,25 @@ a:hover {
   z-index: 1;
 }
 
-.VPHero .name {
-  color: var(--dracula-purple) !important;
-  font-family: 'JetBrains Mono', monospace !important;
-  font-weight: 800 !important;
+.dark .VPHero .name {
+  color: var(--dracula-purple);
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 800;
 }
 
-.VPHero .text {
-  color: var(--dracula-fg) !important;
-  font-family: 'JetBrains Mono', monospace !important;
+.dark .VPHero .text {
+  color: var(--dracula-fg);
+  font-family: 'JetBrains Mono', monospace;
 }
 
-.VPHero .tagline {
-  color: var(--dracula-comment) !important;
-  font-family: 'JetBrains Mono', monospace !important;
-  font-size: 1.1rem !important;
+.dark .VPHero .tagline {
+  color: var(--dracula-comment);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 1.1rem;
 }
 
 /* Blinking cursor after tagline */
-.VPHero .tagline::after {
+.dark .VPHero .tagline::after {
   content: '_';
   animation: blink 1.2s step-end infinite;
   color: var(--dracula-green);
@@ -394,60 +408,60 @@ a:hover {
 }
 
 /* Hero action buttons */
-.VPButton.medium.brand {
-  background: var(--dracula-purple) !important;
-  color: var(--dracula-bg) !important;
-  border: none !important;
-  font-weight: 700 !important;
-  border-radius: 6px !important;
-  transition: all 0.2s ease !important;
+.dark .VPButton.medium.brand {
+  background: var(--dracula-purple);
+  color: var(--dracula-bg);
+  border: none;
+  font-weight: 700;
+  border-radius: 6px;
+  transition: all 0.2s ease;
 }
 
-.VPButton.medium.brand:hover {
-  background: #caa8ff !important;
+.dark .VPButton.medium.brand:hover {
+  background: #caa8ff;
   transform: translateY(-1px);
-  box-shadow: 0 4px 16px rgba(189, 147, 249, 0.4) !important;
+  box-shadow: 0 4px 16px rgba(189, 147, 249, 0.4);
 }
 
-.VPButton.medium.alt {
-  background: transparent !important;
-  color: var(--dracula-fg) !important;
-  border: 1px solid var(--dracula-current-line) !important;
-  font-weight: 600 !important;
-  border-radius: 6px !important;
-  transition: all 0.2s ease !important;
+.dark .VPButton.medium.alt {
+  background: transparent;
+  color: var(--dracula-fg);
+  border: 1px solid var(--dracula-current-line);
+  font-weight: 600;
+  border-radius: 6px;
+  transition: all 0.2s ease;
 }
 
-.VPButton.medium.alt:hover {
-  border-color: var(--dracula-purple) !important;
-  color: var(--dracula-purple) !important;
+.dark .VPButton.medium.alt:hover {
+  border-color: var(--dracula-purple);
+  color: var(--dracula-purple);
   transform: translateY(-1px);
 }
 
 /* --------------------------------------------------------------------------
    Feature Cards — Dracula Glow on Hover
    -------------------------------------------------------------------------- */
-.VPFeature {
-  background: #21222c !important;
-  border: 1px solid var(--dracula-current-line) !important;
-  border-radius: 10px !important;
-  transition: all 0.25s ease !important;
+.dark .VPFeature {
+  background: #21222c;
+  border: 1px solid var(--dracula-current-line);
+  border-radius: 10px;
+  transition: all 0.25s ease;
 }
 
-.VPFeature:hover {
-  border-color: var(--dracula-purple) !important;
-  box-shadow: 0 0 20px rgba(189, 147, 249, 0.2) !important;
-  transform: translateY(-2px) !important;
+.dark .VPFeature:hover {
+  border-color: var(--dracula-purple);
+  box-shadow: 0 0 20px rgba(189, 147, 249, 0.2);
+  transform: translateY(-2px);
 }
 
-.VPFeature .title {
-  color: var(--dracula-fg) !important;
-  font-weight: 700 !important;
+.dark .VPFeature .title {
+  color: var(--dracula-fg);
+  font-weight: 700;
 }
 
-.VPFeature .details {
-  color: var(--dracula-comment) !important;
-  font-size: 0.88em !important;
+.dark .VPFeature .details {
+  color: var(--dracula-comment);
+  font-size: 0.88em;
 }
 
 /* --------------------------------------------------------------------------
@@ -469,6 +483,7 @@ a:hover {
   color: var(--dracula-pink);
   font-size: 11px;
   font-weight: 700;
+  font-family: 'JetBrains Mono', monospace;
   letter-spacing: 0.1em;
   margin-bottom: 0.5em;
 }
@@ -476,6 +491,7 @@ a:hover {
 /* --------------------------------------------------------------------------
    Mermaid Diagrams — Dracula Override
    -------------------------------------------------------------------------- */
+/* !important required: Mermaid renders SVG dynamically; these override injected styles */
 .mermaid {
   background: #1e1f29 !important;
   border: 1px solid var(--dracula-current-line) !important;
@@ -551,53 +567,53 @@ a:hover {
 /* --------------------------------------------------------------------------
    Outline (Table of Contents) — Right Sidebar
    -------------------------------------------------------------------------- */
-.VPDocAsideOutline .outline-link {
-  color: var(--dracula-comment) !important;
-  font-size: 0.85em !important;
+.dark .VPDocAsideOutline .outline-link {
+  color: var(--dracula-comment);
+  font-size: 0.85em;
   transition: color 0.2s ease;
 }
 
-.VPDocAsideOutline .outline-link:hover,
-.VPDocAsideOutline .outline-link.active {
-  color: var(--dracula-purple) !important;
+.dark .VPDocAsideOutline .outline-link:hover,
+.dark .VPDocAsideOutline .outline-link.active {
+  color: var(--dracula-purple);
 }
 
 /* --------------------------------------------------------------------------
    Footer
    -------------------------------------------------------------------------- */
-.VPFooter {
-  background: var(--dracula-bg) !important;
-  border-top: 1px solid var(--dracula-current-line) !important;
-  color: var(--dracula-comment) !important;
+.dark .VPFooter {
+  background: var(--dracula-bg);
+  border-top: 1px solid var(--dracula-current-line);
+  color: var(--dracula-comment);
 }
 
 /* --------------------------------------------------------------------------
    Search Modal
    -------------------------------------------------------------------------- */
-.VPLocalSearchBox {
-  background: var(--dracula-bg) !important;
-  border: 1px solid var(--dracula-current-line) !important;
+.dark .VPLocalSearchBox {
+  background: var(--dracula-bg);
+  border: 1px solid var(--dracula-current-line);
 }
 
-.VPLocalSearchBox input {
-  background: var(--dracula-current-line) !important;
-  color: var(--dracula-fg) !important;
-  border-color: var(--dracula-comment) !important;
+.dark .VPLocalSearchBox input {
+  background: var(--dracula-current-line);
+  color: var(--dracula-fg);
+  border-color: var(--dracula-comment);
 }
 
-.VPLocalSearchBox input:focus {
-  border-color: var(--dracula-purple) !important;
+.dark .VPLocalSearchBox input:focus {
+  border-color: var(--dracula-purple);
 }
 
 /* --------------------------------------------------------------------------
    Badges / Tags
    -------------------------------------------------------------------------- */
-.vp-doc .badge {
-  font-family: 'JetBrains Mono', monospace !important;
-  font-size: 0.75em !important;
-  font-weight: 700 !important;
-  padding: 2px 8px !important;
-  border-radius: 4px !important;
+.dark .vp-doc .badge {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.75em;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 4px;
 }
 
 /* --------------------------------------------------------------------------
@@ -614,32 +630,32 @@ a:hover {
 /* --------------------------------------------------------------------------
    Misc Content Tweaks
    -------------------------------------------------------------------------- */
-hr {
-  border-color: var(--dracula-current-line) !important;
+.dark hr {
+  border-color: var(--dracula-current-line);
 }
 
-strong {
-  color: var(--dracula-yellow) !important;
-  font-weight: 700 !important;
+.dark strong {
+  color: var(--dracula-yellow);
+  font-weight: 700;
 }
 
-em {
-  color: var(--dracula-orange) !important;
+.dark em {
+  color: var(--dracula-orange);
 }
 
-mark {
-  background: rgba(241, 250, 140, 0.2) !important;
-  color: var(--dracula-yellow) !important;
+.dark mark {
+  background: rgba(241, 250, 140, 0.2);
+  color: var(--dracula-yellow);
   border-radius: 3px;
   padding: 1px 4px;
 }
 
 /* List bullets */
-.vp-doc ul li::marker {
+.dark .vp-doc ul li::marker {
   color: var(--dracula-purple);
 }
 
-.vp-doc ol li::marker {
+.dark .vp-doc ol li::marker {
   color: var(--dracula-comment);
 }
 
@@ -666,10 +682,11 @@ mark {
 
 .skip-to-content:focus {
   top: 0;
-  color: var(--dracula-bg) !important;
+  color: var(--dracula-bg);
 }
 
 /* Enhanced focus indicators for keyboard navigation */
+/* !important required: overrides browser UA stylesheet and VitePress resets */
 *:focus-visible {
   outline: 2px solid var(--dracula-purple) !important;
   outline-offset: 2px !important;
@@ -705,13 +722,27 @@ textarea:focus-visible,
     scroll-behavior: auto !important;
   }
 
-  .VPHero .tagline::after {
-    animation: none !important;
+  .dark .VPHero .tagline::after {
+    animation: none;
   }
 }
 
-/* Ensure minimum touch target sizes on mobile */
+/* --------------------------------------------------------------------------
+   Mobile Typography & Touch Targets
+   -------------------------------------------------------------------------- */
 @media (max-width: 768px) {
+  .dark body {
+    font-size: 16px;
+  }
+
+  /* Table overflow handling */
+  .dark .vp-doc table {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Ensure minimum touch target sizes */
   .VPButton,
   .VPNavBarMenuLink,
   .VPSidebarItem .item {

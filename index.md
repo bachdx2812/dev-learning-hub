@@ -16,31 +16,31 @@ hero:
 features:
   - icon: 🏗️
     title: Part 1 — Fundamentals
-    details: "Scalability principles, CAP & PACELC trade-offs, back-of-envelope estimation, and tail latency analysis. The bedrock every engineer must know."
+    details: "4 chapters · ~2 hours — Scalability principles, CAP & PACELC trade-offs, back-of-envelope estimation, and tail latency analysis. The bedrock every engineer must know."
     link: /system-design/part-1-fundamentals/
     linkText: Start here
 
   - icon: 🧱
     title: Part 2 — Building Blocks
-    details: "DNS, load balancing, caching, CDN, SQL & NoSQL databases, message queues, and communication protocols. The Lego bricks of distributed systems."
+    details: "8 chapters · ~4 hours — DNS, load balancing, caching, CDN, SQL & NoSQL databases, message queues, and communication protocols. The Lego bricks of distributed systems."
     link: /system-design/part-2-building-blocks/
     linkText: Build something
 
   - icon: 🔀
     title: Part 3 — Architecture & Patterns
-    details: "Microservices, event-driven architecture, data replication, security & reliability, monitoring & observability. Proven patterns for production systems."
+    details: "5 chapters · ~3 hours — Microservices, event-driven architecture, data replication, security & reliability, monitoring & observability. Proven patterns for production systems."
     link: /system-design/part-3-architecture-patterns/
     linkText: See patterns
 
   - icon: 📐
     title: Part 4 — Case Studies
-    details: "URL shortener, social media feed, chat messaging, video streaming, ride-sharing & geospatial. Full deep-dives into real-world system designs."
+    details: "5 chapters · ~3 hours — URL shortener, social media feed, chat messaging, video streaming, ride-sharing & geospatial. Full deep-dives into real-world system designs."
     link: /system-design/part-4-case-studies/
     linkText: Dive deep
 
   - icon: 🚀
     title: Part 5 — Modern Mastery
-    details: "Cloud-native & serverless, ML systems & AI infrastructure, and a comprehensive interview framework with cheat sheets. Production-ready thinking."
+    details: "3 chapters · ~2 hours — Cloud-native & serverless, ML systems & AI infrastructure, and a comprehensive interview framework with cheat sheets. Production-ready thinking."
     link: /system-design/part-5-modern-mastery/
     linkText: Go advanced
 ---
