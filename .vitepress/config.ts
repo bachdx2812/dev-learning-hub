@@ -1,7 +1,7 @@
 import { defineConfig } from 'vitepress'
 import { withMermaid } from 'vitepress-plugin-mermaid'
 
-// Full sidebar with all 5 parts and 25 chapters
+// System Design sidebar — 5 parts, 25 chapters
 const systemDesignSidebar = [
   {
     text: '📚 System Design',

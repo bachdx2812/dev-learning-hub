@@ -20,7 +20,8 @@ After years of preparing for interviews, mentoring engineers, and building distr
 
 ## How It's Built
 
-- **25 chapters** across 5 parts, from fundamentals to advanced topics
+- **31 chapters** — 25 on system design + 6 on design patterns
+- **27 design patterns** with practical Go BEFORE/AFTER code
 - **200+ Mermaid diagrams** for visual learning
 - **Comparison tables** for quick decision-making
 - **Practice questions** with difficulty levels and hints
