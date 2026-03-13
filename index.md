@@ -7,11 +7,11 @@ hero:
   tagline: "master engineering, one concept at a time."
   actions:
     - theme: brand
-      text: Start Learning →
+      text: Explore Handbook →
       link: /system-design/
     - theme: alt
-      text: Design Patterns
-      link: /design-patterns/
+      text: GitHub
+      link: https://github.com/bachdx2812/dev-learning-hub
 
 features:
   - icon: 🏗️
