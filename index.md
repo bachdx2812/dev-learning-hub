@@ -3,8 +3,8 @@ layout: home
 
 hero:
   name: "The Engineer's Handbook"
-  text: "Master system design,"
-  tagline: "one concept at a time."
+  text: "System Design & Design Patterns"
+  tagline: "master engineering, one concept at a time."
   actions:
     - theme: brand
       text: Start Learning →
