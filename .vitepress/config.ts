@@ -180,6 +180,7 @@ export default withMermaid(
       nav: [
         { text: 'System Design', link: '/system-design/' },
         { text: 'Design Patterns', link: '/design-patterns/' },
+        { text: 'AI Skills', link: '/skills' },
         { text: 'About', link: '/about' },
       ],
 
