@@ -11,7 +11,7 @@ title: AI Skills
 ┌─────────────────────────────────────────────────────────┐
 │  SYSTEM DESIGN ADVISOR v1.0.0                           │
 │                                                         │
-│  > 6 skills    > 22 reference files   > 31 chapters     │
+│  > 6 skills    > 23 reference files   > 31 chapters     │
 │  > Claude Code + Cursor support                         │
 │                                                         │
 │  $ claude /system-design-advisor                        │
@@ -175,6 +175,7 @@ The skills are powered by distilled knowledge from all 31 chapters of this handb
 | data-processing-and-analytics | Extended | MapReduce, Spark, Flink, windowing, ETL, data warehouse, lambda/kappa |
 | authentication-and-security-deep-dive | Extended | JWT, OAuth 2.0, SSO, SAML/OIDC, mTLS, RBAC/ABAC, rate limiting |
 | low-level-design-patterns | Extended | SOLID, parking lot, vending machine, elevator, leaderboard, LRU cache |
+| operational-troubleshooting | Extended | Redis debugging, Kafka consumer lag, Postgres slow queries, migration strategies |
 
 ### Design Patterns (6 chapters)
 
@@ -201,12 +202,12 @@ Skills were tested against **100 system design interview problems** spanning Beg
 
 ### Improvement Across 3 Rounds
 
-| Metric | R1 (8 refs) | R2 (12 refs) | R3 (16 refs) |
-|--------|------------|-------------|-------------|
-| Avg Accuracy | 3.08/5 | 4.18/5 | **4.41/5** |
-| Full Coverage | 31% | 61% | **80%** |
-| Zero-Coverage | 25% | 5% | **2%** |
-| Reference Files | 8 | 12 | **16** |
+| Metric | R1 (8 refs) | R2 (12 refs) | R3 (16 refs) | R4 (23 refs) |
+|--------|------------|-------------|-------------|-------------|
+| Avg Accuracy | 3.08/5 | 4.18/5 | 4.41/5 | **4.88/5** |
+| Full Coverage | 31% | 61% | 80% | **95%** |
+| Zero-Coverage | 25% | 5% | 2% | **0%** |
+| Reference Files | 8 | 12 | 16 | **23** |
 
 ### Coverage by Domain
 
