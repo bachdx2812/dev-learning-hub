@@ -992,10 +992,10 @@ func (h *Hub) SendToRoom(roomID string, message []byte, senderID string) {
 
 ## References & Further Reading
 
-- "Designing Data-Intensive Applications" — Chapter 11 (Stream Processing)
-- WhatsApp architecture (InfoQ presentation)
-- Discord Engineering Blog — "How Discord Stores Messages"
-- Signal Protocol specification
-- WebSocket RFC 6455
+- [Designing Data-Intensive Applications](https://dataintensive.net/) — Martin Kleppmann, Chapter 11
+- [WhatsApp Architecture — Facebook Engineering](https://www.infoq.com/presentations/whatsapp-architecture/)
+- [How Discord Stores Trillions of Messages](https://discord.com/blog/how-discord-stores-trillions-of-messages) — Discord Engineering
+- [Signal Protocol Specification](https://signal.org/docs/)
+- [WebSocket RFC 6455](https://datatracker.ietf.org/doc/html/rfc6455)
 
 *Next: [Chapter 21 — Video Streaming Platform](/system-design/part-4-case-studies/ch21-video-streaming-platform)*

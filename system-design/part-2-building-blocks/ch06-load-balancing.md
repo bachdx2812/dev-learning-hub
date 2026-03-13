@@ -767,7 +767,8 @@ Key patterns illustrated:
 
 ## References & Further Reading
 
-- "Designing Data-Intensive Applications" — Chapter 6 (Partitioning)
-- NGINX documentation — Load Balancing
-- "Introduction to Modern Network Load Balancing" — Matt Klein (Envoy)
-- HAProxy documentation — Configuration Manual
+- [Designing Data-Intensive Applications](https://dataintensive.net/) — Martin Kleppmann, Chapter 6
+- [NGINX Load Balancing Guide](https://docs.nginx.com/nginx/admin-guide/load-balancer/http-load-balancer/)
+- [Introduction to Modern Network Load Balancing](https://blog.envoyproxy.io/introduction-to-modern-network-load-balancing-and-proxying-a57f6ff80236) — Matt Klein (Envoy)
+- [HAProxy Configuration Manual](https://www.haproxy.org/download/2.8/doc/configuration.txt)
+- [Google Cloud — Load Balancing Overview](https://cloud.google.com/load-balancing/docs/load-balancing-overview)

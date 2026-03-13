@@ -572,7 +572,8 @@ Stack Overflow co-locates servers in a data center rather than running on AWS or
 
 ## References & Further Reading
 
-- "The Art of Scalability" — Martin Abbott & Michael Fisher
-- "Designing Data-Intensive Applications" — Chapter 1 (Reliability, Scalability, Maintainability)
-- Stack Overflow Architecture — Nick Craver's blog series
-- Netflix Tech Blog — scaling microservices
+- [The Art of Scalability](https://theartofscalability.com/) — Martin Abbott & Michael Fisher
+- [Designing Data-Intensive Applications](https://dataintensive.net/) — Martin Kleppmann, Chapter 1
+- [Stack Overflow Architecture 2016](https://nickcraver.com/blog/2016/02/17/stack-overflow-the-architecture-2016-edition/) — Nick Craver
+- [Netflix Tech Blog](https://netflixtechblog.com/) — scaling microservices
+- [Google SRE Book — Handling Overload](https://sre.google/sre-book/handling-overload/)

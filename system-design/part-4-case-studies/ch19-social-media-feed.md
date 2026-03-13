@@ -699,7 +699,8 @@ Post created → [async] → Image/Text ML classifier → {SAFE | REVIEW | BLOCK
 
 ## References & Further Reading
 
-- "System Design Interview" — Alex Xu, Chapter 11 (News Feed)
-- "Serving Facebook Multifeed" — Lars Backstrom
-- Twitter's Timeline Architecture (InfoQ)
-- "Scaling Instagram Infrastructure" — Instagram Engineering
+- [System Design Interview](https://www.amazon.com/System-Design-Interview-insiders-Second/dp/B08CMF2CQF) — Alex Xu, Chapter 11 (News Feed)
+- [Serving Facebook Multifeed](https://research.facebook.com/publications/serving-facebook-multifeed-efficiency-performance-gains-through-redesign/) — Lars Backstrom et al.
+- [Twitter's Timeline Architecture](https://www.infoq.com/presentations/Twitter-Timeline-Scalability/) — InfoQ
+- [Scaling Instagram Infrastructure](https://instagram-engineering.com/what-powers-instagram-hundreds-of-instances-dozens-of-technologies-adf26d848e8c) — Instagram Engineering
+- [Facebook TAO: Distributed Data Store for the Social Graph](https://research.facebook.com/publications/tao-facebooks-distributed-data-store-for-the-social-graph/)

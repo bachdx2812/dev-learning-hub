@@ -781,7 +781,8 @@ graph TB
 
 ## References & Further Reading
 
-- "System Design Interview Vol 2" — Alex Xu, Chapter 14 (YouTube)
-- Netflix Tech Blog — video encoding and streaming
-- "Adaptive Bitrate Streaming" — Apple HLS documentation
-- "Building Netflix's Distributed Filesystem" — Netflix Engineering
+- [System Design Interview Vol 2](https://www.amazon.com/System-Design-Interview-Insiders-Guide/dp/1736049119) — Alex Xu, Chapter 14 (YouTube)
+- [Netflix Tech Blog — Video Encoding](https://netflixtechblog.com/high-quality-video-encoding-at-scale-d159f8354bd7)
+- [Apple HTTP Live Streaming](https://developer.apple.com/documentation/http-live-streaming) — Adaptive Bitrate Streaming
+- [Rebuilding Netflix Video Processing Pipeline](https://netflixtechblog.com/rebuilding-netflix-video-processing-pipeline-with-microservices-4e5e6310e01d)
+- [YouTube Architecture — High Scalability](http://highscalability.com/youtube-architecture)

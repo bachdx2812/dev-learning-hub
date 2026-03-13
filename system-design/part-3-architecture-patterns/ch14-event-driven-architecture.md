@@ -791,9 +791,9 @@ flowchart LR
 
 ## References & Further Reading
 
-- "Building Event-Driven Microservices" — Adam Bellemare
-- "Designing Data-Intensive Applications" — Chapter 11
-- Martin Fowler: "Event-Driven Architecture" essay
-- Kafka Streams documentation
-- AWS EventBridge documentation
+- [Building Event-Driven Microservices](https://www.oreilly.com/library/view/building-event-driven-microservices/9781492057888/) — Adam Bellemare (O'Reilly)
+- [Designing Data-Intensive Applications](https://dataintensive.net/) — Martin Kleppmann, Chapter 11
+- [Martin Fowler — Event-Driven Architecture](https://martinfowler.com/articles/201701-event-driven.html)
+- [Apache Kafka Documentation](https://kafka.apache.org/documentation/)
+- [AWS EventBridge Documentation](https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-what-is.html)
 
