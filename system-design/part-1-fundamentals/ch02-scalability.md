@@ -250,7 +250,7 @@ For read-heavy workloads, add read replicas to your database. The primary databa
 
 ### Write Sharding (Database Partitioning)
 
-When write volume exceeds what a single primary database can handle, shard the database by partitioning data across multiple independent nodes. Each shard owns a range of data (e.g., users A–M on Shard 1, N–Z on Shard 2). This distributes write load but introduces complexity: cross-shard queries become expensive, transactions spanning shards require distributed coordination, and resharding as data grows is operationally complex. See [Chapter 9](../part-2-building-blocks/ch09-databases-sql.md) for a full treatment of database scaling.
+When write volume exceeds what a single primary database can handle, shard the database by partitioning data across multiple independent nodes. Each shard owns a subset of data determined by the sharding key. **Hash-based sharding** (e.g., `shard = hash(user_id) % N`) distributes records uniformly and is the standard approach in production. Range-based sharding (e.g., users A–M on Shard 1, N–Z on Shard 2) is simpler to reason about but causes **hotspot imbalance** in practice — far more names start with A–M than N–Z, so that partition scheme is shown here only for illustration and should not be used on natural-language keys. This distributes write load but introduces complexity: cross-shard queries become expensive, transactions spanning shards require distributed coordination, and resharding as data grows is operationally complex. See [Chapter 9](../part-2-building-blocks/ch09-databases-sql.md) for a full treatment of database scaling.
 
 ### Caching Layers
 
@@ -264,7 +264,7 @@ The primary cache challenge is **cache invalidation**: when data changes in the 
 
 ### Content Delivery Network (CDN)
 
-A CDN is a globally distributed network of edge servers that cache static assets (images, CSS, JavaScript, video) close to end users. Instead of every user's request traveling to your origin server in Virginia, a user in Tokyo fetches assets from an edge node in Tokyo — reducing latency from 200ms to 5ms. CDNs also absorb massive traffic spikes and provide basic DDoS protection. See [Chapter 7](../part-2-building-blocks/ch07-caching.md) for CDN architecture details.
+A CDN is a globally distributed network of edge servers that cache static assets (images, CSS, JavaScript, video) close to end users. Instead of every user's request traveling to your origin server in Virginia, a user in Tokyo fetches assets from an edge node in Tokyo — reducing latency from 200ms to 5ms. CDNs also absorb massive traffic spikes and provide basic DDoS protection. See [Chapter 8](../part-2-building-blocks/ch08-cdn.md) for CDN architecture details.
 
 ---
 

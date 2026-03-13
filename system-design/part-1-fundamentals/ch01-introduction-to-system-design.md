@@ -240,7 +240,7 @@ flowchart LR
     AppS -->|"Static redirect"| CDN["CDN\n(cache redirect responses)"]
 ```
 
-**Step 4 — Deep Dive (10 min):** The most interesting challenge is generating short codes that are unique, short, and not predictable (to prevent enumeration). Options include base62 encoding of a counter, MD5 hash truncation, or a dedicated ID generation service (Snowflake). Each has trade-offs in uniqueness guarantees, performance, and complexity.
+**Step 4 — Deep Dive (10 min):** The most interesting challenge is generating short codes that are unique, short, and not predictable (to prevent enumeration). Options include base62 encoding of a counter, MD5 hash truncation, or a dedicated ID generation service (Snowflake). Each has trade-offs in uniqueness guarantees, performance, and complexity. Note that MD5 truncation carries meaningful collision risk — by the birthday paradox, truncating to 7 characters (~36 bits) yields ~50% collision probability around 80K entries; in production, pair it with a collision check or prefer counter-based approaches.
 
 This example demonstrates how the four-step framework transforms a vague problem statement into a structured architecture discussion in 40 minutes.
 
@@ -295,7 +295,7 @@ Google's infrastructure is built around the principle that hardware fails consta
 
 ### Netflix
 
-Netflix migrated from a monolithic DVD rental system to a microservices architecture deployed entirely on AWS. Today, Netflix runs over 1,000 microservices. Their chaos engineering practice (Chaos Monkey deliberately kills production servers) was born from the need to prove that the system handles failures gracefully. At peak, Netflix accounts for approximately 15% of global internet bandwidth. Their full scaling story is covered in [Chapter 2](./ch02-scalability.md#real-world-how-netflix-scaled).
+Netflix migrated from a monolithic DVD rental system to a microservices architecture deployed entirely on AWS. Today, Netflix runs over 1,000 microservices (as of 2024). Their chaos engineering practice (Chaos Monkey deliberately kills production servers) was born from the need to prove that the system handles failures gracefully. At peak, Netflix accounts for approximately 15% of global internet bandwidth. Their full scaling story is covered in [Chapter 2](./ch02-scalability.md#real-world-how-netflix-scaled).
 
 ### Amazon
 
@@ -416,41 +416,41 @@ The four-step interview framework introduced earlier in this chapter is not just
 flowchart TD
     START(["New System Design Problem"]) --> S1
 
-    S1["STEP 1 — Requirements\n5 minutes"]
-    S1 --> S1A{"Are functional\nrequirements clear?"}
+    S1["STEP 1 - Requirements\n5 minutes"]
+    S1 --> S1A{"Are functional requirements clear?"}
     S1A -->|"No"| S1B["Ask clarifying questions:\nWho are the users?\nWhat are the core actions?\nWhat is out of scope?"]
     S1B --> S1A
-    S1A -->|"Yes"| S1C{"Are non-functional\nrequirements defined?"}
+    S1A -->|"Yes"| S1C{"Are non-functional requirements defined?"}
     S1C -->|"No"| S1D["Probe for scale:\nDAU? Latency SLA?\nAvailability target?\nConsistency model?"]
     S1D --> S1C
-    S1C -->|"Yes"| S1E["Summarize back:\n'We are building X with Y constraints.\nOut of scope: Z. Agreed?'"]
+    S1C -->|"Yes"| S1E["Summarize back:\nWe are building X with Y constraints.\nOut of scope: Z. Agreed?"]
     S1E --> S2
 
-    S2["STEP 2 — Estimation\n5-10 minutes"]
+    S2["STEP 2 - Estimation\n5-10 minutes"]
     S2 --> S2A["Calculate write QPS\nand read QPS"]
     S2A --> S2B["Calculate storage\nneeds at 1 and 5 years"]
-    S2B --> S2C["Calculate bandwidth\n(QPS × payload size)"]
-    S2C --> S2D{"Does a single\nserver suffice?"}
+    S2B --> S2C["Calculate bandwidth\nQPS x payload size"]
+    S2C --> S2D{"Does a single server suffice?"}
     S2D -->|"Yes, < 1K QPS"| S2E["Note: simple architecture\nmay be sufficient"]
     S2D -->|"No, > 1K QPS"| S2F["Note: distributed\narchitecture required"]
     S2E & S2F --> S3
 
-    S3["STEP 3 — High-Level Design\n15-20 minutes"]
-    S3 --> S3A["Define API endpoints\n(inputs, outputs, HTTP verbs)"]
-    S3A --> S3B["Define core data model\n(entities, relationships, key fields)"]
-    S3B --> S3C["Draw core component diagram\n(clients, LB, app servers, DB, cache)"]
+    S3["STEP 3 - High-Level Design\n15-20 minutes"]
+    S3 --> S3A["Define API endpoints\ninputs, outputs, HTTP verbs"]
+    S3A --> S3B["Define core data model\nentities, relationships, key fields"]
+    S3B --> S3C["Draw core component diagram\nclients, LB, app servers, DB, cache"]
     S3C --> S3D["Trace the primary\nread path end-to-end"]
     S3D --> S3E["Trace the primary\nwrite path end-to-end"]
-    S3E --> S3F{"Bottlenecks\nidentified?"}
-    S3F -->|"Yes"| S3G["Add components to address\neach bottleneck — justify each addition"]
+    S3E --> S3F{"Bottlenecks identified?"}
+    S3F -->|"Yes"| S3G["Add components to address\neach bottleneck - justify each addition"]
     S3G --> S4
     S3F -->|"None obvious"| S4
 
-    S4["STEP 4 — Deep Dive\n10 minutes"]
-    S4 --> S4A{"Interviewer directs\na specific area?"}
+    S4["STEP 4 - Deep Dive\n10 minutes"]
+    S4 --> S4A{"Interviewer directs a specific area?"}
     S4A -->|"Yes"| S4B["Go deep on that area:\nbottleneck, failure mode, or scaling"]
     S4A -->|"No"| S4C["Self-select the most\ninteresting trade-off to explore"]
-    S4B & S4C --> S4D["Summarize:\nkey decisions, alternatives considered,\nwhat you'd revisit with more time"]
+    S4B & S4C --> S4D["Summarize:\nkey decisions, alternatives considered,\nwhat you would revisit with more time"]
     S4D --> DONE(["Design Complete"])
 
     style S1 fill:#6272a4,color:#f8f8f2

@@ -156,8 +156,12 @@ without partition tolerance. This is technically accurate only when the entire d
 where network partitions between nodes cannot occur. As soon as you add replication across datacenters, the CA
 category collapses back to the CP/AP choice.
 
-> **Key insight:** "CA" is not a real distributed system choice. It means "we only run in one datacenter and
-> accept the availability risk if that datacenter goes down."
+> **Critical clarification (Brewer, 2012):** **P is not a design choice — it is a physical reality.** Network
+> partitions *will* happen in any distributed system: cables get cut, switches fail, cloud availability zones
+> go dark. Because you cannot opt out of partitions, "CA" does not exist as a viable distributed-system
+> classification. The real and only choice is between **CP** (sacrifice availability when a partition occurs)
+> and **AP** (sacrifice consistency when a partition occurs). "CA" only applies to a truly single-node system
+> with no network between nodes — which is not a distributed system at all.
 
 ### PACELC Theorem
 
@@ -436,18 +440,7 @@ increase throughput, at the cost of added latency for individual messages.
 
 ### Little's Law
 
-A useful relationship for understanding queuing systems:
-
-```
-L = λ × W
-```
-
-- **L** = average number of items in the system
-- **λ** = average arrival rate (throughput)
-- **W** = average time an item spends in the system (latency)
-
-If your system has 100 concurrent requests (L=100) and processes 50 req/sec (λ=50), average latency
-is W = L/λ = 2 seconds. To halve latency, you must either halve concurrent load or double processing rate.
+The relationship between concurrency, throughput, and latency is captured by Little's Law (`L = λ × W`). It is covered in full — with capacity planning examples — in the [Queuing Theory Basics](#queuing-theory-basics) section below.
 
 ---
 
@@ -606,11 +599,11 @@ A database's PACELC label is written as `PA/EL`, `PC/EC`, etc.:
 | **MongoDB** | CP* | PC/EC | Rejects w/o quorum | Majority writes are consistent | *Default is AP; CP with writeConcern:majority |
 | **Cassandra** | AP | PA/EL | Continues serving stale | Async replication, fast writes | Tunable consistency (ONE to ALL) |
 | **DynamoDB** | AP | PA/EL* | Continues with stale data | Eventually consistent by default | *Strongly consistent reads available at 2× cost |
-| **Redis (Cluster)** | CP | PC/EL | Rejects if primary unreachable | Single-threaded, very low latency | Sentinel mode adds failover |
+| **Redis (Cluster)** | CP† | PC/EL | Rejects if primary unreachable | Single-threaded, very low latency | †Async replication — acknowledged writes can be lost during failover; practical behavior is closer to AP |
 | **HBase** | CP | PC/EC | Stops writes during partition | HDFS replication, higher latency | Built on HDFS, ZooKeeper for coordination |
 | **etcd / ZooKeeper** | CP | PC/EC | Halts without quorum | Raft/ZAB consensus, consistent reads | Coordination services, not general storage |
 
-> **Reading the table:** MongoDB's `*` reflects that its default write concern (`w:1`, local write) is AP/EL, but configuring `w:majority` shifts it to CP/EC. Most databases allow tuning along these axes.
+> **Reading the table:** MongoDB's `*` reflects version-dependent defaults. **MongoDB 5.0+ defaults to `writeConcern: {w: "majority"}`** on replica sets, making its default behavior CP/EC. Versions before 5.0 defaulted to `w:1` (local write only), which was AP/EL behavior. Most databases allow tuning along these axes.
 
 ---
 
