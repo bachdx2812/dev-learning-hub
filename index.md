@@ -31,12 +31,14 @@ features:
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│          THE ENGINEER'S HANDBOOK v1.0.0                 │
+│          THE ENGINEER'S HANDBOOK v2.0.0                 │
 │                                                         │
-│  > 31 chapters    > 2 sections    > 1 objective          │
+│  > 31 chapters    > 27 patterns    > 1 objective        │
 │  > Think like a senior engineer at scale                │
 │                                                         │
-│  $ cd system-design && cat README.md                    │
+│  $ cat handbook --sections                              │
+│    system-design/     25 chapters                       │
+│    design-patterns/    6 chapters                       │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -44,6 +46,6 @@ features:
 
 <div style="text-align: center; margin: 2em auto; max-width: 640px; color: #6272a4; font-family: 'JetBrains Mono', monospace; font-size: 0.75em; line-height: 1.6;">
 
-*Inspired by Alex Xu's System Design Interview series, Martin Kleppmann's Designing Data-Intensive Applications, and the Google SRE books. All interpretations, diagrams, and additions are original.*
+*Inspired by Alex Xu's System Design Interview series, Martin Kleppmann's Designing Data-Intensive Applications, the Google SRE books, and the Gang of Four's Design Patterns. All interpretations, diagrams, and code examples are original.*
 
 </div>
