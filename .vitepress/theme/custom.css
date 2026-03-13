@@ -3,8 +3,7 @@
    Body text: Inter (proportional) | Headings + code: JetBrains Mono
    ========================================================================== */
 
-/* Google Fonts: Inter + JetBrains Mono */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap');
+/* Google Fonts loaded via <link> in config.ts head — no @import needed */
 
 /* --------------------------------------------------------------------------
    Dracula Color Palette
@@ -114,7 +113,7 @@
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   background-color: var(--dracula-bg);
   color: var(--dracula-fg);
-  font-size: 15px;
+  font-size: 16px;
   line-height: 1.75;
   letter-spacing: 0;
 }
@@ -464,6 +463,7 @@
   border: 1px solid var(--dracula-current-line);
   border-radius: 10px;
   transition: all 0.25s ease;
+  cursor: pointer;
 }
 
 .dark .VPFeature:hover {
