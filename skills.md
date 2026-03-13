@@ -12,7 +12,7 @@ description: "6 AI-powered skills for Claude Code and Cursor — get real-time s
 ┌─────────────────────────────────────────────────────────┐
 │  SYSTEM DESIGN ADVISOR v1.0.0                           │
 │                                                         │
-│  > 6 skills    > 23 reference files   > 31 chapters     │
+│  > 6 skills    > 24 reference files   > 31 chapters     │
 │  > Claude Code + Cursor support                         │
 │                                                         │
 │  $ claude /system-design-advisor                        │
@@ -186,7 +186,8 @@ The skills are powered by distilled knowledge from all 31 chapters of this handb
 | [data-processing-and-analytics](https://github.com/bachdx2812/system-design-advisor/blob/main/references/data-processing-and-analytics.md) | Extended | MapReduce, Spark, Flink, windowing, ETL, data warehouse, lambda/kappa |
 | [authentication-and-security-deep-dive](https://github.com/bachdx2812/system-design-advisor/blob/main/references/authentication-and-security-deep-dive.md) | Extended | JWT, OAuth 2.0, SSO, SAML/OIDC, mTLS, RBAC/ABAC, rate limiting |
 | [low-level-design-patterns](https://github.com/bachdx2812/system-design-advisor/blob/main/references/low-level-design-patterns.md) | Extended | SOLID, parking lot, vending machine, elevator, leaderboard, LRU cache |
-| [operational-troubleshooting](https://github.com/bachdx2812/system-design-advisor/blob/main/references/operational-troubleshooting.md) | Extended | Redis debugging, Kafka consumer lag, Postgres slow queries, migration strategies |
+| [collaborative-and-multi-tenant](https://github.com/bachdx2812/system-design-advisor/blob/main/references/collaborative-and-multi-tenant.md) | Extended | CRDTs vs OT, Yjs/Automerge, tenant isolation, usage metering, subscription billing |
+| [operational-troubleshooting](https://github.com/bachdx2812/system-design-advisor/blob/main/references/operational-troubleshooting.md) | Extended | Redis debugging/cluster, Kafka consumer lag, Postgres, ES health, S3 multipart, migrations |
 
 ### Design Patterns (6 chapters)
 
@@ -225,14 +226,17 @@ Simulates chaining multiple skills in sequence (e.g., reviewer → advisor → i
 
 </details>
 
-### Improvement Across 4 Rounds
+### Improvement Across 5 Rounds
 
-| Metric | R1 (8 refs) | R2 (12 refs) | R3 (16 refs) | R4 (23 refs) |
-|--------|------------|-------------|-------------|-------------|
-| Avg Accuracy | 3.08/5 | 4.18/5 | 4.41/5 | **4.88/5** |
-| Full Coverage | 31% | 61% | 80% | **95%** |
-| Zero-Coverage | 25% | 5% | 2% | **0%** |
-| Reference Files | 8 | 12 | 16 | **23** |
+| Metric | R1 (8 refs) | R2 (12 refs) | R3 (16 refs) | R4 (23 refs) | R5 (24 refs) |
+|--------|------------|-------------|-------------|-------------|-------------|
+| Sys Design Avg | 3.08/5 | 4.18/5 | 4.41/5 | 4.88/5 | **4.7/5** |
+| Pattern Avg | — | — | — | 4.88/5 | **4.1/5** |
+| Full Coverage | 31% | 61% | 80% | 95% | **100%** |
+| Zero-Coverage | 25% | 5% | 2% | 0% | **0%** |
+| Reference Files | 8 | 12 | 16 | 23 | **24** |
+
+**R5 new test problems:** collaborative editing, multi-tenant billing, distributed scheduler, Redis split-brain, ES cluster health, S3 multipart uploads, event ordering, inheritance flattening, resilience composition, plugin architecture — all previously uncovered, now scored 4.0+ after fixes.
 
 ### Round 4 Live Test Results
 
