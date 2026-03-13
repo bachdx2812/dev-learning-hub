@@ -167,15 +167,15 @@ The skills are powered by distilled knowledge from all 31 chapters of this handb
 | [architecture-patterns](/system-design/part-3-architecture-patterns/) | Ch 13–17 | Microservices, event-driven, security, monitoring |
 | [case-studies](/system-design/part-4-case-studies/) | Ch 18–22 | URL shortener, social feed, chat, video, ride-sharing, crawler, file sync |
 | [modern-and-interview](/system-design/part-5-modern-mastery/) | Ch 23–25 | Cloud-native, ML systems, interview framework |
-| search-and-indexing | Extended | Inverted index, trie, BM25, Elasticsearch, autocomplete, web crawler |
-| real-time-and-streaming | Extended | WebRTC, SFU/MCU, Flink, time-series DBs, stream processing |
-| storage-and-infrastructure | Extended | Object storage, HDFS, file sync, config mgmt, LSM-tree, OLAP, ELK |
-| specialized-systems | Extended | Unique IDs, distributed locks, payments, stock exchange, game networking |
-| recommendation-and-ml-systems | Extended | Collaborative/content-based filtering, two-tower model, feature store, fraud, ads |
-| data-processing-and-analytics | Extended | MapReduce, Spark, Flink, windowing, ETL, data warehouse, lambda/kappa |
-| authentication-and-security-deep-dive | Extended | JWT, OAuth 2.0, SSO, SAML/OIDC, mTLS, RBAC/ABAC, rate limiting |
-| low-level-design-patterns | Extended | SOLID, parking lot, vending machine, elevator, leaderboard, LRU cache |
-| operational-troubleshooting | Extended | Redis debugging, Kafka consumer lag, Postgres slow queries, migration strategies |
+| [search-and-indexing](https://github.com/bachdx2812/system-design-advisor/blob/main/references/search-and-indexing.md) | Extended | Inverted index, trie, BM25, Elasticsearch, autocomplete, web crawler |
+| [real-time-and-streaming](https://github.com/bachdx2812/system-design-advisor/blob/main/references/real-time-and-streaming.md) | Extended | WebRTC, SFU/MCU, Flink, time-series DBs, stream processing |
+| [storage-and-infrastructure](https://github.com/bachdx2812/system-design-advisor/blob/main/references/storage-and-infrastructure.md) | Extended | Object storage, HDFS, file sync, config mgmt, LSM-tree, OLAP, ELK |
+| [specialized-systems](https://github.com/bachdx2812/system-design-advisor/blob/main/references/specialized-systems.md) | Extended | Unique IDs, distributed locks, payments, stock exchange, game networking |
+| [recommendation-and-ml-systems](https://github.com/bachdx2812/system-design-advisor/blob/main/references/recommendation-and-ml-systems.md) | Extended | Collaborative/content-based filtering, two-tower model, feature store, fraud, ads |
+| [data-processing-and-analytics](https://github.com/bachdx2812/system-design-advisor/blob/main/references/data-processing-and-analytics.md) | Extended | MapReduce, Spark, Flink, windowing, ETL, data warehouse, lambda/kappa |
+| [authentication-and-security-deep-dive](https://github.com/bachdx2812/system-design-advisor/blob/main/references/authentication-and-security-deep-dive.md) | Extended | JWT, OAuth 2.0, SSO, SAML/OIDC, mTLS, RBAC/ABAC, rate limiting |
+| [low-level-design-patterns](https://github.com/bachdx2812/system-design-advisor/blob/main/references/low-level-design-patterns.md) | Extended | SOLID, parking lot, vending machine, elevator, leaderboard, LRU cache |
+| [operational-troubleshooting](https://github.com/bachdx2812/system-design-advisor/blob/main/references/operational-troubleshooting.md) | Extended | Redis debugging, Kafka consumer lag, Postgres slow queries, migration strategies |
 
 ### Design Patterns (6 chapters)
 
