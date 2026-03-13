@@ -11,7 +11,7 @@ title: AI Skills
 ┌─────────────────────────────────────────────────────────┐
 │  SYSTEM DESIGN ADVISOR v1.0.0                           │
 │                                                         │
-│  > 3 skills    > 8 reference files    > 25 chapters     │
+│  > 3 skills    > 8 reference files    > 31 chapters     │
 │  > Claude Code + Cursor support                         │
 │                                                         │
 │  $ claude /system-design-advisor                        │
@@ -20,7 +20,7 @@ title: AI Skills
 
 </div>
 
-25 chapters of system design knowledge — distilled into AI coding assistant skills. Get real-time architectural guidance, generate design plans, and review your codebase against best practices.
+31 chapters of system design and design patterns knowledge — distilled into AI coding assistant skills. Get real-time architectural guidance, generate design plans, and review your codebase against best practices.
 
 ## Available Skills
 
@@ -87,18 +87,31 @@ Rules auto-activate based on your prompts — no manual invocation needed.
 
 ## Knowledge Base
 
-The skills are powered by distilled knowledge from all 25 chapters of this handbook:
+The skills are powered by distilled knowledge from all 31 chapters of this handbook:
+
+### System Design (25 chapters)
 
 | Reference File | Chapters | Topics |
 |---------------|----------|--------|
-| `fundamentals-and-estimation` | Ch 01–04 | Scalability, CAP, estimation formulas, latency numbers |
-| `dns-and-load-balancing` | Ch 05–06 | DNS routing, L4 vs L7, LB algorithms |
-| `caching-and-cdn` | Ch 07–08 | Cache strategies, invalidation, CDN push/pull |
-| `databases` | Ch 09–10 | SQL vs NoSQL, indexing, sharding, replication |
-| `queues-and-protocols` | Ch 11–12 | Kafka/RabbitMQ/SQS, REST/GraphQL/gRPC |
-| `architecture-patterns` | Ch 13–17 | Microservices, event-driven, security, monitoring |
-| `case-studies` | Ch 18–22 | URL shortener, social feed, chat, video, ride-sharing |
-| `modern-and-interview` | Ch 23–25 | Cloud-native, ML systems, interview framework |
+| [fundamentals-and-estimation](/system-design/part-1-fundamentals/) | Ch 01–04 | Scalability, CAP, estimation formulas, latency numbers |
+| [dns-and-load-balancing](/system-design/part-2-building-blocks/ch05-dns) | Ch 05–06 | DNS routing, L4 vs L7, LB algorithms |
+| [caching-and-cdn](/system-design/part-2-building-blocks/ch07-caching) | Ch 07–08 | Cache strategies, invalidation, CDN push/pull |
+| [databases](/system-design/part-2-building-blocks/ch09-databases-sql) | Ch 09–10 | SQL vs NoSQL, indexing, sharding, replication |
+| [queues-and-protocols](/system-design/part-2-building-blocks/ch11-message-queues) | Ch 11–12 | Kafka/RabbitMQ/SQS, REST/GraphQL/gRPC |
+| [architecture-patterns](/system-design/part-3-architecture-patterns/) | Ch 13–17 | Microservices, event-driven, security, monitoring |
+| [case-studies](/system-design/part-4-case-studies/) | Ch 18–22 | URL shortener, social feed, chat, video, ride-sharing |
+| [modern-and-interview](/system-design/part-5-modern-mastery/) | Ch 23–25 | Cloud-native, ML systems, interview framework |
+
+### Design Patterns (6 chapters)
+
+| Reference File | Chapters | Topics |
+|---------------|----------|--------|
+| [foundations-creational](/design-patterns/ch01-foundations-creational) | Ch 01 | Factory, Abstract Factory, Builder, Singleton, Prototype |
+| [structural-patterns](/design-patterns/ch02-structural-patterns) | Ch 02 | Adapter, Decorator, Facade, Proxy, Composite, Bridge |
+| [behavioral-patterns](/design-patterns/ch03-behavioral-patterns) | Ch 03 | Observer, Strategy, Command, Chain of Responsibility, State |
+| [modern-application](/design-patterns/ch04-modern-application-patterns) | Ch 04 | Repository, DI, Middleware, Circuit Breaker, Retry |
+| [distributed-systems](/design-patterns/ch05-distributed-system-patterns) | Ch 05 | CQRS, Event Sourcing, Saga, Strangler Fig, Sidecar |
+| [anti-patterns-guide](/design-patterns/ch06-anti-patterns-selection-guide) | Ch 06 | Anti-patterns, decision matrix, 27-pattern cheat sheet |
 
 ## Source Code
 
