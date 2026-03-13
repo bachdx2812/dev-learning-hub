@@ -346,7 +346,7 @@ flowchart LR
 | Bidirectional streaming | N messages ↔ N messages | Chat, real-time collaboration |
 
 **gRPC advantages over REST:**
-- **~7x smaller payload** — protobuf binary vs JSON text
+- **2–5x smaller payload** — protobuf binary vs JSON text
 - **~10x faster serialization** — protobuf encoding/decoding is significantly faster
 - **Strongly typed contract** — `.proto` file acts as an API contract, breaking changes are caught at compile time
 - **Native streaming** — no polling or chunked transfer hacks needed
@@ -543,7 +543,7 @@ flowchart TD
 | Type safety | No (runtime) | Yes (compile time) | Yes (schema-validated) | No |
 | Caching | Excellent (HTTP GET cache) | Limited (POST-based) | Limited (complex) | None |
 | Browser support | Native | Via gRPC-Web proxy | Native | Native |
-| Payload efficiency | Medium (JSON) | High (protobuf ~7x smaller) | Medium (JSON, but precise) | Low overhead (framing) |
+| Payload efficiency | Medium (JSON) | High (protobuf 2–5x smaller) | Medium (JSON, but precise) | Low overhead (framing) |
 | Learning curve | Low | Medium | Medium | Low |
 | Versioning | URL path or Accept header | Package versions in `.proto` | Schema evolution (additive) | N/A |
 | Connection overhead | Per-request (or keep-alive) | Single persistent HTTP/2 conn | Per-request | Single persistent TCP |

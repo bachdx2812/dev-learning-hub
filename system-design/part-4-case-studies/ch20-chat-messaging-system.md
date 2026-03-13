@@ -770,7 +770,7 @@ WhatsApp's architecture is notable for achieving massive scale with a remarkably
 | Message store | Ejabberd + offline queue | Messages delivered immediately; offline queue for delivery when user reconnects |
 | Media | S3 with expiring URLs | Sender uploads to S3, sends URL in message, server never stores media |
 | E2E encryption | Signal Protocol (added 2016) | End-to-end by default, server sees only ciphertext |
-| Infrastructure | ~50 servers in 2012 for 450M users | Erlang's efficiency is extraordinary |
+| Infrastructure | ~50 engineers in 2012 serving 450M users | Erlang's efficiency is extraordinary |
 
 **Key insight:** WhatsApp does not store messages on the server after delivery. Once Bob downloads a message, it is deleted from the server. This design:
 - Eliminates the message storage scalability problem entirely

@@ -174,7 +174,7 @@ graph TB
 | Dimension | Feast | Tecton |
 |---|---|---|
 | **Type** | Open-source | Managed SaaS |
-| **Deployment** | Self-hosted on any cloud | AWS, managed by Tecton |
+| **Deployment** | Self-hosted on any cloud | AWS, GCP, Databricks — managed by Tecton |
 | **Online store** | Redis, DynamoDB, Bigtable | Tecton-managed DynamoDB |
 | **Offline store** | S3, GCS, BigQuery, Snowflake | S3, Snowflake, Databricks |
 | **Streaming support** | Via Kafka + custom jobs | Native Spark Streaming, Kinesis |
@@ -475,7 +475,7 @@ Hierarchical Navigable Small World (HNSW) builds a multi-layer graph where each 
 | **Max scale** | Billions of vectors | Billions (self-hosted) | Millions (Postgres limits) |
 | **Latency (10M vectors)** | ~10ms P99 | ~15ms P99 (self-hosted) | ~50–200ms (depends on memory) |
 | **Multi-tenancy** | Namespaces | Multi-tenancy built-in | Schema separation |
-| **Cost** | $70/month per pod (starter) | Infra cost + managed fees | Postgres instance cost |
+| **Cost** | Usage-based (free starter, paid from ~$25/month) | Infra cost + managed fees | Postgres instance cost |
 | **Best for** | Production RAG, fast start | Open-source preference, hybrid search | Teams already on Postgres; <10M vectors |
 | **Weakness** | Vendor lock-in; no raw index access | Operational complexity if self-hosted | Not designed for vector-first workloads |
 
