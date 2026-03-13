@@ -53,9 +53,8 @@ Please ensure all Mermaid diagrams render correctly (`npx vitepress dev`) before
 
 ## Author
 
-Built by **Bach Duong** — a software engineer with 8+ years of experience building distributed systems, passionate about engineering education and making technical knowledge accessible.
+Built by **Bach Duong** — a software engineer who enjoys learning and sharing technical knowledge.
 
 - GitHub: [@bachdx2812](https://github.com/bachdx2812)
-- LinkedIn: [Bach Duong](https://linkedin.com/in/bachdx2812)
 
 If this handbook helped you land a role, level up your skills, or simply understand a concept more clearly — that's the whole point. Feel free to reach out.
