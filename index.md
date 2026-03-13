@@ -10,8 +10,8 @@ hero:
       text: Start Learning →
       link: /system-design/
     - theme: alt
-      text: Jump to Chapter 1
-      link: /system-design/part-1-fundamentals/ch01-introduction-to-system-design
+      text: Design Patterns
+      link: /design-patterns/
 
 features:
   - icon: 🏗️
