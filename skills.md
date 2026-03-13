@@ -11,7 +11,7 @@ title: AI Skills
 ┌─────────────────────────────────────────────────────────┐
 │  SYSTEM DESIGN ADVISOR v1.0.0                           │
 │                                                         │
-│  > 3 skills    > 12 reference files   > 31 chapters     │
+│  > 6 skills    > 18 reference files   > 31 chapters     │
 │  > Claude Code + Cursor support                         │
 │                                                         │
 │  $ claude /system-design-advisor                        │
@@ -20,7 +20,7 @@ title: AI Skills
 
 </div>
 
-31 chapters of system design and design patterns knowledge — distilled into AI coding assistant skills. Get real-time architectural guidance, generate design plans, and review your codebase against best practices.
+31 chapters of system design and design patterns knowledge — distilled into AI coding assistant skills. Get real-time architectural guidance, generate design plans, review your codebase, and visualize architectures with **Mermaid diagrams**.
 
 All skills **ask clarifying questions** before responding — ensuring answers are tailored to your specific scale, constraints, and context.
 
@@ -28,7 +28,7 @@ All skills **ask clarifying questions** before responding — ensuring answers a
 
 ### `/system-design-advisor`
 
-**Answer system design questions.** Ask about scalability, databases, caching, CAP theorem, load balancing, microservices, or any distributed systems concept. Get structured answers with trade-off tables, recommendations, and key numbers.
+**Answer system design questions.** Ask about scalability, databases, caching, CAP theorem, load balancing, microservices, or any distributed systems concept. Get structured answers with trade-off tables, recommendations, key numbers, and **Mermaid architecture diagrams**.
 
 Asks about your scale, access pattern, and constraints when context is missing. Skips for conceptual questions.
 
@@ -41,7 +41,7 @@ Asks about your scale, access pattern, and constraints when context is missing. 
 
 ### `/design-plan-generator`
 
-**Generate complete system design plans.** Uses the 4-step framework (Requirements → Estimation → High-Level Design → Deep Dive) to produce structured plans for any system.
+**Generate complete system design plans.** Uses the 4-step framework (Requirements → Estimation → High-Level Design → Deep Dive) to produce structured plans with **Mermaid architecture diagrams**, data models, and scaling strategies.
 
 Always asks 2-5 scoping questions first — target DAU, read/write ratio, consistency model, tech constraints — then generates a tailored plan.
 
@@ -63,32 +63,68 @@ Gathers context about your scale targets, top concerns, and SLA before scanning.
 - *"Is my system scalable?"*
 - *"What are the bottlenecks in this project?"*
 
+---
+
+### `/design-patterns-advisor`
+
+**Answer design pattern questions.** Covers GoF (creational, structural, behavioral), modern application patterns, distributed system patterns, and anti-patterns. Includes **Mermaid class diagrams** showing pattern structure and relationships.
+
+**Example prompts:**
+- *"When should I use Factory vs Builder?"*
+- *"Explain the Observer pattern with a diagram"*
+- *"What pattern fixes my giant switch statement?"*
+
+---
+
+### `/pattern-implementation-guide`
+
+**Generate pattern implementation plans.** Analyzes your problem, selects the right pattern(s), and produces step-by-step implementation with code examples and **Mermaid class/component diagrams**.
+
+**Example prompts:**
+- *"Implement Strategy pattern for payment processing"*
+- *"Add CQRS to my order service"*
+- *"Refactor this God Object using patterns"*
+
+---
+
+### `/code-pattern-reviewer`
+
+**Auto-scan code for pattern opportunities.** Identifies anti-patterns (God Object, Spaghetti Code), suggests pattern improvements, and checks for design principle violations.
+
+**Example prompts:**
+- *"Review my code for design patterns"*
+- *"Is this a good use of Singleton?"*
+- *"What patterns could improve this codebase?"*
+
 ## Installation
 
-### Claude Code
+### Quick Install (Claude Code — global)
 
 ```bash
-# Clone the repo
-git clone https://github.com/bachdx2812/system-design-advisor.git
-
-# Copy skills + references to your Claude Code skills directory
-cp -r system-design-advisor/skills/* ~/.claude/skills/
-cp -r system-design-advisor/references ~/.claude/skills/system-design-advisor/
-cp -r system-design-advisor/references ~/.claude/skills/design-plan-generator/
-cp -r system-design-advisor/references ~/.claude/skills/architecture-reviewer/
+# One-line install (or update)
+bash <(curl -s https://raw.githubusercontent.com/bachdx2812/system-design-advisor/main/install.sh)
 ```
 
-After installing, invoke with `/system-design-advisor`, `/design-plan-generator`, or `/architecture-reviewer`.
-
-### Cursor
+Or manually:
 
 ```bash
-# Clone the repo
 git clone https://github.com/bachdx2812/system-design-advisor.git
+cd system-design-advisor && bash install.sh
+```
 
-# Copy rules to your project
-mkdir -p .cursor/rules
-cp system-design-advisor/cursor/rules/* .cursor/rules/
+After installing, invoke with `/system-design-advisor`, `/design-plan-generator`, `/architecture-reviewer`, `/design-patterns-advisor`, `/pattern-implementation-guide`, or `/code-pattern-reviewer`.
+
+### Quick Install (Cursor)
+
+```bash
+git clone https://github.com/bachdx2812/system-design-advisor.git
+cd system-design-advisor && bash install-cursor.sh
+```
+
+### Update Existing Installation
+
+```bash
+cd system-design-advisor && git pull && bash install.sh
 ```
 
 Rules auto-activate based on your prompts — no manual invocation needed.
@@ -113,6 +149,10 @@ The skills are powered by distilled knowledge from all 31 chapters of this handb
 | real-time-and-streaming | Extended | WebRTC, SFU/MCU, Flink, time-series DBs, stream processing |
 | storage-and-infrastructure | Extended | Object storage, HDFS, file sync, config mgmt, LSM-tree, OLAP, ELK |
 | specialized-systems | Extended | Unique IDs, distributed locks, payments, stock exchange, game networking |
+| recommendation-and-ml-systems | Extended | Collaborative/content-based filtering, two-tower model, feature store, fraud, ads |
+| data-processing-and-analytics | Extended | MapReduce, Spark, Flink, windowing, ETL, data warehouse, lambda/kappa |
+| authentication-and-security-deep-dive | Extended | JWT, OAuth 2.0, SSO, SAML/OIDC, mTLS, RBAC/ABAC, rate limiting |
+| low-level-design-patterns | Extended | SOLID, parking lot, vending machine, elevator, leaderboard, LRU cache |
 
 ### Design Patterns (6 chapters)
 
@@ -127,19 +167,24 @@ The skills are powered by distilled knowledge from all 31 chapters of this handb
 
 ## Quality Validation
 
-Skills were tested against **100 well-known system design interview problems** spanning Beginner to Expert difficulty. Each problem was evaluated for coverage, accuracy (1-5), and actionability (1-5).
+Skills were tested against **100 system design interview problems** spanning Beginner to Expert difficulty across **3 rounds** of iterative improvement. Each problem evaluated for coverage, accuracy (1-5), and actionability (1-5).
 
-### Test Results
+### Round 3 Results (current — 16 reference files)
 
 | Batch | # Problems | Difficulty | Avg Accuracy | Avg Actionable | Full Coverage |
 |-------|-----------|------------|-------------|----------------|---------------|
-| Batch 1 | 20 | Beginner | **4.15** / 5 | **4.10** / 5 | 55% |
-| Batch 2 | 20 | Intermediate | **3.55** / 5 | **3.45** / 5 | 40% |
-| Batch 3 | 20 | Intermediate | **2.95** / 5 | **2.80** / 5 | 20% |
-| Batch 4 | 20 | Advanced | **3.05** / 5 | **2.95** / 5 | 35% |
-| Batch 5 | 20 | Expert | **2.25** / 5 | **2.15** / 5 | 20% |
+| Batch 1 | 20 | Beginner | **4.90** / 5 | **4.55** / 5 | **85%** |
+| Batch 2 | 20 | Intermediate | **4.25** / 5 | **4.10** / 5 | **75%** |
+| Batch 3-4 | 25 targeted | Intermediate–Advanced | **4.08** / 5 | **3.88** / 5 | **80%** |
 
-**Pre-improvement aggregate:** 3.08/5 accuracy, 31% full coverage across 100 problems.
+### Improvement Across 3 Rounds
+
+| Metric | R1 (8 refs) | R2 (12 refs) | R3 (16 refs) |
+|--------|------------|-------------|-------------|
+| Avg Accuracy | 3.08/5 | 4.18/5 | **4.41/5** |
+| Full Coverage | 31% | 61% | **80%** |
+| Zero-Coverage | 25% | 5% | **2%** |
+| Reference Files | 8 | 12 | **16** |
 
 ### Coverage by Domain
 
