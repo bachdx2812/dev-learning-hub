@@ -1,6 +1,7 @@
 ---
 layout: doc
 title: AI Skills
+description: "6 AI-powered skills for Claude Code and Cursor — get real-time system design guidance, architecture reviews, and design pattern recommendations from 31 chapters."
 ---
 
 # AI Skills
@@ -120,7 +121,15 @@ Gathers context about your scale targets, top concerns, and SLA before scanning.
 
 ## Installation
 
-### Quick Install (Claude Code — global)
+### Claude Code Plugin (recommended)
+
+```bash
+claude plugin add bachdx2812/system-design-advisor
+```
+
+After installing, invoke with `/system-design-advisor:system-design-advisor`, `/system-design-advisor:design-plan-generator`, etc.
+
+### Claude Code (global skills)
 
 ```bash
 # One-line install (or update)
