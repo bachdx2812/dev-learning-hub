@@ -71,6 +71,22 @@ const systemDesignSidebar = [
   }
 ]
 
+// Design Patterns sidebar — 6 chapters
+const designPatternsSidebar = [
+  {
+    text: '🧩 Design Patterns',
+    link: '/design-patterns/',
+    items: [
+      { text: 'Ch 01 — Foundations & Creational', link: '/design-patterns/ch01-foundations-creational' },
+      { text: 'Ch 02 — Structural Patterns', link: '/design-patterns/ch02-structural-patterns' },
+      { text: 'Ch 03 — Behavioral Patterns', link: '/design-patterns/ch03-behavioral-patterns' },
+      { text: 'Ch 04 — Modern Application Patterns', link: '/design-patterns/ch04-modern-application-patterns' },
+      { text: 'Ch 05 — Distributed System Patterns', link: '/design-patterns/ch05-distributed-system-patterns' },
+      { text: 'Ch 06 — Anti-Patterns & Selection Guide', link: '/design-patterns/ch06-anti-patterns-selection-guide' },
+    ]
+  }
+]
+
 export default withMermaid(
   defineConfig({
     title: "The Engineer's Handbook",
@@ -118,28 +134,28 @@ export default withMermaid(
       }],
       ['meta', { name: 'theme-color', content: '#282a36' }],
       // Meta description
-      ['meta', { name: 'description', content: 'Learn system design from zero to expert with 25 hands-on chapters covering scaling, distributed systems, and real-world interview prep.' }],
+      ['meta', { name: 'description', content: 'Learn system design and design patterns with 31 hands-on chapters covering scaling, distributed systems, GoF patterns, and real-world interview prep.' }],
       // Open Graph
       ['meta', { property: 'og:title', content: "The Engineer's Handbook — Master System Design" }],
-      ['meta', { property: 'og:description', content: '25 hands-on chapters on system design fundamentals, architecture patterns, and deep dives.' }],
+      ['meta', { property: 'og:description', content: '31 hands-on chapters on system design, design patterns, architecture, and real-world deep dives.' }],
       ['meta', { property: 'og:type', content: 'website' }],
       ['meta', { property: 'og:url', content: 'https://bachdx-learning-hub.vercel.app/' }],
       ['meta', { property: 'og:site_name', content: "The Engineer's Handbook" }],
       // Twitter Card
       ['meta', { name: 'twitter:card', content: 'summary_large_image' }],
       ['meta', { name: 'twitter:title', content: "The Engineer's Handbook — Master System Design" }],
-      ['meta', { name: 'twitter:description', content: '25 hands-on chapters on system design fundamentals, architecture patterns, and deep dives.' }],
+      ['meta', { name: 'twitter:description', content: '31 hands-on chapters on system design, design patterns, architecture, and real-world deep dives.' }],
       // JSON-LD structured data
       ['script', { type: 'application/ld+json' }, JSON.stringify({
         "@context": "https://schema.org",
         "@type": "Course",
         "name": "The Engineer's Handbook",
-        "description": "Master system design with 25 hands-on chapters covering scaling, distributed systems, and real-world interview prep.",
+        "description": "Master system design and design patterns with 31 hands-on chapters covering scaling, distributed systems, GoF patterns, and interview prep.",
         "provider": {
           "@type": "Person",
           "name": "Bach Duong"
         },
-        "numberOfCredits": 25,
+        "numberOfCredits": 31,
         "educationalLevel": "Intermediate",
         "isAccessibleForFree": true,
         "inLanguage": "en"
@@ -163,12 +179,14 @@ export default withMermaid(
       // Top navigation
       nav: [
         { text: 'System Design', link: '/system-design/' },
+        { text: 'Design Patterns', link: '/design-patterns/' },
         { text: 'About', link: '/about' },
       ],
 
       // Sidebar navigation
       sidebar: {
         '/system-design/': systemDesignSidebar,
+        '/design-patterns/': designPatternsSidebar,
       },
 
       // Outline depth in right sidebar

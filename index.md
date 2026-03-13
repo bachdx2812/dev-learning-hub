@@ -43,6 +43,12 @@ features:
     details: "3 chapters · ~2 hours — Cloud-native & serverless, ML systems & AI infrastructure, and a comprehensive interview framework with cheat sheets. Production-ready thinking."
     link: /system-design/part-5-modern-mastery/
     linkText: Go advanced
+
+  - icon: 🧩
+    title: Design Patterns
+    details: "6 chapters · ~4 hours — Creational, structural, behavioral, modern application, and distributed system patterns. Practical Go examples with BEFORE/AFTER code."
+    link: /design-patterns/
+    linkText: Learn patterns
 ---
 
 <div style="text-align: center; margin: 3em auto; max-width: 640px; color: #6272a4; font-family: 'JetBrains Mono', monospace; font-size: 0.85em; line-height: 1.8;">
@@ -51,7 +57,7 @@ features:
 ┌─────────────────────────────────────────────────────────┐
 │          THE ENGINEER'S HANDBOOK v1.0.0                 │
 │                                                         │
-│  > 25 chapters    > 5 parts    > 1 objective            │
+│  > 31 chapters    > 2 sections    > 1 objective          │
 │  > Think like a senior engineer at scale                │
 │                                                         │
 │  $ cd system-design && cat README.md                    │
