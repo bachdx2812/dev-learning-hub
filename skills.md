@@ -11,7 +11,7 @@ title: AI Skills
 ┌─────────────────────────────────────────────────────────┐
 │  SYSTEM DESIGN ADVISOR v1.0.0                           │
 │                                                         │
-│  > 6 skills    > 18 reference files   > 31 chapters     │
+│  > 6 skills    > 22 reference files   > 31 chapters     │
 │  > Claude Code + Cursor support                         │
 │                                                         │
 │  $ claude /system-design-advisor                        │
@@ -23,6 +23,28 @@ title: AI Skills
 31 chapters of system design and design patterns knowledge — distilled into AI coding assistant skills. Get real-time architectural guidance, generate design plans, review your codebase, and visualize architectures with **Mermaid diagrams**.
 
 All skills **ask clarifying questions** before responding — ensuring answers are tailored to your specific scale, constraints, and context.
+
+## Which Skill When?
+
+<div style="font-family: 'JetBrains Mono', monospace; font-size: 0.85em; background: #282a36; color: #f8f8f2; padding: 1.5em; border-radius: 8px; margin-bottom: 2em;">
+
+**📚 Learning / Studying**
+<br>&nbsp;&nbsp;→ `/system-design-advisor` — *"Explain CAP theorem"*
+<br>&nbsp;&nbsp;→ `/design-patterns-advisor` — *"When to use Factory vs Builder?"*
+
+**🏗️ Building a New System**
+<br>&nbsp;&nbsp;→ `/design-plan-generator` — *"Design a chat system for 10M DAU"*
+<br>&nbsp;&nbsp;→ `/pattern-implementation-guide` — *"Implement CQRS for my order service"*
+
+**🔍 Reviewing Existing Code**
+<br>&nbsp;&nbsp;→ `/architecture-reviewer` — *"Is my system scalable?"*
+<br>&nbsp;&nbsp;→ `/code-pattern-reviewer` — *"Review my code for anti-patterns"*
+
+**❓ Making a Decision**
+<br>&nbsp;&nbsp;→ `/system-design-advisor` — *"SQL or NoSQL for my use case?"*
+<br>&nbsp;&nbsp;→ `/design-patterns-advisor` — *"Strategy vs State pattern?"*
+
+</div>
 
 ## Available Skills
 
