@@ -316,7 +316,7 @@ After `maxReceiveCount` failed delivery attempts, the message is moved to a DLQ 
 
 | Dimension | Apache Kafka | RabbitMQ | Amazon SQS |
 |-----------|-------------|----------|------------|
-| **Throughput** | Millions of msg/sec | ~50k msg/sec | Near-unlimited (Standard) |
+| **Throughput** | Millions of msg/sec | 50k–100k+ msg/sec (streams: 1M+) | Near-unlimited (Standard) |
 | **Message Ordering** | Per partition | Per queue | No guarantee (Standard) / per group (FIFO) |
 | **Message Retention** | Days to forever (configurable) | Until ACKed (default) | 4 days default, up to 14 days |
 | **Message Replay** | Yes — rewind offset | No — consumed = deleted | No |

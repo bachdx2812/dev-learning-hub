@@ -824,7 +824,7 @@ Netflix deploys thousands of times per day across hundreds of microservices. Eve
 |---|---|
 | 200+ microservices | No single team can review every deploy manually |
 | 1,000s of deploys/day | Automated safety gates are non-negotiable |
-| Global streaming to 260M subscribers | A bad deploy causing 0.1% errors = 260K users impacted |
+| Global streaming to 300M+ subscribers | A bad deploy causing 0.1% errors = 300K users impacted |
 | AWS-only infrastructure | Immutable AMI-based deployments, not container-first |
 
 ### Tool: Spinnaker (Open-Source CD Platform)

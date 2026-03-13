@@ -29,7 +29,7 @@ By the end of Part 1, you'll be able to:
 What system design is, why distributed systems exist, key properties (scalability, reliability, availability), and the 4-step interview framework.
 
 ### [Chapter 02 — Scalability](/system-design/part-1-fundamentals/ch02-scalability)
-Vertical vs horizontal scaling, stateless architectures, scaling patterns, and how Netflix scaled from DVD rental to 260M subscribers.
+Vertical vs horizontal scaling, stateless architectures, scaling patterns, and how Netflix scaled from DVD rental to 300M+ subscribers.
 
 ### [Chapter 03 — Core Trade-offs](/system-design/part-1-fundamentals/ch03-core-tradeoffs)
 CAP theorem, ACID vs BASE, consistency models (strong, eventual, causal), availability patterns, and real-world trade-off examples.

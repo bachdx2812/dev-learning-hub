@@ -321,10 +321,10 @@ Key architectural decisions during this phase:
 
 ### Phase 4: Global Scale (2016–Present)
 
-Netflix operates in 190+ countries with 260+ million subscribers (2024). At peak, Netflix accounts for ~15% of global downstream internet bandwidth.
+Netflix operates in 190+ countries with 300+ million subscribers (2025). At peak, Netflix accounts for ~15% of global downstream internet bandwidth.
 
 Their architecture at this scale:
-- **700+ microservices**, each owned by a small team and deployed independently
+- **1,000+ microservices**, each owned by a small team and deployed independently
 - **Global CDN (Open Connect)** with 1,000+ appliances in ISPs worldwide, serving video bytes locally
 - **Multi-region active-active** deployment with traffic routing based on latency and availability
 - **Personalization ML pipeline** running at massive scale to compute recommendations for every subscriber
@@ -339,9 +339,9 @@ flowchart LR
 
     P2["2009-2012\nMicroservices Begin\nAWS Migration Starts\nStateless Services"] -->|"International expansion\nHorizontal scaling limits"| P3
 
-    P3["2012-2016\nCassandra + DynamoDB\nOpen Connect CDN\nChaos Engineering"] -->|"260M subscribers\nGlobal deployment"| P4
+    P3["2012-2016\nCassandra + DynamoDB\nOpen Connect CDN\nChaos Engineering"] -->|"300M subscribers\nGlobal deployment"| P4
 
-    P4["2016-Present\n700+ Microservices\nMulti-Region Active-Active\n15% of Internet Bandwidth"]
+    P4["2016-Present\n1,000+ Microservices\nMulti-Region Active-Active\n15% of Internet Bandwidth"]
 ```
 
 ---
@@ -507,7 +507,7 @@ Stack Overflow co-locates servers in a data center rather than running on AWS or
 
 | Company | Scaling Approach | Approximate Scale | Key Trade-off |
 |---------|-----------------|-------------------|---------------|
-| **Netflix** | 700+ stateless microservices on AWS Auto Scaling; own CDN (Open Connect) inside ISPs | 260M+ subscribers, ~15% of global downstream internet bandwidth | Massive operational complexity; hundreds of teams, sophisticated tooling required |
+| **Netflix** | 1,000+ stateless microservices on AWS Auto Scaling; own CDN (Open Connect) inside ISPs | 300M+ subscribers, ~15% of global downstream internet bandwidth | Massive operational complexity; hundreds of teams, sophisticated tooling required |
 | **Stack Overflow** | ~9 on-premises web servers; single primary SQL Server (384 GB RAM); aggressive Redis caching | 1.3B+ page views/month | Monolith discipline required; vertical-first approach limits elastic scaling for sudden spikes |
 | **Wikipedia** | MediaWiki PHP monolith; Varnish reverse proxy cache; read replicas per region; edge Nginx caches | ~20B page views/month (mostly reads) | Globally distributed read replicas add replication lag; write throughput still limited by single primary |
 | **Discord** | Migrated from Python to Rust (performance); Cassandra for messages; Elixir for presence | 200M+ registered users, 19M concurrent daily | Cassandra write-heavy model makes historical message queries expensive; hot partition problem at scale |

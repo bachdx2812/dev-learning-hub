@@ -295,7 +295,7 @@ Google's infrastructure is built around the principle that hardware fails consta
 
 ### Netflix
 
-Netflix migrated from a monolithic DVD rental system to a microservices architecture deployed entirely on AWS. Today, Netflix runs over 700 microservices. Their chaos engineering practice (Chaos Monkey deliberately kills production servers) was born from the need to prove that the system handles failures gracefully. At peak, Netflix accounts for approximately 15% of global internet bandwidth. Their full scaling story is covered in [Chapter 2](./ch02-scalability.md#real-world-how-netflix-scaled).
+Netflix migrated from a monolithic DVD rental system to a microservices architecture deployed entirely on AWS. Today, Netflix runs over 1,000 microservices. Their chaos engineering practice (Chaos Monkey deliberately kills production servers) was born from the need to prove that the system handles failures gracefully. At peak, Netflix accounts for approximately 15% of global internet bandwidth. Their full scaling story is covered in [Chapter 2](./ch02-scalability.md#real-world-how-netflix-scaled).
 
 ### Amazon
 
