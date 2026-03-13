@@ -282,6 +282,25 @@ Full database scaling strategies are covered in [Chapter 9: Databases](../part-2
 
 ---
 
+## Security at Scale
+
+Scaling introduces new attack surfaces. Each scaling decision has security implications that should be addressed alongside the architecture, not as an afterthought.
+
+| Scaling Decision | Security Implication | Mitigation |
+|-----------------|---------------------|------------|
+| **Horizontal app servers** | More servers = more endpoints to secure; shared secrets needed | Centralized secret management (Vault, AWS Secrets Manager); mTLS between services |
+| **Load balancer** | Single entry point for traffic | TLS termination at LB; WAF rules for OWASP Top 10; DDoS protection |
+| **Redis session store** | Session data in network-accessible cache | Require authentication (`requirepass`); encrypt in-transit; use private VPC |
+| **Database read replicas** | More connection endpoints; replica credentials | Separate read-only DB users; TLS for replication traffic; firewall replica ports |
+| **CDN** | Cached content served from edge nodes | Signed URLs for private content; cache-control headers to prevent sensitive data caching |
+| **Message queues** | Messages may contain PII traversing the network | Encrypt messages in transit (TLS) and at rest; authenticate producers/consumers |
+
+::: tip Security Rule of Thumb for Scaling
+Every new component added during scaling needs three things: **authentication** (who can access it?), **encryption** (is data protected in transit and at rest?), and **least privilege** (does it have only the permissions it needs?). See [Chapter 16 — Security & Reliability](/system-design/part-3-architecture-patterns/ch16-security-reliability) for full patterns.
+:::
+
+---
+
 ## Load Balancing Preview
 
 A load balancer is the entry point for horizontally scaled application tiers. It distributes incoming requests across the server pool using algorithms such as:

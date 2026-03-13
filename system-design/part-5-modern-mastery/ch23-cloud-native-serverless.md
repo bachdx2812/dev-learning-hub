@@ -915,6 +915,62 @@ Netflix's deployment philosophy is: **investment in deployment tooling enables f
 
 ---
 
+## Edge Computing
+
+Edge computing pushes computation closer to end users — to CDN edge nodes, ISP points of presence, or regional data centers — reducing latency and bandwidth costs by processing data where it originates rather than routing everything to a central cloud region.
+
+### Edge Computing Models
+
+| Model | Location | Latency | Use Cases |
+|-------|----------|---------|-----------|
+| **CDN Edge Functions** | CDN PoP (200+ locations) | 1–10 ms | Auth checks, A/B testing, URL rewrites, geolocation routing |
+| **Regional Edge** | Cloud region edge (20–40 locations) | 10–50 ms | API gateways, content personalization, IoT aggregation |
+| **On-Premise Edge** | Customer site / factory floor | < 1 ms | Manufacturing ML inference, video analytics, autonomous vehicles |
+| **Telco Edge** | ISP / 5G base station | 5–20 ms | AR/VR streaming, gaming, real-time translation |
+
+### Edge Function Platforms
+
+| Platform | Runtime | Max Execution | Memory | Cold Start |
+|----------|---------|---------------|--------|------------|
+| **Cloudflare Workers** | V8 isolates (JS/Wasm) | 30s (free) / 15min (paid) | 128 MB | < 5 ms |
+| **Vercel Edge Functions** | V8 isolates (JS/TS) | 30s | 128 MB | < 5 ms |
+| **AWS Lambda@Edge** | Node.js, Python | 30s (viewer) / 60s (origin) | 128–10,240 MB | 50–200 ms |
+| **AWS CloudFront Functions** | JS only | 1 ms | 2 MB | < 1 ms |
+| **Deno Deploy** | V8 isolates (JS/TS) | 50s | 512 MB | < 5 ms |
+
+### When to Use Edge vs Central Cloud
+
+```mermaid
+flowchart TD
+    Q1{"Does the request need\ndata from your primary DB?"}
+    Q1 -->|"Yes, live query"| CENTRAL["Central Cloud\n(full compute + DB access)"]
+    Q1 -->|"No, or cached/static"| Q2
+
+    Q2{"Is latency critical\n(< 50ms requirement)?"}
+    Q2 -->|"Yes"| EDGE["Edge Function\n(CDN PoP, closest to user)"]
+    Q2 -->|"No"| Q3
+
+    Q3{"Compute-intensive?\n(> 128 MB memory or > 30s)"}
+    Q3 -->|"Yes"| CENTRAL
+    Q3 -->|"No"| EDGE
+
+    style EDGE fill:#50fa7b,color:#282a36
+    style CENTRAL fill:#6272a4,color:#f8f8f2
+```
+
+**Common edge patterns:**
+- **Authentication at the edge:** Validate JWTs at CDN PoPs — reject unauthorized requests before they reach origin servers, reducing origin load by 30–60%
+- **Geo-routing:** Route users to the nearest API region based on request origin
+- **A/B testing:** Assign experiment cohorts at the edge without origin round-trips
+- **Bot detection / rate limiting:** Block abusive traffic before it reaches application servers
+- **Image optimization:** Resize and transcode images on-the-fly at edge nodes (Cloudflare Images, Vercel OG)
+
+::: warning Edge Limitations
+Edge functions cannot maintain persistent database connections, run long computations, or access large memory. They work best as lightweight middleware — validate, route, transform, cache — not as full application servers. If your logic needs a transaction or a join, it belongs in your central cloud region.
+:::
+
+---
+
 ## Object Storage as a Building Block
 
 ### What is Object Storage?

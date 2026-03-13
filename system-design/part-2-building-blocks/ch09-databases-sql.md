@@ -797,6 +797,55 @@ flowchart LR
 
 ---
 
+## Database Security Essentials
+
+Security is not a separate concern from database design — it must be built into the data model, query layer, and access patterns from the start. These are the critical security patterns every system design should address.
+
+### SQL Injection Prevention
+
+SQL injection remains a top OWASP vulnerability. The defense is simple but non-negotiable: **always use parameterized queries**.
+
+```sql
+-- VULNERABLE: string concatenation
+SELECT * FROM users WHERE username = '" + input + "';
+-- Attack: input = "admin' OR '1'='1" → returns all users
+
+-- SAFE: parameterized query
+SELECT * FROM users WHERE username = $1;
+-- Input is treated as data, never as SQL code
+```
+
+Every major ORM (SQLAlchemy, Hibernate, ActiveRecord, Prisma) uses parameterized queries by default. Raw SQL escapes should only appear in explicitly reviewed code paths.
+
+### Encryption
+
+| Layer | What to Encrypt | How |
+|-------|----------------|-----|
+| **In transit** | Client ↔ DB connections | TLS/SSL (enforce `sslmode=require` or `verify-full`) |
+| **At rest** | Data files on disk | Transparent Data Encryption (TDE) or filesystem encryption (LUKS, EBS encryption) |
+| **Column-level** | PII (SSN, credit cards, health records) | Application-level encryption (AES-256-GCM) before INSERT; DB stores ciphertext |
+
+::: warning Column-level encryption trade-off
+Encrypting individual columns prevents the database from indexing or querying the plaintext. If you encrypt an email column, you cannot do `WHERE email = ?` without decrypting every row. Use deterministic encryption or blind indexing for fields that must be searchable.
+:::
+
+### Access Control
+
+- **Principle of least privilege:** Application database users should have only the permissions they need. A read API service gets `SELECT` only; a write service gets `SELECT, INSERT, UPDATE` but not `DROP` or `ALTER`.
+- **Separate credentials per service:** Never share a single database user across microservices. If one service is compromised, the blast radius is limited.
+- **Row-Level Security (RLS):** PostgreSQL and SQL Server support RLS policies that filter rows based on the current user/role — useful for multi-tenant SaaS where tenants share tables.
+
+### Audit Logging
+
+For regulated industries (healthcare, finance), log all data access:
+- **Who** accessed **what** data, **when**, and **from where**
+- PostgreSQL: `pgaudit` extension for statement-level and object-level audit
+- MySQL: Enterprise Audit plugin or general query log (with performance impact)
+
+**Cross-reference:** See [Chapter 16 — Security & Reliability](/system-design/part-3-architecture-patterns/ch16-security-reliability) for authentication (OAuth 2.0, JWT), rate limiting, and reliability patterns that complement database security.
+
+---
+
 ## Related Chapters
 
 | Chapter | Relevance |
@@ -805,6 +854,7 @@ flowchart LR
 | [Ch10 — NoSQL Databases](/system-design/part-2-building-blocks/ch10-databases-nosql) | Compare SQL vs NoSQL trade-offs for data model decisions |
 | [Ch15 — Replication & Consistency](/system-design/part-3-architecture-patterns/ch15-data-replication-consistency) | Replication mechanics for read replicas and failover |
 | [Ch14 — Event-Driven Architecture](/system-design/part-3-architecture-patterns/ch14-event-driven-architecture) | Distributed transactions (2PC, Saga) across SQL databases |
+| [Ch16 — Security & Reliability](/system-design/part-3-architecture-patterns/ch16-security-reliability) | Authentication, authorization, encryption, and rate limiting patterns |
 
 ---
 
