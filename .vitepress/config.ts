@@ -91,7 +91,7 @@ export default withMermaid(
   defineConfig({
     title: "The Engineer's Handbook",
     titleTemplate: ':title',
-    description: "A comprehensive guide for software engineers — master system design, one concept at a time.",
+    description: "A comprehensive guide for software engineers — master system design and design patterns, one concept at a time.",
 
     // Force dark mode only, no toggle
     appearance: 'dark',
@@ -134,23 +134,23 @@ export default withMermaid(
       }],
       ['meta', { name: 'theme-color', content: '#282a36' }],
       // Meta description
-      ['meta', { name: 'description', content: 'Learn system design and design patterns with 31 hands-on chapters covering scaling, distributed systems, GoF patterns, and real-world interview prep.' }],
+      ['meta', { name: 'description', content: 'Master system design and design patterns with 31 hands-on chapters — scalability, distributed systems, GoF patterns, Go code examples, and interview prep.' }],
       // Open Graph
-      ['meta', { property: 'og:title', content: "The Engineer's Handbook — Master System Design" }],
-      ['meta', { property: 'og:description', content: '31 hands-on chapters on system design, design patterns, architecture, and real-world deep dives.' }],
+      ['meta', { property: 'og:title', content: "The Engineer's Handbook — System Design & Design Patterns" }],
+      ['meta', { property: 'og:description', content: '31 hands-on chapters covering system design fundamentals, architecture patterns, real-world case studies, and 27 design patterns with practical Go code.' }],
       ['meta', { property: 'og:type', content: 'website' }],
       ['meta', { property: 'og:url', content: 'https://bachdx-learning-hub.vercel.app/' }],
       ['meta', { property: 'og:site_name', content: "The Engineer's Handbook" }],
       // Twitter Card
       ['meta', { name: 'twitter:card', content: 'summary_large_image' }],
-      ['meta', { name: 'twitter:title', content: "The Engineer's Handbook — Master System Design" }],
-      ['meta', { name: 'twitter:description', content: '31 hands-on chapters on system design, design patterns, architecture, and real-world deep dives.' }],
+      ['meta', { name: 'twitter:title', content: "The Engineer's Handbook — System Design & Design Patterns" }],
+      ['meta', { name: 'twitter:description', content: '31 hands-on chapters covering system design fundamentals, architecture patterns, real-world case studies, and 27 design patterns with practical Go code.' }],
       // JSON-LD structured data
       ['script', { type: 'application/ld+json' }, JSON.stringify({
         "@context": "https://schema.org",
         "@type": "Course",
         "name": "The Engineer's Handbook",
-        "description": "Master system design and design patterns with 31 hands-on chapters covering scaling, distributed systems, GoF patterns, and interview prep.",
+        "description": "Master system design and design patterns with 31 hands-on chapters — scalability, distributed systems, 27 GoF & modern patterns with Go code, and interview prep.",
         "provider": {
           "@type": "Person",
           "name": "Bach Duong"
