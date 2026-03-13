@@ -1704,3 +1704,16 @@ Snapshots: create after every N events (e.g., 100) or on a daily schedule, store
 ## Key Takeaway
 
 > **Distributed system patterns solve problems that cannot be solved with code structure alone.** CQRS and Event Sourcing address the fundamental conflict between optimizing for reads vs writes. Saga addresses the impossibility of atomic distributed transactions. Strangler Fig addresses the business reality that you cannot pause development for a big-bang rewrite. Sidecar addresses the duplication tax of polyglot infrastructure. Each pattern adds complexity — apply them only when the problem is real.
+
+---
+
+## References & Further Reading
+
+- [Microsoft Azure — CQRS Pattern](https://learn.microsoft.com/en-us/azure/architecture/patterns/cqrs) — Architecture reference with trade-off analysis
+- [Martin Fowler — Event Sourcing](https://martinfowler.com/eaaDev/EventSourcing.html) — Original definition and motivation
+- [microservices.io — Saga Pattern](https://microservices.io/patterns/data/saga.html) — Chris Richardson's canonical reference
+- [ByteByteGo — Saga Pattern Demystified](https://blog.bytebytego.com/p/saga-pattern-demystified-orchestration) — Orchestration vs Choreography visual guide
+- [AWS — Saga Orchestration Pattern](https://docs.aws.amazon.com/prescriptive-guidance/latest/cloud-design-patterns/saga-orchestration.html) — AWS prescriptive guidance
+- [Martin Fowler — Strangler Fig Application](https://martinfowler.com/bliki/StranglerFigApplication.html) — Original article naming the pattern
+- [Microsoft Azure — Sidecar Pattern](https://learn.microsoft.com/en-us/azure/architecture/patterns/sidecar) — Architecture reference
+- [Temporal.io — Saga Pattern](https://temporal.io/blog/mastering-saga-patterns-for-distributed-transactions-in-microservices) — Production implementation guide

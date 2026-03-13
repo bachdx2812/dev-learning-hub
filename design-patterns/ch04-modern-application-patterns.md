@@ -1820,3 +1820,15 @@ func main() {
 | [Ch05 — Distributed System Patterns](/design-patterns/ch05-distributed-system-patterns) | CQRS and Event Sourcing build on Repository; Saga uses Circuit Breaker |
 | [Ch13 — Microservices](/system-design/part-3-architecture-patterns/ch13-microservices) | Service mesh implements Circuit Breaker at infrastructure layer |
 | [Ch16 — Security & Reliability](/system-design/part-3-architecture-patterns/ch16-security-reliability) | Rate limiting, timeouts, and bulkhead pattern complement these five |
+
+---
+
+## References & Further Reading
+
+- [sony/gobreaker](https://github.com/sony/gobreaker) — Production-grade Circuit Breaker for Go
+- [failsafe-go](https://failsafe-go.dev/circuit-breaker/) — Circuit Breaker, Retry, and more for Go
+- [Microsoft Azure — Circuit Breaker Pattern](https://learn.microsoft.com/en-us/azure/architecture/patterns/circuit-breaker) — Architecture reference
+- [Martin Fowler — Repository Pattern](https://martinfowler.com/eaaCatalog/repository.html) — Original definition from PoEAA
+- [Google Wire](https://github.com/google/wire) — Compile-time dependency injection for Go
+- [Uber fx](https://github.com/uber-go/fx) — Runtime dependency injection framework for Go
+- [Exponential Backoff and Jitter](https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/) — AWS Architecture Blog

@@ -783,3 +783,15 @@ You have now completed all six chapters of the Design Patterns section. Here is 
 ---
 
 *This concludes the Design Patterns section. 27 patterns across 6 chapters. The next step is applying them: pick a codebase you own and identify one anti-pattern. Fix it. Then come back and pick the next one.*
+
+---
+
+## References & Further Reading
+
+- [Refactoring.Guru — Design Patterns Catalog](https://refactoring.guru/design-patterns/catalog) — All 23 GoF patterns with visual guides
+- [AntiPatterns: Refactoring Software, Architectures, and Projects in Crisis](https://en.wikipedia.org/wiki/AntiPatterns) — Brown et al. (1998) — the canonical anti-patterns reference
+- [design-patterns-for-humans](https://github.com/kamranahmedse/design-patterns-for-humans) — Ultra-simplified pattern explanations (45k+ stars)
+- [awesome-design-patterns](https://github.com/DovAmir/awesome-design-patterns) — Curated meta-list including cloud, microservices, and DevOps patterns
+- [A Philosophy of Software Design](https://web.stanford.edu/~ouster/cgi-bin/book.php) — John Ousterhout — when NOT to use patterns
+- [SourceMaking — Anti-Patterns](https://sourcemaking.com/antipatterns) — Comprehensive anti-pattern catalog with detection guides
+- [Dive Into Design Patterns](https://refactoring.guru/design-patterns/book) — Alexander Shvets — modernized GoF with trade-off analysis

@@ -1795,3 +1795,14 @@ Object behavior fundamentally changes based on internal state?
 | [Ch04 — Modern Application Patterns](/design-patterns/ch04-modern-application-patterns) | Middleware (Chain of Responsibility applied to HTTP), Circuit Breaker (State pattern applied to resilience) |
 | [Ch05 — Distributed System Patterns](/design-patterns/ch05-distributed-system-patterns) | Event Sourcing extends Observer; CQRS uses Command as its write model |
 | [System Design Ch14 — Event-Driven Architecture](/system-design/part-3-architecture-patterns/ch14-event-driven-architecture) | Observer at infrastructure scale: Kafka, SNS, EventBridge |
+
+---
+
+## References & Further Reading
+
+- [Refactoring.Guru — Behavioral Patterns](https://refactoring.guru/design-patterns/behavioral-patterns) — Visual explanations with code in 10 languages
+- [Design Patterns: Elements of Reusable Object-Oriented Software](https://en.wikipedia.org/wiki/Design_Patterns) — Gamma, Helm, Johnson, Vlissides (GoF, 1994)
+- [go-patterns — Behavioral](https://github.com/tmrts/go-patterns#behavioral-patterns) — Go-idiomatic implementations
+- [Go Concurrency Patterns](https://go.dev/blog/pipelines) — Official Go blog on pipelines and cancellation (Observer/Channel patterns)
+- [Patterns.dev — Observer Pattern](https://www.patterns.dev/vanilla/observer-pattern/) — JavaScript perspective with interactive examples
+- [SourceMaking — Behavioral Patterns](https://sourcemaking.com/design_patterns/behavioral_patterns) — Frequency-of-use ratings and anti-pattern warnings

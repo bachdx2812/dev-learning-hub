@@ -1564,3 +1564,14 @@ Both wrap an object. The difference is intent and interface:
 | [Ch03 — Behavioral Patterns](./ch03-behavioral-patterns.md) | Strategy (related to Bridge), Chain of Responsibility (extends Decorator concept), Iterator (traverses Composite trees) |
 | [Ch04 — Modern Application Patterns](./ch04-modern-application-patterns.md) | Repository + Proxy is a foundational combination in clean architecture |
 | [Ch06 — Anti-Patterns & Selection Guide](./ch06-anti-patterns-selection-guide.md) | God Object anti-pattern is what Facade becomes when overloaded |
+
+---
+
+## References & Further Reading
+
+- [Refactoring.Guru — Structural Patterns](https://refactoring.guru/design-patterns/structural-patterns) — Visual explanations with code in 10 languages
+- [Design Patterns: Elements of Reusable Object-Oriented Software](https://en.wikipedia.org/wiki/Design_Patterns) — Gamma, Helm, Johnson, Vlissides (GoF, 1994)
+- [go-patterns — Structural](https://github.com/tmrts/go-patterns#structural-patterns) — Go-idiomatic implementations
+- [Effective Go — Embedding](https://go.dev/doc/effective_go#embedding) — Go's approach to composition (relevant to Decorator/Proxy)
+- [Writing HTTP Middleware in Go](https://justinas.org/writing-http-middleware-in-go/) — Justinas Stankevičius — the Decorator pattern in practice
+- [java-design-patterns — Structural](https://github.com/iluwatar/java-design-patterns#structural) — Comprehensive Java examples (90k+ stars)

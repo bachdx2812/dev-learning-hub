@@ -1362,3 +1362,15 @@ flowchart TD
 ---
 
 > **Key Takeaway:** Creational patterns are about **controlling and clarifying object construction**. Factory Method decouples callers from concrete types. Abstract Factory ensures product family consistency. Builder tames complex optional parameters. Singleton provides a controlled single instance (but reach for dependency injection first). Prototype enables cheap cloning of expensive-to-construct objects. In each case: apply the pattern only when the specific problem it solves is actually present in your code.
+
+---
+
+## References & Further Reading
+
+- [Refactoring.Guru — Creational Patterns](https://refactoring.guru/design-patterns/creational-patterns) — Visual explanations with code in 10 languages
+- [Design Patterns: Elements of Reusable Object-Oriented Software](https://en.wikipedia.org/wiki/Design_Patterns) — Gamma, Helm, Johnson, Vlissides (GoF, 1994)
+- [Head First Design Patterns](https://www.oreilly.com/library/view/head-first-design/9781492077992/) — Freeman & Robson, 2nd edition (2020)
+- [design-patterns-for-humans](https://github.com/kamranahmedse/design-patterns-for-humans) — Ultra-simplified pattern explanations (45k+ stars)
+- [go-patterns — Creational](https://github.com/tmrts/go-patterns) — Go-idiomatic implementations (25k+ stars)
+- [Functional Options in Go](https://dave.cheney.net/2014/10/17/functional-options-for-friendly-apis) — Dave Cheney's original article on the pattern
+- [Singleton in Go](https://refactoring.guru/design-patterns/singleton/go/example) — Refactoring.Guru Go-specific example with `sync.Once`
