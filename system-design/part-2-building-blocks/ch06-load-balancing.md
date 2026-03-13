@@ -1,5 +1,6 @@
 ---
 title: "Chapter 6: Load Balancing"
+description: "Learn L4 vs L7 load balancing, algorithms like round-robin and consistent hashing, health checks, active-passive failover, and tools like Nginx, HAProxy, and AWS Elastic Load Balancer (ELB)."
 ---
 
 # Chapter 6: Load Balancing
@@ -96,7 +97,7 @@ Load balancers operate at two distinct layers of the OSI model, each with differ
 | **OSI Layer** | Layer 4 (TCP/UDP) | Layer 7 (HTTP/HTTPS) |
 | **Packet inspection** | IP + port only | Full HTTP: URL, headers, cookies, body |
 | **Routing decision** | TCP 4-tuple (src IP, src port, dst IP, dst port) | URL path, HTTP method, headers, host |
-| **SSL termination** | Pass-through only (TLS passthrough) | Yes — offloads TLS from backends |
+| **Secure Sockets Layer (SSL) termination** | Pass-through only (TLS passthrough) | Yes — offloads TLS from backends |
 | **Content-based routing** | No | Yes — route `/api/*` to API servers, `/static/*` to file servers |
 | **Performance** | Very fast — minimal processing per packet | Slower — must parse HTTP, buffer full request |
 | **Latency** | ~microseconds overhead | ~milliseconds overhead |
@@ -411,10 +412,10 @@ AWS offers three distinct load balancer products, each targeting a different use
 
 **Choosing between ALB and NLB:**
 
-Choose **ALB** when:
+Choose **Application Load Balancer (ALB)** when:
 - Routing based on URL path (microservices: `/users/*` → user service, `/orders/*` → order service)
 - SSL termination and certificate management via ACM
-- Integration with AWS WAF for application-layer security
+- Integration with AWS Web Application Firewall (WAF) for application-layer security
 - Target groups include Lambda functions or ECS tasks
 
 Choose **NLB** when:

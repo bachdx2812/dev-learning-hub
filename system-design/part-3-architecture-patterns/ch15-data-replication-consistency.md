@@ -1,5 +1,6 @@
 ---
 title: "Chapter 15: Data Replication & Consistency"
+description: "Deep dive into data replication models, consensus protocols (Raft, Paxos), consistency guarantees, conflict resolution, and CAP theorem trade-offs."
 ---
 
 # Chapter 15: Data Replication & Consistency
@@ -902,5 +903,5 @@ flowchart TD
 
 - "Designing Data-Intensive Applications" — Chapters 5, 7, 9 (Replication, Transactions, Consistency)
 - "In Search of an Understandable Consensus Algorithm" — Ongaro & Ousterhout (Raft paper)
-- Jepsen — https://jepsen.io/ (distributed systems testing)
+- [Jepsen](https://jepsen.io/) (distributed systems testing)
 - "Paxos Made Simple" — Leslie Lamport

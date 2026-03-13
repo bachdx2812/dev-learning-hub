@@ -1,5 +1,6 @@
 ---
 title: "Chapter 9: Databases — SQL"
+description: "Deep dive into SQL databases: ACID properties, normalization, master-slave replication, sharding strategies, federation, and denormalization for high-scale read workloads."
 ---
 
 # Chapter 9: Databases — SQL
@@ -450,7 +451,7 @@ sequenceDiagram
 
 **When isolation levels matter in practice:**
 
-- **Read Committed** (default in PostgreSQL): Safe for most OLTP workloads. Allows non-repeatable reads — acceptable if you do not re-read rows within a transaction.
+- **Read Committed** (default in PostgreSQL): Safe for most Online Transaction Processing (OLTP) workloads. Allows non-repeatable reads — acceptable if you do not re-read rows within a transaction.
 - **Repeatable Read**: Use when a transaction reads the same data multiple times and must see consistent values — e.g., generating a report that spans multiple queries.
 - **Serializable**: Use for financial transfers, inventory deductions, or any operation where phantom reads could cause correctness failures.
 

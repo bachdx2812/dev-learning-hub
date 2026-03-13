@@ -1,5 +1,6 @@
 ---
 title: "Back-of-Envelope Estimation"
+description: "Learn back-of-envelope estimation for system design interviews: QPS, storage, bandwidth, and latency calculations using powers of 2 and reference numbers."
 ---
 
 # Chapter 4: Back-of-Envelope Estimation
@@ -676,4 +677,4 @@ Attempt each estimate before reading the hint. Write your assumptions explicitly
 - "System Design Interview" — Alex Xu, Chapter 2 (Back-of-the-Envelope Estimation)
 - Jeff Dean's "Numbers Everyone Should Know"
 - "The Art of Capacity Planning" — John Allspaw
-- Latency Numbers Every Programmer Should Know — https://colin-scott.github.io/personal_website/research/interactive_latency.html
+- [Latency Numbers Every Programmer Should Know](https://colin-scott.github.io/personal_website/research/interactive_latency.html)

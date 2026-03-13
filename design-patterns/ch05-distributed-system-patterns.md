@@ -1,5 +1,6 @@
 ---
 title: "Chapter 5: Distributed System Patterns"
+description: "Advanced distributed system patterns: CQRS, Event Sourcing, Saga, Strangler Fig, and Sidecar — with Go code and strategies for managing failure at scale."
 ---
 
 # Chapter 5: Distributed System Patterns

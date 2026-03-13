@@ -1,5 +1,6 @@
 ---
 title: "Chapter 21: Video Streaming Platform"
+description: "Design a YouTube/Netflix-scale video platform: chunked uploads, transcoding pipelines, adaptive bitrate HLS/DASH streaming, CDN edge caching, and recommendations."
 ---
 
 # Chapter 21: Video Streaming Platform
@@ -309,7 +310,7 @@ Each rendition is split into **2-second segments** for adaptive streaming.
 
 #### Codec Comparison
 
-| Codec | Compression | Browser Support | GPU Encoding | Use Case |
+| Codec | Compression | Browser Support | Graphics Processing Unit (GPU) Encoding | Use Case |
 |-------|------------|----------------|-------------|----------|
 | H.264 (AVC) | Baseline | Universal | Excellent | Default; max compatibility |
 | H.265 (HEVC) | 2× better than H.264 | Partial (Safari, Edge) | Good | 4K, mobile data savings |

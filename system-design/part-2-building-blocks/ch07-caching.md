@@ -1,5 +1,6 @@
 ---
 title: "Chapter 7: Caching"
+description: "Master caching strategies — cache-aside, write-through, write-behind — eviction policies, cache invalidation, and how to prevent stampede, penetration, and avalanche."
 ---
 
 # Chapter 7: Caching
@@ -695,7 +696,7 @@ func SetUserWriteThrough(ctx context.Context, rdb *redis.Client, db *sql.DB, use
 ## References & Further Reading
 
 - *Designing Data-Intensive Applications* by Martin Kleppmann — Chapter 3 (Storage and Retrieval)
-- Redis documentation: https://redis.io/docs/
+- [Redis documentation](https://redis.io/docs/)
 - "Caching at Scale" — Meta Engineering Blog
 - "How Facebook Serves Billions of Requests with Memcached" — Nishtala et al.
 - "Scaling Memcache at Facebook" — USENIX NSDI 2013

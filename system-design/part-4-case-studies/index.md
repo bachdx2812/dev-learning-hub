@@ -1,3 +1,8 @@
+---
+title: "Part 4: Case Studies"
+description: "Design real-world systems end-to-end: URL shortener, social media feed, chat system, video streaming platform, and ride-sharing with geospatial matching — interview-ready."
+---
+
 # Part 4 — Case Studies
 
 > Real systems, real constraints. Apply everything from Parts 1-3.

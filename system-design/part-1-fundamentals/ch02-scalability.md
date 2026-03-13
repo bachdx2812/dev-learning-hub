@@ -1,5 +1,6 @@
 ---
 title: "Chapter 2: Scalability"
+description: "Master vertical and horizontal scaling, stateless design, database read replicas, sharding, and caching patterns used by high-traffic distributed systems."
 ---
 
 # Chapter 2: Scalability
@@ -437,7 +438,7 @@ The Stack Overflow story challenges several common assumptions in system design.
 
 ### 1. Profile Before You Scale
 
-Stack Overflow's team ran extensive profiling before every scaling decision. They identified that most latency came from N+1 SQL queries and unoptimized ORM calls — not hardware limits. Fixing the queries cost nothing. Adding servers would have cost thousands per month while leaving the root cause in place.
+Stack Overflow's team ran extensive profiling before every scaling decision. They identified that most latency came from N+1 SQL queries and unoptimized Object-Relational Mapping (ORM) calls — not hardware limits. Fixing the queries cost nothing. Adding servers would have cost thousands per month while leaving the root cause in place.
 
 **Lesson:** Measure your actual bottleneck. CPU? Memory? DB query time? Network? The answer determines the intervention.
 

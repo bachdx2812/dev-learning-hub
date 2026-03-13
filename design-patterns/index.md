@@ -1,3 +1,8 @@
+---
+title: "Design Patterns"
+description: "27 design patterns — GoF classics to modern distributed patterns — taught with Go code, BEFORE/AFTER examples, Mermaid diagrams, and honest when-to-use trade-offs."
+---
+
 # Design Patterns
 
 > Practical patterns every engineer should know — from classic GoF to modern distributed system patterns.

@@ -1,5 +1,6 @@
 ---
 title: "Core Trade-offs"
+description: "Understand CAP theorem, ACID vs BASE, consistency vs availability, latency vs throughput, and how to make informed trade-offs in distributed system design."
 ---
 
 # Chapter 3: Core Trade-offs

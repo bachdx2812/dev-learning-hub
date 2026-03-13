@@ -1,5 +1,6 @@
 ---
 title: "Chapter 1: Foundations & Creational Patterns"
+description: "Learn the 5 GoF creational design patterns — Factory, Builder, Singleton, Prototype, Abstract Factory — with Go code examples and real-world trade-offs."
 ---
 
 # Chapter 1: Foundations & Creational Patterns
@@ -1355,7 +1356,7 @@ flowchart TD
 
 - *Design Patterns: Elements of Reusable Object-Oriented Software* — Gamma, Helm, Johnson, Vlissides (1994)
 - *Head First Design Patterns* — Freeman & Robson — more approachable introduction with visual explanations
-- Refactoring.Guru — https://refactoring.guru/design-patterns — excellent visual pattern catalog
+- [Refactoring.Guru](https://refactoring.guru/design-patterns) — excellent visual pattern catalog
 - Go standard library source — `database/sql`, `sync`, `net/http` — idiomatic pattern usage in production Go
 - *The Go Programming Language* — Donovan & Kernighan — idiomatic Go construction patterns
 

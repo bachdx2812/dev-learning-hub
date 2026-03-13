@@ -1,5 +1,6 @@
 ---
 title: "Chapter 16: Security & Reliability"
+description: "Design secure, reliable systems with OAuth 2.0, JWT, Role-Based Access Control (RBAC), encryption, rate limiting, circuit breakers, chaos engineering, and SLA-driven fault tolerance."
 ---
 
 # Chapter 16: Security & Reliability
@@ -80,6 +81,8 @@ These two concepts are consistently confused in interviews and in code. They are
 | **Authorization (AuthZ)** | *What can you do?* | Can this user delete this resource? | Business logic, middleware |
 
 Authentication always precedes authorization. A system cannot determine what an identity is allowed to do before confirming that identity. However, authorization decisions can change without re-authenticating — a user's role may be revoked while their session remains active, which is why token expiry and revocation matter.
+
+Common authorization models include Role-Based Access Control (RBAC), which assigns permissions to roles and roles to users, and Attribute-Based Access Control (ABAC), which evaluates policies against user, resource, and environment attributes for finer-grained decisions.
 
 ---
 
@@ -168,7 +171,7 @@ flowchart TD
 
 ### TLS 1.3 Handshake (Simplified)
 
-TLS establishes an encrypted channel before any application data is transmitted. TLS 1.3 reduced the handshake from 2 round trips (TLS 1.2) to 1 round trip:
+Transport Layer Security (TLS) establishes an encrypted channel before any application data is transmitted. TLS 1.3 reduced the handshake from 2 round trips (TLS 1.2) to 1 round trip:
 
 ```mermaid
 sequenceDiagram
@@ -259,7 +262,7 @@ A Distributed Denial of Service attack exhausts resources (bandwidth, CPU, conne
 |----------|-------|-------------|---------|
 | **CDN absorption** | L3/L4/L7 | Anycast distributes attack traffic across PoPs | Cloudflare absorbs 100 Tbps |
 | **Rate limiting** | L7 | Caps requests per IP / ASN | Drop IPs > 1000 req/min |
-| **WAF rules** | L7 | Block malformed HTTP, known attack signatures | AWS WAF, ModSecurity |
+| **Web Application Firewall (WAF) rules** | L7 | Block malformed HTTP, known attack signatures | AWS WAF, ModSecurity |
 | **IP reputation** | L3/L4 | Block known botnet/scanner IPs | MaxMind, AbuseIPDB feeds |
 | **Anycast routing** | L3 | Spread volumetric traffic across global PoPs | BGP anycast |
 | **SYN cookies** | L4 | Defend TCP SYN flood without state | Linux kernel default |
@@ -926,7 +929,7 @@ func (cb *CircuitBreaker) Execute(fn func() error) error {
 ## References & Further Reading
 
 - "Release It!" — Michael Nygard (circuit breaker patterns)
-- OWASP Top 10: https://owasp.org/www-project-top-ten/
+- [OWASP Top 10](https://owasp.org/www-project-top-ten/)
 - OAuth 2.0 RFC 6749
 - "The SRE Book" — Google
 - Cloudflare rate limiting blog posts

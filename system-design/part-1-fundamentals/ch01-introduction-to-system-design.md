@@ -1,5 +1,6 @@
 ---
 title: "Chapter 1: Introduction to System Design"
+description: "Learn what system design is, why it matters for engineers, and the structured approach to designing scalable distributed systems from scratch."
 ---
 
 # Chapter 1: Introduction to System Design
@@ -524,4 +525,4 @@ The most important insight from this diagram: **the first two steps are almost e
 - "Designing Data-Intensive Applications" — Martin Kleppmann
 - "System Design Interview" — Alex Xu (Vol 1 & 2)
 - "The System Design Primer" — Donne Martin (GitHub)
-- Google SRE Book — https://sre.google/sre-book/table-of-contents/
+- [Google SRE Book](https://sre.google/sre-book/table-of-contents/)

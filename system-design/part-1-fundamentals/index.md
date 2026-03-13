@@ -1,3 +1,8 @@
+---
+title: "Part 1: Fundamentals"
+description: "Build your distributed systems foundation: scalability, CAP theorem, ACID vs BASE, core trade-offs, and back-of-envelope estimation with worked Twitter and YouTube examples."
+---
+
 # Part 1 — Fundamentals
 
 > The bedrock. Every senior engineer has these concepts deeply internalized.

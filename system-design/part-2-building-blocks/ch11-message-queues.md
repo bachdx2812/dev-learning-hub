@@ -1,5 +1,6 @@
 ---
 title: "Chapter 11: Message Queues & Async Processing"
+description: "Learn async processing with Kafka, RabbitMQ, and SQS: delivery guarantees, fan-out patterns, task queues, backpressure, and event-driven architecture design."
 ---
 
 # Chapter 11: Message Queues & Async Processing
@@ -716,7 +717,7 @@ Key patterns illustrated:
 ## References & Further Reading
 
 - **"Designing Data-Intensive Applications"** — Martin Kleppmann, Chapter 4 (Encoding and Evolution)
-- **Kafka documentation** — https://kafka.apache.org/documentation/
+- [**Kafka documentation**](https://kafka.apache.org/documentation/)
 - **"The Log: What every software engineer should know"** — Jay Kreps
-- **Confluent Schema Registry documentation** — https://docs.confluent.io/platform/current/schema-registry/index.html
+- [**Confluent Schema Registry documentation**](https://docs.confluent.io/platform/current/schema-registry/index.html)
 - **"Building Event-Driven Microservices"** — Adam Bellemare

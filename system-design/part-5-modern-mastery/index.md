@@ -1,3 +1,8 @@
+---
+title: "Part 5: Modern & Mastery"
+description: "Cloud-native, Kubernetes, ML infrastructure, and a structured 4-step system design interview framework with cheat sheets to ace senior engineering interviews."
+---
+
 # Part 5 — Modern & Mastery
 
 > The cutting edge + your interview toolkit.

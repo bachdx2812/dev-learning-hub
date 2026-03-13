@@ -1,5 +1,6 @@
 ---
 title: "Chapter 19: Social Media Feed"
+description: "Design a scalable social media news feed: fan-out on write vs read, Redis sorted sets, feed ranking algorithms, celebrity problem, and real-time timeline delivery."
 ---
 
 # Chapter 19: Social Media Feed

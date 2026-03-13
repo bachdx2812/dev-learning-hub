@@ -1,3 +1,8 @@
+---
+title: "Part 2: Building Blocks"
+description: "Master the core infrastructure primitives: DNS, load balancing, caching, CDNs, SQL and NoSQL databases, message queues, and communication protocols like REST and gRPC."
+---
+
 # Part 2 — Building Blocks
 
 > The atomic components. Every large-scale system is assembled from these primitives.

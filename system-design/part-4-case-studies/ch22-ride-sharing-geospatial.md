@@ -1,5 +1,6 @@
 ---
 title: "Chapter 22: Ride-Sharing & Geospatial Systems"
+description: "Design an Uber-scale ride-sharing platform: geohash indexing, real-time driver matching, GPS location streams, surge pricing, trip lifecycle, and payment processing."
 ---
 
 # Chapter 22: Ride-Sharing & Geospatial Systems
@@ -801,5 +802,5 @@ graph TB
 
 - "System Design Interview Vol 2" — Alex Xu, Chapter 13 (Proximity Service)
 - Uber Engineering Blog — geospatial indexing
-- "The Geohash Algorithm" — https://en.wikipedia.org/wiki/Geohash
+- ["The Geohash Algorithm"](https://en.wikipedia.org/wiki/Geohash)
 - "RING: An Architecture for Real-Time Ride Matching" — Lyft Engineering

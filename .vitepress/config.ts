@@ -109,14 +109,33 @@ export default withMermaid(
     // Ignore localhost links in plan reports and root LICENSE file link
     ignoreDeadLinks: [/^http:\/\/localhost/, './LICENSE'],
 
-    // Canonical URL per page
+    // Per-page SEO: canonical URL + og/twitter meta from frontmatter
     transformHead({ pageData }) {
       const canonicalUrl = `https://bachdx-learning-hub.vercel.app/${pageData.relativePath}`
         .replace(/index\.md$/, '')
         .replace(/\.md$/, '')
-      return [
+
+      const head = [
         ['link', { rel: 'canonical', href: canonicalUrl }]
       ]
+
+      const { title, description } = pageData.frontmatter
+      if (description) {
+        head.push(
+          ['meta', { name: 'description', content: description }],
+          ['meta', { property: 'og:description', content: description }],
+          ['meta', { name: 'twitter:description', content: description }]
+        )
+      }
+      if (title) {
+        const fullTitle = `${title} — The Engineer's Handbook`
+        head.push(
+          ['meta', { property: 'og:title', content: fullTitle }],
+          ['meta', { name: 'twitter:title', content: fullTitle }]
+        )
+      }
+
+      return head
     },
 
     // Head metadata

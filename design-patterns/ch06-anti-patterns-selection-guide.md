@@ -1,5 +1,6 @@
 ---
 title: "Chapter 6: Anti-Patterns & Selection Guide"
+description: "Identify common anti-patterns — God Object, Spaghetti Code, Golden Hammer — and use the decision matrix and flowchart to choose the right design pattern."
 ---
 
 # Chapter 6: Anti-Patterns & Selection Guide

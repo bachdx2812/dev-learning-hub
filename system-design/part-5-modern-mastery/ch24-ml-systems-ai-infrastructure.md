@@ -1,5 +1,6 @@
 ---
 title: "Chapter 24: ML Systems & AI Infrastructure"
+description: "Design production ML systems: feature stores, distributed training, model serving, MLOps pipelines, A/B testing, model monitoring, and LLM inference infrastructure."
 ---
 
 # Chapter 24: ML Systems & AI Infrastructure
@@ -85,7 +86,7 @@ The five phases of every ML pipeline:
 
 1. **Data Collection** — Ingest raw signals: user events, sensor readings, labels from human annotators
 2. **Feature Engineering** — Transform raw data into numerical representations suitable for models
-3. **Training** — Optimize model weights on historical data; potentially distributed across many GPUs
+3. **Training** — Optimize model weights on historical data; potentially distributed across many Graphics Processing Units (GPUs)
 4. **Evaluation** — Validate model quality on held-out data; run A/B tests in production
 5. **Serving** — Deploy the model to make predictions on live traffic; batch or real-time
 
@@ -338,7 +339,7 @@ graph TB
 
 ## MLOps: The ML Development Lifecycle
 
-MLOps applies DevOps principles to machine learning: version everything, automate everything, monitor everything. The three pillars are experiment tracking, model registry, and CI/CD for ML.
+MLOps applies DevOps principles to machine learning: version everything, automate everything, monitor everything. The three pillars are experiment tracking, model registry, and Continuous Integration/Continuous Deployment (CI/CD) for ML.
 
 ### Experiment Tracking
 
@@ -716,5 +717,5 @@ graph TB
 
 - "Designing Machine Learning Systems" — Chip Huyen
 - "Hidden Technical Debt in Machine Learning Systems" — Google (NeurIPS 2015)
-- MLflow documentation — https://mlflow.org/
+- [MLflow documentation](https://mlflow.org/)
 - "Scaling Machine Learning at Uber" — Uber Engineering Blog

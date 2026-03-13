@@ -1,5 +1,6 @@
 ---
 title: "Chapter 10: Databases — NoSQL"
+description: "Compare NoSQL database types — key-value, document, wide-column, and graph stores — with real-world use cases for Redis, DynamoDB, MongoDB, and Cassandra."
 ---
 
 # Chapter 10: Databases — NoSQL
@@ -585,7 +586,7 @@ See [Ch18 — Unique ID Generation](/system-design/part-4-case-studies/ch18-url-
 ## References & Further Reading
 
 - "Designing Data-Intensive Applications" — Chapters 2, 5 (Data Models, Replication)
-- MongoDB documentation — https://www.mongodb.com/docs/
+- [MongoDB documentation](https://www.mongodb.com/docs/)
 - Apache Cassandra Architecture Guide
 - Amazon DynamoDB Developer Guide
 - "Dynamo: Amazon's Highly Available Key-Value Store" — DeCandia et al.

@@ -1,3 +1,8 @@
+---
+title: "Part 3: Architecture Patterns"
+description: "Compose building blocks into production systems: microservices, event-driven architecture, data replication, distributed consensus, security, and observability."
+---
+
 # Part 3 — Architecture & Patterns
 
 > Composing building blocks into real systems. Where engineering meets art.

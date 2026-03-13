@@ -1,5 +1,6 @@
 ---
 title: "Chapter 14: Event-Driven Architecture"
+description: "Learn event-driven architecture: pub/sub patterns, event sourcing, CQRS, choreography vs orchestration, and building loosely coupled distributed systems."
 ---
 
 # Chapter 14: Event-Driven Architecture
@@ -241,7 +242,7 @@ sequenceDiagram
 
 ### The Pattern
 
-CQRS separates the write path (commands that mutate state) from the read path (queries that retrieve state). They use different models, different data stores if needed, and scale independently.
+Command Query Responsibility Segregation (CQRS) separates the write path (commands that mutate state) from the read path (queries that retrieve state). They use different models, different data stores if needed, and scale independently.
 
 ```mermaid
 graph LR
@@ -641,7 +642,7 @@ flowchart LR
 
 - **Cache invalidation**: Invalidate Redis entries when the source record changes, without polling
 - **Search index sync**: Keep Elasticsearch in sync with the primary database in near-real-time
-- **Analytics pipelines**: Stream operational data to data warehouses (Snowflake, BigQuery) without ETL batch jobs
+- **Analytics pipelines**: Stream operational data to data warehouses (Snowflake, BigQuery) without Extract, Transform, Load (ETL) batch jobs
 - **Audit logs**: Capture every data change with before/after values for compliance
 - **Microservice data sync**: Replicate a bounded subset of data to a downstream service's own database without shared schema coupling
 

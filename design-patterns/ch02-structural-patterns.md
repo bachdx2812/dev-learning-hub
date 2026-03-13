@@ -1,5 +1,6 @@
 ---
 title: "Chapter 2: Structural Patterns"
+description: "Master 6 structural design patterns — Adapter, Decorator, Facade, Proxy, Composite, Bridge — with Go examples, Mermaid diagrams, and when-to-use guidance."
 ---
 
 # Chapter 2: Structural Patterns

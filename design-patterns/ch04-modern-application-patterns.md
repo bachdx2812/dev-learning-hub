@@ -1,5 +1,6 @@
 ---
 title: "Chapter 4: Modern Application Patterns"
+description: "Learn Repository, Dependency Injection, Middleware, Circuit Breaker, and Retry patterns in Go — the patterns engineers use every day in production systems."
 ---
 
 # Chapter 4: Modern Application Patterns
@@ -1817,7 +1818,7 @@ func main() {
 |---------|-----------|
 | [Ch02 — Structural Patterns](/design-patterns/ch02-structural-patterns) | Decorator pattern is the foundation for HTTP middleware |
 | [Ch03 — Behavioral Patterns](/design-patterns/ch03-behavioral-patterns) | Chain of Responsibility vs Pipeline; State pattern in Circuit Breaker |
-| [Ch05 — Distributed System Patterns](/design-patterns/ch05-distributed-system-patterns) | CQRS and Event Sourcing build on Repository; Saga uses Circuit Breaker |
+| [Ch05 — Distributed System Patterns](/design-patterns/ch05-distributed-system-patterns) | Command Query Responsibility Segregation (CQRS) and Event Sourcing build on Repository; Saga uses Circuit Breaker |
 | [Ch13 — Microservices](/system-design/part-3-architecture-patterns/ch13-microservices) | Service mesh implements Circuit Breaker at infrastructure layer |
 | [Ch16 — Security & Reliability](/system-design/part-3-architecture-patterns/ch16-security-reliability) | Rate limiting, timeouts, and bulkhead pattern complement these five |
 

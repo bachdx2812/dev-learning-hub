@@ -1,6 +1,7 @@
 ---
 layout: doc
 title: About
+description: "The Engineer's Handbook — a free, open-source reference covering 31 chapters on system design and design patterns with 200+ diagrams and Go code examples."
 ---
 
 # About The Engineer's Handbook

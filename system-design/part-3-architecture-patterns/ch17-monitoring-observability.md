@@ -1,5 +1,6 @@
 ---
 title: "Chapter 17: Monitoring & Observability"
+description: "Build observable systems with metrics, structured logs, distributed tracing, Prometheus, alerting pipelines, SLOs, and the three pillars of observability."
 ---
 
 # Chapter 17: Monitoring & Observability
@@ -681,9 +682,9 @@ Never use `user_id`, `request_id`, or `session_id` as Prometheus label values. R
 
 ## References & Further Reading
 
-- **"Site Reliability Engineering"** (Google SRE Book) — Chapters on Monitoring Distributed Systems and Alerting: https://sre.google/sre-book/table-of-contents/
+- **"Site Reliability Engineering"** (Google SRE Book) — Chapters on Monitoring Distributed Systems and Alerting: [https://sre.google/sre-book/table-of-contents/](https://sre.google/sre-book/table-of-contents/)
 - **"Observability Engineering"** — Charity Majors, Liz Fong-Jones, George Miranda (O'Reilly, 2022) — the definitive guide to high-cardinality observability and the shift from monitoring to observability
-- **OpenTelemetry documentation** — vendor-neutral instrumentation standard for traces, metrics, and logs: https://opentelemetry.io/docs/
+- **OpenTelemetry documentation** — vendor-neutral instrumentation standard for traces, metrics, and logs: [https://opentelemetry.io/docs/](https://opentelemetry.io/docs/)
 - **"The Art of Monitoring"** — James Turnbull — practical guide to modern monitoring pipelines with Prometheus and the ELK stack
-- **Datadog blog: "The Four Golden Signals"** — https://www.datadoghq.com/blog/monitoring-101-collecting-data/
-- **Google SRE Workbook — Chapter on Incident Response** — covers structured incident management, severity classification, and postmortem culture: https://sre.google/workbook/incident-response/
+- **Datadog blog: "The Four Golden Signals"** — [https://www.datadoghq.com/blog/monitoring-101-collecting-data/](https://www.datadoghq.com/blog/monitoring-101-collecting-data/)
+- **Google SRE Workbook — Chapter on Incident Response** — covers structured incident management, severity classification, and postmortem culture: [https://sre.google/workbook/incident-response/](https://sre.google/workbook/incident-response/)

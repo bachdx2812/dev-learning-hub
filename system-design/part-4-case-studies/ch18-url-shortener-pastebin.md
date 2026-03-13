@@ -1,5 +1,6 @@
 ---
 title: "Chapter 18: URL Shortener & Pastebin"
+description: "System design case study: build a URL shortener and Pastebin covering Base62 encoding, consistent hashing, Redis caching, key generation, and petabyte-scale storage."
 ---
 
 # Chapter 18: URL Shortener & Pastebin

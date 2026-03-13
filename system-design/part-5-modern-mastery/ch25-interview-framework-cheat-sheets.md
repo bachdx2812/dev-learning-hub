@@ -1,5 +1,6 @@
 ---
 title: "Chapter 25: Interview Framework & Cheat Sheets"
+description: "Ace system design interviews with a repeatable 4-step framework: requirements, estimation, high-level design, deep dive — plus cheat sheets, trade-off guides, and patterns."
 ---
 
 # Chapter 25: Interview Framework & Cheat Sheets
@@ -913,6 +914,6 @@ flowchart LR
 
 - "System Design Interview" — Alex Xu (Vol 1 & 2)
 - "Designing Data-Intensive Applications" — Martin Kleppmann
-- ByteByteGo — https://bytebytego.com/
+- [ByteByteGo](https://bytebytego.com/)
 - "Grokking the System Design Interview" — Educative.io
 - "The System Design Primer" — Donne Martin (GitHub)

@@ -1,5 +1,6 @@
 ---
 title: "Chapter 13: Microservices Architecture"
+description: "Master microservices architecture: service decomposition, API gateways, inter-service communication, circuit breakers, saga pattern, and distributed deployment."
 ---
 
 # Chapter 13: Microservices Architecture
@@ -215,7 +216,7 @@ An **API Gateway** is the single entry point for all client traffic. Instead of 
 - **Rate Limiting** — protects services from traffic spikes (see [Chapter 16](/system-design/part-3-architecture-patterns/ch16-security-reliability))
 - **Request Aggregation** — fan-out to multiple services and compose a single response
 - **Protocol Translation** — converts external REST calls to internal gRPC calls
-- **SSL Termination** — decrypts HTTPS at the gateway; internal traffic uses plain HTTP or mTLS via service mesh
+- **SSL Termination** — decrypts HTTPS at the gateway; internal traffic uses plain HTTP or mutual TLS (mTLS) via service mesh
 
 ### Gateway Traffic Flow
 
@@ -900,6 +901,6 @@ func (s *userServer) GetUser(ctx context.Context, req *pb.GetUserRequest) (*pb.U
 
 - "Building Microservices" — Sam Newman
 - "Microservices Patterns" — Chris Richardson
-- gRPC documentation: https://grpc.io/
+- [gRPC documentation](https://grpc.io/)
 - Netflix Microservices blog series
-- "The Twelve-Factor App" — https://12factor.net/
+- ["The Twelve-Factor App"](https://12factor.net/)

@@ -1,5 +1,6 @@
 ---
 title: "Chapter 8: Content Delivery Networks"
+description: "Understand CDN architecture, edge servers, push vs pull models, cache invalidation, static and dynamic content delivery, and multi-CDN strategies for global performance."
 ---
 
 # Chapter 8: Content Delivery Networks

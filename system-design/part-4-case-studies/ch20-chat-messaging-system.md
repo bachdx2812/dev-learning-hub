@@ -1,5 +1,6 @@
 ---
 title: "Chapter 20: Chat & Messaging System"
+description: "Design a real-time chat system at scale: WebSockets, message delivery guarantees, group chat fan-out, presence tracking, end-to-end encryption, and push notifications."
 ---
 
 # Chapter 20: Chat & Messaging System

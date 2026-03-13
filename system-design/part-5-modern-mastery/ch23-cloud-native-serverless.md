@@ -1,5 +1,6 @@
 ---
 title: "Chapter 23: Cloud-Native & Serverless"
+description: "Master cloud-native and serverless: 12-factor apps, Kubernetes orchestration, service mesh, serverless functions, IaC, GitOps, and auto-scaling strategies."
 ---
 
 # Chapter 23: Cloud-Native & Serverless
@@ -771,7 +772,7 @@ graph LR
 
 | Model | How It Works | Tools | Problem |
 |---|---|---|---|
-| **Push (traditional CI/CD)** | CI pipeline runs `kubectl apply` or `helm upgrade` to push changes to the cluster | Jenkins, GitHub Actions, CircleCI | CI server needs cluster credentials; state can drift if someone runs `kubectl` manually |
+| **Push (traditional Continuous Integration/Continuous Deployment (CI/CD))** | CI pipeline runs `kubectl apply` or `helm upgrade` to push changes to the cluster | Jenkins, GitHub Actions, CircleCI | CI server needs cluster credentials; state can drift if someone runs `kubectl` manually |
 | **Pull (GitOps)** | An agent inside the cluster watches the Git repo and pulls + applies changes automatically | ArgoCD, Flux | Cluster initiates; no external credential exposure; self-healing against drift |
 
 ### ArgoCD GitOps Flow
@@ -1033,7 +1034,7 @@ flowchart LR
 ## References & Further Reading
 
 - "Cloud Native Patterns" — Cornelia Davis
-- Kubernetes documentation — https://kubernetes.io/docs/
+- [Kubernetes documentation](https://kubernetes.io/docs/)
 - AWS Lambda documentation
-- "The Twelve-Factor App" — https://12factor.net/
+- ["The Twelve-Factor App"](https://12factor.net/)
 - Martin Fowler — "Serverless Architectures"

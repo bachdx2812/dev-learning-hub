@@ -1,3 +1,8 @@
+---
+title: "System Design"
+description: "A 25-chapter learning path from scalability fundamentals to real-world case studies — master distributed systems, architecture patterns, and system design interviews."
+---
+
 # System Design
 
 > A complete learning path from first principles to production-grade distributed systems.

@@ -1,5 +1,6 @@
 ---
 title: "Chapter 3: Behavioral Patterns"
+description: "Deep dive into 6 behavioral design patterns — Observer, Strategy, Command, Chain of Responsibility, State, Template Method — with practical Go code examples."
 ---
 
 # Chapter 3: Behavioral Patterns

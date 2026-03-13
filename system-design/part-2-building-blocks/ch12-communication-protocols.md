@@ -1,5 +1,6 @@
 ---
 title: "Chapter 12: Communication Protocols"
+description: "Compare TCP vs UDP, HTTP/1.1 vs HTTP/2 vs HTTP/3, WebSockets, REST, GraphQL, and gRPC to choose the right communication protocol for distributed system design."
 ---
 
 # Chapter 12: Communication Protocols
@@ -1088,8 +1089,8 @@ Key patterns illustrated:
 ## References & Further Reading
 
 - **"RESTful Web APIs"** — Leonard Richardson & Mike Amundsen. Deep treatment of REST constraints, hypermedia, and the Richardson Maturity Model.
-- **gRPC documentation** — https://grpc.io/docs/ — Official guide covering protobuf schemas, streaming patterns, authentication, and language-specific stubs.
-- **GraphQL specification** — https://spec.graphql.org/ — The formal specification defining query language semantics, schema definition, and execution model.
+- [**gRPC documentation**](https://grpc.io/docs/) — Official guide covering protobuf schemas, streaming patterns, authentication, and language-specific stubs.
+- [**GraphQL specification**](https://spec.graphql.org/) — The formal specification defining query language semantics, schema definition, and execution model.
 - **"API Design Patterns"** — JJ Geewax (Google). Practical patterns for resource naming, long-running operations, revisions, and cross-cutting concerns.
 - **Stripe API design guide** — Canonical example of idempotency key design, error envelope structure, and versioning done well. Study the Stripe API as a reference implementation.
-- **Google API Design Guide** — https://cloud.google.com/apis/design — Google's internal API design principles, open-sourced. Covers resource-oriented design, naming conventions, errors, and versioning at scale.
+- [**Google API Design Guide**](https://cloud.google.com/apis/design) — Google's internal API design principles, open-sourced. Covers resource-oriented design, naming conventions, errors, and versioning at scale.

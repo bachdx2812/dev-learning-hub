@@ -1,5 +1,6 @@
 ---
 title: "Chapter 5: DNS"
+description: "Explore DNS resolution, record types, TTL trade-offs, geolocation and latency-based routing strategies, and how DNS enables global failover in distributed systems."
 ---
 
 # Chapter 5: DNS
@@ -270,7 +271,7 @@ DNS round-robin is frequently used as a simple, zero-cost load balancer. Underst
 ### When You Need a Dedicated Load Balancer
 
 - Health-aware routing that removes failed instances within seconds
-- SSL/TLS termination and certificate management
+- SSL/Transport Layer Security (TLS) termination and certificate management
 - Request routing based on URL path, HTTP headers, or content
 - Session persistence requirements
 - Sub-second failover on backend failure
@@ -560,4 +561,4 @@ Cross-reference: [Chapter 6: Load Balancing](/system-design/part-2-building-bloc
 - "DNS and BIND" — Cricket Liu & Paul Albitz
 - Cloudflare Learning Center — DNS articles
 - RFC 1035 — Domain Names Implementation
-- "The Illustrated TLS Connection" — https://tls13.xargs.org/
+- ["The Illustrated TLS Connection"](https://tls13.xargs.org/)
