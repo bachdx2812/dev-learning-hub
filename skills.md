@@ -129,10 +129,41 @@ Skills were tested against **100 well-known system design interview problems** s
 | Batch 2 | 20 | Intermediate | **3.55** / 5 | **3.45** / 5 | 40% |
 | Batch 3 | 20 | Intermediate | **2.95** / 5 | **2.80** / 5 | 20% |
 | Batch 4 | 20 | Advanced | **3.05** / 5 | **2.95** / 5 | 35% |
+| Batch 5 | 20 | Expert | **2.25** / 5 | **2.15** / 5 | 20% |
 
-### Problems Tested Include
+**Pre-improvement aggregate:** 3.08/5 accuracy, 31% full coverage across 100 problems.
 
-Rate Limiter, URL Shortener, Web Crawler, Key-Value Store, Chat System, News Feed, Kafka, Payment System, Ride Sharing, Video Platform, Search Engine, Spotify, Zoom, YouTube, Google Maps, HDFS, NoSQL Database, ML Pipeline, Stock Exchange, Blockchain, and 80 more.
+### Coverage by Domain
+
+| Domain | Strength | Example Problems |
+|--------|----------|-----------------|
+| Social/Feed/Chat | Strong | News Feed, Twitter, Chat, Instagram |
+| Caching/CDN/LB | Strong | Distributed Cache, CDN, Load Balancer |
+| Databases/Storage | Strong | SQL vs NoSQL, Sharding, Replication |
+| Video Streaming | Strong | YouTube, Netflix, Video Platform |
+| Geospatial | Good | Ride Sharing, Nearby Friends, Maps |
+| Search/Indexing | Good* | Autocomplete, Elasticsearch, Web Crawler |
+| Real-Time Media | Good* | WebRTC, Video Conferencing, Voice Chat |
+| Financial Systems | Good* | Payments, Digital Wallet, Stock Exchange |
+| ML/Recommendations | Moderate | Recommendation Engine, Fraud Detection |
+| Data Processing | Moderate | Stream Processing, Data Warehouse |
+
+*Improved from "Weak/None" to "Good" after post-test reference expansion.
+
+### All 100 Problems Tested
+
+<details>
+<summary>View complete problem list</summary>
+
+**Beginner (1-20):** Rate Limiter, URL Shortener, Pastebin, Key-Value Store, Web Crawler, Unique ID Generator, Notification System, Authentication, Todo App, Vending Machine, Parking Lot, Leaderboard, CDN, Distributed Cache, Load Balancer, Message Queue, Search Typeahead, Hotel Booking, Distributed Lock, Simple Chat
+
+**Intermediate (21-60):** News Feed, Chat System, Search Autocomplete, Video Streaming, Ride Sharing, Recommendation Engine, File Sharing, Social Network, E-commerce, Metrics Monitoring, Ad Click Aggregation, Logging System, Distributed Message Queue, Payment System, Digital Wallet, Stock Exchange, Gaming Leaderboard, Email Service, Proximity Service, Nearby Friends, Search Engine, Meeting Room Booking, Instagram Feed, Facebook Timeline, Pinterest, Slack Clone, Discord, Spotify, Dropbox, Airbnb, Uber Eats, Amazon Fresh, Snapchat, TikTok, Zoom, GitLab/GitHub, Stack Overflow, Quora, Medium, YouTube
+
+**Advanced (61-80):** Google Maps, Distributed File System, NoSQL Database, Distributed Transaction, Event Sourcing, CQRS, Search System, Data Warehouse, Real-time Analytics, ML Pipeline, Advanced Recommendation, Stock Ticker, Multiplayer Game, Live Commenting, Online Judge, Cloud Storage, Blockchain, API Gateway, Service Mesh, Config Management
+
+**Expert (81-100):** Distributed Tracing, APM Monitoring, Fraud Detection, Content Moderation, Distributed Rate Limiter, Circuit Breaker, Batch Processing, Stream Processing, Distributed Web Crawler, Search Index, YouTube Recommendation, Google Search, Twitter at Scale, Facebook Ads, Netflix Recommendation, Distributed Database, Real-time Data Warehouse, Autonomous Vehicle Platform, FinTech Trading, Global Mesh Network
+
+</details>
 
 ### Post-Test Improvements
 
