@@ -451,7 +451,7 @@ Netflix operates its own CDN — **Open Connect** — rather than relying entire
 
 - **ISP partnerships:** Netflix places Open Connect Appliances (OCAs) — purpose-built storage servers — directly inside ISP data centers and internet exchange points, free of charge. The ISP benefits from reduced bandwidth costs; Netflix benefits from extremely low-latency delivery to that ISP's subscribers.
 - **Push model:** OCAs are pre-populated each night during off-peak hours with the movies and shows predicted to be popular the next day, based on viewing history data. This is a pure Push CDN at the edge.
-- **Scale:** Open Connect delivers approximately 95% of Netflix video traffic globally. At peak, Netflix accounts for ~15% of all downstream internet traffic in North America.
+- **Scale:** Open Connect delivers [approximately 95%](https://openconnect.netflix.com/Open-Connect-Overview.pdf) of Netflix video traffic globally. At peak, Netflix accounts for ~15% of all downstream internet traffic in North America.
 - **Format strategy:** Files are transcoded into dozens of formats and bitrates, each stored as separate cached objects. Adaptive bitrate streaming means the CDN serves small video segments (~2-10 seconds each), not entire files.
 
 ### Cloudflare Network

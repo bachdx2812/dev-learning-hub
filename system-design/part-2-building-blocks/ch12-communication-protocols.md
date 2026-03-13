@@ -346,7 +346,7 @@ flowchart LR
 | Bidirectional streaming | N messages ↔ N messages | Chat, real-time collaboration |
 
 **gRPC advantages over REST:**
-- **2–5x smaller payload** — protobuf binary vs JSON text
+- **[2–5x smaller payload](https://auth0.com/blog/beating-json-performance-with-protobuf/)** — protobuf binary vs JSON text
 - **~10x faster serialization** — protobuf encoding/decoding is significantly faster
 - **Strongly typed contract** — `.proto` file acts as an API contract, breaking changes are caught at compile time
 - **Native streaming** — no polling or chunked transfer hacks needed
