@@ -22,11 +22,15 @@ title: AI Skills
 
 31 chapters of system design and design patterns knowledge — distilled into AI coding assistant skills. Get real-time architectural guidance, generate design plans, and review your codebase against best practices.
 
+All skills **ask clarifying questions** before responding — ensuring answers are tailored to your specific scale, constraints, and context.
+
 ## Available Skills
 
 ### `/system-design-advisor`
 
 **Answer system design questions.** Ask about scalability, databases, caching, CAP theorem, load balancing, microservices, or any distributed systems concept. Get structured answers with trade-off tables, recommendations, and key numbers.
+
+Asks about your scale, access pattern, and constraints when context is missing. Skips for conceptual questions.
 
 **Example prompts:**
 - *"Should I use SQL or NoSQL for my use case?"*
@@ -39,6 +43,8 @@ title: AI Skills
 
 **Generate complete system design plans.** Uses the 4-step framework (Requirements → Estimation → High-Level Design → Deep Dive) to produce structured plans for any system.
 
+Always asks 2-5 scoping questions first — target DAU, read/write ratio, consistency model, tech constraints — then generates a tailored plan.
+
 **Example prompts:**
 - *"Design a URL shortener"*
 - *"Architect a real-time chat messaging system"*
@@ -49,6 +55,8 @@ title: AI Skills
 ### `/architecture-reviewer`
 
 **Auto-scan and review your project architecture.** Reads your project configuration, identifies components, and evaluates against scalability, reliability, security, and observability checklists. Outputs a findings table with severity and recommendations.
+
+Gathers context about your scale targets, top concerns, and SLA before scanning. Say "just scan it" to skip.
 
 **Example prompts:**
 - *"Review my architecture"*
