@@ -169,19 +169,21 @@ graph TB
     REG -.->|Discovery| TRAIN
 ```
 
-### Feast vs Tecton
+### Feast vs Tecton (now Databricks Feature Store)
 
-| Dimension | Feast | Tecton |
+> **Note:** Tecton was [acquired by Databricks](https://www.databricks.com/product/data-intelligence-platform) and is now integrated into the Databricks platform. The comparison below reflects Tecton's capabilities as incorporated into Databricks.
+
+| Dimension | Feast | Tecton / Databricks Feature Store |
 |---|---|---|
-| **Type** | Open-source | Managed SaaS |
-| **Deployment** | Self-hosted on any cloud | [AWS, GCP, Databricks](https://www.tecton.ai/product/) — managed by Tecton |
-| **Online store** | Redis, DynamoDB, Bigtable | Tecton-managed DynamoDB |
-| **Offline store** | S3, GCS, BigQuery, Snowflake | S3, Snowflake, Databricks |
-| **Streaming support** | Via Kafka + custom jobs | Native Spark Streaming, Kinesis |
+| **Type** | Open-source | Managed SaaS (Databricks platform) |
+| **Deployment** | Self-hosted on any cloud | AWS, GCP, Azure — managed by Databricks |
+| **Online store** | Redis, DynamoDB, Bigtable | Managed DynamoDB / Databricks-native |
+| **Offline store** | S3, GCS, BigQuery, Snowflake | Delta Lake, S3, Snowflake |
+| **Streaming support** | Via Kafka + custom jobs | Native Spark Structured Streaming |
 | **Point-in-time joins** | Yes (offline only) | Yes (offline + backfills) |
 | **Transformation engine** | External (user brings Spark/dbt) | Built-in Spark + managed pipelines |
-| **Best for** | Teams wanting full control, budget-conscious | Large enterprises, managed infra preferred |
-| **Operational overhead** | High — you run Redis, Spark, registry | Low — Tecton manages the stack |
+| **Best for** | Teams wanting full control, budget-conscious | Large enterprises, Databricks ecosystem |
+| **Operational overhead** | High — you run Redis, Spark, registry | Low — fully managed stack |
 
 **Design rule:** Use a feature store when: (a) more than one model uses the same feature, (b) features are expensive to compute (aggregations over billions of rows), or (c) the training-serving gap has caused accuracy regressions in production. For a single-model prototype, a feature store is premature.
 
@@ -475,7 +477,7 @@ Hierarchical Navigable Small World (HNSW) builds a multi-layer graph where each 
 | **Max scale** | Billions of vectors | Billions (self-hosted) | Millions (Postgres limits) |
 | **Latency (10M vectors)** | ~10ms P99 | ~15ms P99 (self-hosted) | ~50–200ms (depends on memory) |
 | **Multi-tenancy** | Namespaces | Multi-tenancy built-in | Schema separation |
-| **Cost** | [Usage-based](https://www.pinecone.io/pricing/) (free starter, paid from ~$25/month) | Infra cost + managed fees | Postgres instance cost |
+| **Cost** | [Usage-based](https://www.pinecone.io/pricing/) (free starter, paid from $50/month) | Infra cost + managed fees | Postgres instance cost |
 | **Best for** | Production RAG, fast start | Open-source preference, hybrid search | Teams already on Postgres; <10M vectors |
 | **Weakness** | Vendor lock-in; no raw index access | Operational complexity if self-hosted | Not designed for vector-first workloads |
 

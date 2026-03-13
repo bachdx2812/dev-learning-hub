@@ -282,7 +282,7 @@ DNS and load balancers are complementary, not competing: DNS routes traffic to t
 
 ## Real-World: How Cloudflare DNS Handles Billions of Queries
 
-Cloudflare operates the world's fastest public DNS resolver (1.1.1.1) and manages authoritative DNS for millions of customer domains. As of 2024, Cloudflare handles over [1.7 trillion DNS queries per day](https://blog.cloudflare.com/dns-encryption-explained/).
+Cloudflare operates the world's fastest public DNS resolver (1.1.1.1) and manages authoritative DNS for millions of customer domains. As of 2024, Cloudflare handles [trillions of DNS queries per day](https://www.cloudflare.com/learning/dns/what-is-1.1.1.1/).
 
 **Anycast routing:** Cloudflare's entire infrastructure uses BGP anycast. The IP address `1.1.1.1` is announced from 300+ data centers worldwide. When your device queries `1.1.1.1`, the internet's routing infrastructure automatically directs the packet to the nearest Cloudflare PoP — not a specific server, but the nearest announcement point. This ensures sub-5ms latency for most of the world's internet users.
 
