@@ -44,6 +44,10 @@ Back-of-envelope estimation is the art of quickly approximating the scale of a s
 
 This chapter is a **reference chapter**. Return to it every time you start a new system design problem. The numbers here feed directly into every case study in Part 4.
 
+::: tip DAU/MAU Numbers Change Frequently
+The user counts in worked examples below reflect approximate figures as of 2024. Exact DAU/MAU numbers change quarterly — what matters for estimation exercises is the **technique and order-of-magnitude reasoning**, not the precise input values. In interviews, ask your interviewer for the DAU assumption or state your own clearly.
+:::
+
 As described in [Chapter 3 — Core Trade-offs](/system-design/part-1-fundamentals/ch03-core-tradeoffs), estimation is Step 2 of the interview framework: you clarify requirements, then you **estimate scale** before drawing a single box.
 
 > **Why interviewers care:** Estimation reveals whether you think at system scale or algorithm scale. An engineer who says "we'll need about 150 TB/day of storage for media" is thinking like a systems engineer. One who says "it depends" is not.
@@ -95,9 +99,9 @@ Everything in computing is binary. These are the numbers you must know without t
 
 ---
 
-## Latency Numbers Every Programmer Should Know
+## Latency Numbers Every Programmer Should Know (2008 Baseline)
 
-Originally published by Jeff Dean (Google). These numbers are approximate but stable enough for estimates. Memorize the order of magnitude, not the exact value.
+Originally published by Jeff Dean (Google, ~2008). These numbers are approximate but stable enough for estimation exercises. Modern hardware has improved many of these values — memorize the **order of magnitude**, not the exact value.
 
 | Operation | Latency | Notes |
 |-----------|---------|-------|
@@ -158,23 +162,23 @@ Peak QPS    = Average QPS × 2 to 3
 Where:
 - **DAU** = Daily Active Users
 - **86,400** = seconds per day (60 × 60 × 24)
-- **Peak multiplier** = 2–3× accounts for traffic spikes (evening peak, viral events)
+- **Peak multiplier** = 2–3× is a common default for consumer apps, but varies significantly by domain: news/media sites may spike 50–100× during breaking events, while banking apps typically peak at only 1.2–1.5× average. Always research domain-specific patterns.
 
 ### Worked Example: Twitter Read QPS
 
 **Assumptions:**
-- 300 million DAU
+- ~500 million DAU (approximate as of 2023; exact figures vary by source)
 - Each user reads their timeline ~10 times per day
 - Average of 20 tweets shown per timeline load
 
 **Calculation:**
 ```
-Timeline loads per day = 300M × 10 = 3 billion
-Reads per second (avg) = 3,000,000,000 ÷ 86,400 ≈ 34,700 QPS
-Peak QPS               = 34,700 × 3 ≈ 100,000 QPS
+Timeline loads per day = 500M × 10 = 5 billion
+Reads per second (avg) = 5,000,000,000 ÷ 86,400 ≈ 57,870 QPS
+Peak QPS               = 57,870 × 3 ≈ 174,000 QPS
 ```
 
-**What this tells us:** Twitter needs to serve ~100,000 read QPS at peak. This immediately implies caching is mandatory — no database can handle 100K QPS on live queries without a cache layer in front of it.
+**What this tells us:** Twitter/X needs to serve ~174,000 read QPS at peak. This immediately implies caching is mandatory — no database can handle 100K+ QPS on live queries without a cache layer in front of it.
 
 ### Quick QPS Conversions
 
@@ -214,24 +218,24 @@ With Replication = Total Storage × Replication Factor (3×)
 ### Worked Example: Instagram Photo Storage
 
 **Assumptions:**
-- 500 million DAU
-- 10% of users post one photo per day = 50 million photos/day
+- ~1.3 billion DAU (approximate as of 2024)
+- 10% of users post one photo per day = 130 million photos/day
 - Average photo size after compression: 300 KB
 - Thumbnails generated: 3 sizes × 20 KB = 60 KB per photo
 - Metadata per photo: 1 KB
 
 **Calculation:**
 ```
-Photo data/day  = 50M × 300 KB  = 15,000,000,000 KB = ~15 TB/day
-Thumbnail data  = 50M × 60 KB   = 3,000,000,000 KB  = ~3 TB/day
-Metadata/day    = 50M × 1 KB    = 50,000,000 KB      = ~50 GB/day
+Photo data/day  = 130M × 300 KB  = 39,000,000,000 KB = ~39 TB/day
+Thumbnail data  = 130M × 60 KB   = 7,800,000,000 KB  = ~8 TB/day
+Metadata/day    = 130M × 1 KB    = 130,000,000 KB     = ~130 GB/day
 
-Total raw/day   ≈ 18 TB/day
-With 3× replication = 54 TB/day
-5-year total    = 18 TB × 365 × 5 × 3 = ~100 PB
+Total raw/day   ≈ 47 TB/day
+With 3× replication = 141 TB/day
+5-year total    = 47 TB × 365 × 5 × 3 = ~257 PB
 ```
 
-**What this tells us:** Instagram-scale photo storage demands dedicated object storage (S3-equivalent), not block storage. At 100 PB over 5 years, the cost alone justifies aggressive compression and tiered storage strategies.
+**What this tells us:** Instagram-scale photo storage demands dedicated object storage (S3-equivalent), not block storage. At ~257 PB over 5 years, the cost alone justifies aggressive compression and tiered storage strategies.
 
 ---
 
@@ -247,16 +251,16 @@ Inbound Bandwidth  = Write QPS × Average Request Size
 ### Worked Example: Twitter Bandwidth
 
 **Assumptions (continuing from QPS example above):**
-- Read QPS: 34,700 (average), 100,000 (peak)
+- Read QPS: 57,870 (average), 174,000 (peak)
 - Average timeline response: 20 tweets × 300 bytes = 6,000 bytes = ~6 KB
 
 **Calculation:**
 ```
-Average outbound = 34,700 QPS × 6 KB  = 208,200 KB/s ≈ 200 MB/s
-Peak outbound    = 100,000 QPS × 6 KB = 600,000 KB/s ≈ 600 MB/s
+Average outbound = 57,870 QPS × 6 KB  = 347,220 KB/s ≈ 340 MB/s
+Peak outbound    = 174,000 QPS × 6 KB = 1,044,000 KB/s ≈ 1 GB/s
 ```
 
-**What this tells us:** At 600 MB/s peak egress, Twitter's network infrastructure must handle ~5 Gbps of outbound traffic from timeline endpoints alone. CDN caching of popular content is essential to reduce origin server load.
+**What this tells us:** At ~1 GB/s peak egress, Twitter/X's network infrastructure must handle ~8 Gbps of outbound traffic from timeline endpoints alone. CDN caching of popular content is essential to reduce origin server load.
 
 ---
 
@@ -268,12 +272,12 @@ This step-by-step walkthrough shows how to chain assumptions into a complete est
 
 ```mermaid
 flowchart TD
-    A["State Assumptions\n300M DAU\n500M tweets/day"] --> B["Estimate Text Storage\n500M × 300 bytes = 150 GB/day"]
-    B --> C["Estimate Media Storage\n10% have images\n50M × 200 KB = 10 TB/day"]
-    C --> D["Add Metadata\n500M × 100 bytes = 50 GB/day"]
-    D --> E["Sum Daily Total\n~10.2 TB/day"]
-    E --> F["Apply Replication\n10.2 TB × 3 = ~30 TB/day"]
-    F --> G["Project 5-Year Total\n30 TB × 365 × 5 = ~55 PB"]
+    A["State Assumptions\n500M DAU\n800M tweets/day"] --> B["Estimate Text Storage\n800M × 300 bytes = 240 GB/day"]
+    B --> C["Estimate Media Storage\n10% have images\n80M × 200 KB = 16 TB/day"]
+    C --> D["Add Metadata\n800M × 100 bytes = 80 GB/day"]
+    D --> E["Sum Daily Total\n~40 TB/day"]
+    E --> F["Apply Replication\n40 TB × 3 = ~120 TB/day"]
+    F --> G["Project 5-Year Total\n120 TB × 365 × 5 = ~219 PB"]
     G --> H["Conclusion\nDistributed object storage required\nCDN for media delivery"]
 
     style A fill:#6272a4,color:#f8f8f2,stroke:#44475a
@@ -283,8 +287,8 @@ flowchart TD
 ### Step-by-Step Calculation
 
 **Step 1: State assumptions clearly**
-- Daily Active Users (DAU): 300 million
-- Tweets posted per day: 500 million
+- Daily Active Users (DAU): ~500 million
+- Tweets posted per day: ~800 million
 - Average tweet: 280 characters of text + 100 bytes metadata = ~300 bytes total
 - 10% of tweets contain one image (average 200 KB after compression)
 - 1% of tweets contain a video (average 2 MB for short video)
@@ -292,54 +296,54 @@ flowchart TD
 
 **Step 2: Text storage**
 ```
-Text per day = 500M tweets × 300 bytes
-             = 150,000,000,000 bytes
-             = 150 GB/day
+Text per day = 800M tweets × 300 bytes
+             = 240,000,000,000 bytes
+             = 240 GB/day
 ```
 
 **Step 3: Image storage**
 ```
-Tweets with images = 500M × 10%  = 50 million
-Image storage/day  = 50M × 200 KB = 10,000,000,000 KB
-                   = 10 TB/day
+Tweets with images = 800M × 10%  = 80 million
+Image storage/day  = 80M × 200 KB = 16,000,000,000 KB
+                   = 16 TB/day
 ```
 
 **Step 4: Video storage**
 ```
-Tweets with video = 500M × 1%    = 5 million
-Video storage/day = 5M × 2 MB    = 10,000,000 MB
-                  = 10 TB/day
+Tweets with video = 800M × 1%    = 8 million
+Video storage/day = 8M × 2 MB    = 16,000,000 MB
+                  = 16 TB/day
 ```
 
 **Step 5: Metadata (user data, indexes, etc.)**
 ```
-Metadata overhead ≈ 20% of total = ~4 TB/day (rough)
+Metadata overhead ≈ 20% of total = ~6 TB/day (rough)
 ```
 
 **Step 6: Sum daily total**
 ```
-Text:     0.15 TB/day
-Images:   10   TB/day
-Video:    10   TB/day
-Metadata:  4   TB/day
+Text:     0.24 TB/day
+Images:   16   TB/day
+Video:    16   TB/day
+Metadata:  6   TB/day
 ─────────────────────
-Total:  ~24.15 TB/day ≈ 25 TB/day
+Total:  ~38.24 TB/day ≈ 40 TB/day
 ```
 
 **Step 7: Apply replication factor**
 ```
-Storage with 3× replication = 25 TB × 3 = 75 TB/day
+Storage with 3× replication = 40 TB × 3 = 120 TB/day
 ```
 
 **Step 8: Project over 5 years**
 ```
-5-year storage = 75 TB/day × 365 days × 5 years
-               = 75 × 1,825
-               = 136,875 TB
-               ≈ 137 PB
+5-year storage = 120 TB/day × 365 days × 5 years
+               = 120 × 1,825
+               = 219,000 TB
+               ≈ 219 PB
 ```
 
-**Conclusion:** Twitter needs approximately **137 petabytes** of storage over 5 years. This demands a distributed object storage system (like S3 or HDFS), not a relational database. Media delivery via CDN is mandatory — serving 20 TB/day of media from origin servers alone is not viable.
+**Conclusion:** Twitter/X needs approximately **219 petabytes** of storage over 5 years. This demands a distributed object storage system (like S3 or HDFS), not a relational database. Media delivery via CDN is mandatory — serving 32 TB/day of media from origin servers alone is not viable.
 
 ---
 
@@ -347,33 +351,33 @@ Storage with 3× replication = 25 TB × 3 = 75 TB/day
 
 ### Assumptions
 
-- Monthly Active Users (MAU): 2 billion
-- DAU ≈ 30% of MAU = 600 million
+- Monthly Active Users (MAU): ~2.7 billion (as of 2024)
+- DAU ≈ 30% of MAU = ~800 million
 - Average videos watched per DAU per day: 5 videos
 - Average video duration: 5 minutes
-- Video quality: 720p at ~3 Mbps (megabits per second)
+- Video quality: blended average ~5 Mbps (mix of 720p, 1080p, and 4K streams)
 - Upload rate: 500 hours of video uploaded every minute
 
 ### Step-by-Step Calculation
 
 **Step 1: Daily video watch hours**
 ```
-Video views/day    = 600M DAU × 5 videos  = 3 billion views/day
-Watch minutes/day  = 3B × 5 min           = 15 billion minutes/day
-Watch hours/day    = 15B ÷ 60             = 250 million hours/day
+Video views/day    = 800M DAU × 5 videos  = 4 billion views/day
+Watch minutes/day  = 4B × 5 min           = 20 billion minutes/day
+Watch hours/day    = 20B ÷ 60             = ~333 million hours/day
 ```
 
 **Step 2: Outbound bandwidth (streaming)**
 ```
-Bandwidth per stream  = 3 Mbps = 3,000,000 bits/s
-Concurrent viewers    = 250M hours/day ÷ 24 hours
-                      = ~10.4M concurrent viewers (average)
+Bandwidth per stream  = 5 Mbps (blended average) = 5,000,000 bits/s
+Concurrent viewers    = 333M hours/day ÷ 24 hours
+                      = ~13.9M concurrent viewers (average)
 
-Average outbound BW   = 10.4M × 3 Mbps
-                      = 31.2 Tbps (terabits per second, average)
+Average outbound BW   = 13.9M × 5 Mbps
+                      = 69.5 Tbps (terabits per second, average)
 
 Peak outbound BW      = avg × 3 (peak hour multiplier)
-                      ≈ 93 Tbps
+                      ≈ 208 Tbps
 ```
 
 **Step 3: Inbound bandwidth (uploads)**
@@ -382,10 +386,10 @@ Upload rate = 500 hours of video/minute
            = 500 × 60 minutes of video/minute
            = 30,000 minutes of video/minute
 
-At 720p = 3 Mbps per stream:
-Inbound BW = 30,000 min/min × 3 Mbps
-           = 90,000 Mbps
-           = 90 Gbps upload ingestion bandwidth
+At blended 5 Mbps per stream:
+Inbound BW = 30,000 min/min × 5 Mbps
+           = 150,000 Mbps
+           = 150 Gbps upload ingestion bandwidth
 ```
 
 **Step 4: Storage for new uploads per day**
@@ -393,13 +397,13 @@ Inbound BW = 30,000 min/min × 3 Mbps
 New video/day    = 500 hrs/min × 60 min/hr × 24 hrs
                  = 720,000 hours of video/day
 
-At 720p (1.35 GB/hour raw, ~500 MB compressed):
-Storage/day      = 720,000 hrs × 500 MB
-                 = 360,000,000 MB
-                 ≈ 360 PB/day of new video
+At blended quality (~800 MB/hour compressed):
+Storage/day      = 720,000 hrs × 800 MB
+                 = 576,000,000 MB
+                 ≈ 576 TB/day of new video
 ```
 
-**Conclusion:** YouTube's bandwidth requirements (~90 Tbps peak outbound) make it one of the largest consumers of internet bandwidth globally. At this scale, YouTube must operate its own CDN infrastructure (Google Global Cache), peering directly with ISPs. No third-party CDN can handle this volume cost-effectively.
+**Conclusion:** YouTube's bandwidth requirements (~200+ Tbps peak outbound) make it one of the largest consumers of internet bandwidth globally. At this scale, YouTube must operate its own CDN infrastructure (Google Global Cache), peering directly with ISPs. No third-party CDN can handle this volume cost-effectively.
 
 ---
 
@@ -631,7 +635,7 @@ Attempt each estimate before reading the hint. Write your assumptions explicitly
 
 ### Beginner
 
-1. **Instagram Storage Estimation:** Estimate how much new storage Instagram requires per year, given ~500M DAU. State all assumptions (posting rate, photo/video mix, average file sizes, replication factor) before calculating. What is the monthly storage growth in petabytes?
+1. **Instagram Storage Estimation:** Estimate how much new storage Instagram requires per year, given ~1.3B DAU. State all assumptions (posting rate, photo/video mix, average file sizes, replication factor) before calculating. What is the monthly storage growth in petabytes?
 
    <details>
    <summary>Hint</summary>
@@ -654,7 +658,7 @@ Attempt each estimate before reading the hint. Write your assumptions explicitly
    Each message generates at minimum 2 events (sent + delivered receipt); apply the standard 2–3× peak multiplier over the daily average QPS.
    </details>
 
-4. **Netflix Bandwidth Estimation:** Estimate Netflix's total outbound bandwidth during peak evening hours (~8 PM local time). ~200M subscribers globally; assume 10% concurrently streaming. Use a blended bitrate of 3 Mbps across quality tiers. Express the answer in Tbps and compare to known internet backbone capacities.
+4. **Netflix Bandwidth Estimation:** Estimate Netflix's total outbound bandwidth during peak evening hours (~8 PM local time). ~300M subscribers globally; assume 10% concurrently streaming. Use a blended bitrate of 3 Mbps across quality tiers. Express the answer in Tbps and compare to known internet backbone capacities.
 
    <details>
    <summary>Hint</summary>

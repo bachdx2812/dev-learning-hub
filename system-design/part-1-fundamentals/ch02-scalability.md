@@ -352,7 +352,7 @@ flowchart LR
 
 ## Case Study: Stack Overflow — Scale Vertically First
 
-Stack Overflow is one of the most visited developer resources in the world — and one of the most counterintuitive infrastructure stories. While most companies at similar traffic levels operate hundreds of servers across multiple cloud regions, Stack Overflow serves over **1.3 billion page views per month** from approximately **9 web servers** and a handful of database machines. As of 2021, the primary SQL Server database runs on a single powerful on-premises machine.
+Stack Overflow is one of the most visited developer resources in the world — and one of the most counterintuitive infrastructure stories. While most companies at similar traffic levels operate hundreds of servers across multiple cloud regions, Stack Overflow serves over **1.3 billion page views per month** (as of 2021) from approximately **9 web servers** and a handful of database machines. As of 2021, the primary SQL Server database runs on a single powerful on-premises machine.
 
 This is not a legacy accident. It is a deliberate architectural philosophy: **optimize the machine you have before adding machines you don't need**.
 

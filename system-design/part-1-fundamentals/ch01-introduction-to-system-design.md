@@ -42,6 +42,8 @@ mindmap
 
 System design is the process of defining the architecture, components, modules, interfaces, and data flow of a system to satisfy specified requirements. Unlike algorithm problems — which test your ability to solve well-defined puzzles with optimal code — system design asks you to reason about ambiguous, large-scale problems where there is no single correct answer. You are not writing code; you are making architectural decisions that will affect millions of users, engineering teams for years to come, and company revenue.
 
+Systems thinking in this context means designing for **measurable scale** (how many QPS, how much storage), **predictable failure modes** (what breaks first and how you recover), and **operational requirements** (monitoring, deployment, cost). It is not about designing for unknowns — it is about systematically converting unknowns into known constraints through estimation and requirements gathering.
+
 This chapter lays the foundation for everything that follows. We define what system design is, why distributed systems became necessary, introduce the five key properties every system must balance, and walk through a practical interview framework you can use immediately.
 
 ---
