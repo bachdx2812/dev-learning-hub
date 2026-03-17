@@ -58,6 +58,10 @@ mindmap
         HNSW
 ```
 
+:::info Prerequisites
+This chapter assumes familiarity with storage engine fundamentals ([Ch01](/database/part-1-foundations/ch01-database-landscape)) and PostgreSQL internals ([Ch05](/database/part-2-engines/ch05-postgresql-in-production)). Review those first if needed.
+:::
+
 ---
 
 ## Time-Series Databases
@@ -664,6 +668,17 @@ flowchart LR
 | [Ch07 — NoSQL at Scale](/database/part-2-engines/ch07-nosql-at-scale) | Redis as time-series cache layer |
 | [System Design Ch09](/system-design/part-2-building-blocks/ch09-databases-sql) | SQL databases in system design |
 | [System Design Ch10](/system-design/part-2-building-blocks/ch10-databases-nosql) | NoSQL and specialized DBs in system design |
+
+---
+
+## Common Mistakes
+
+| Mistake | Why It Happens | Impact | Fix |
+|---------|---------------|--------|-----|
+| Using Elasticsearch as a primary datastore | "It stores documents and is queryable" | No transactions, limited write throughput, complex shard management for OLTP | Use Elasticsearch as a search projection only; maintain the source of truth in PostgreSQL or MongoDB |
+| Using ClickHouse for OLTP workloads | "It's a database, right?" | MergeTree is designed for batch inserts; frequent single-row updates cause merge backlog | ClickHouse is analytics-only; route OLTP writes to PostgreSQL/MySQL, CDC to ClickHouse |
+| pgvector without HNSW index (defaults to brute force) | Not reading the setup docs | Every vector search is O(N); query time grows linearly with dataset size | Always `CREATE INDEX ... USING hnsw` after inserting embeddings; IVFFlat is the alternative |
+| Storing location data without TTL in a geospatial DB | "We might need history" | Driver/user location tables grow unbounded; query performance degrades | Separate current-location (with TTL) from historical-location (time-partitioned) storage |
 
 ---
 

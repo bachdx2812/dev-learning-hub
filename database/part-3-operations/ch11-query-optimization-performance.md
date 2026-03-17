@@ -50,6 +50,10 @@ mindmap
       Response runbook
 ```
 
+:::info Prerequisites
+This chapter assumes understanding of B-tree indexes and EXPLAIN basics ([Ch03](/database/part-1-foundations/ch03-indexing-strategies)) and PostgreSQL internals ([Ch05](/database/part-2-engines/ch05-postgresql-in-production)). Review those first if needed.
+:::
+
 ## Overview
 
 Most database performance problems are not hardware problems. They are query problems — queries that scan millions of rows to return one, JOINs that create intermediate result sets larger than memory, index choices that send the planner in the wrong direction. This chapter gives you the tools to find and fix these problems systematically.
@@ -149,6 +153,10 @@ flowchart TD
     style HJ fill:#bd93f9,color:#282a36
     style MJ fill:#6272a4,color:#f8f8f2
 ```
+
+:::info Version Note
+PostgreSQL examples verified against PostgreSQL 16/17. Autovacuum defaults and some `pg_stat_*` views changed in PostgreSQL 17 — check the [release notes](https://www.postgresql.org/docs/17/release-17.html) for your version.
+:::
 
 ---
 
@@ -683,6 +691,18 @@ ALTER TABLE files SET (
 | [Ch04 — Transactions & Concurrency](/database/part-1-foundations/ch04-transactions-concurrency-control) | Lock waits that appear in pg_stat_activity |
 | [Ch10 — Sharding & Partitioning](/database/part-3-operations/ch10-sharding-partitioning) | Partition pruning in EXPLAIN plans |
 | [Ch05 — PostgreSQL in Production](/database/part-2-engines/ch05-postgresql-in-production) | autovacuum, shared_buffers, and other tuning parameters |
+
+---
+
+## Common Mistakes
+
+| Mistake | Why It Happens | Impact | Fix |
+|---------|---------------|--------|-----|
+| Optimizing queries before checking EXPLAIN | "I know what's slow" | Optimizing the wrong part; missing the real bottleneck | Always run `EXPLAIN (ANALYZE, BUFFERS)` first; let data guide the fix |
+| Adding indexes without checking write impact | "Indexes always help reads" | 8 indexes on a 50K writes/sec table = 8 index updates per write | Check existing index usage with `pg_stat_user_indexes` before adding; remove unused ones first |
+| Ignoring connection pool saturation | "We have PgBouncer" | Pool is sized too small; connections queue; p99 latency spikes | Monitor `cl_waiting` in PgBouncer admin; resize pool to `(cores × 2) + spindles` formula |
+| Using `OFFSET` for pagination on large tables | "It's just pagination" | `OFFSET 100000` scans and discards 100K rows on every page load | Switch to keyset (cursor) pagination using `WHERE (created_at, id) < ($last_ts, $last_id)` |
+| Setting `work_mem` globally to a high value | "Memory is cheap" | `work_mem × concurrent_queries × sorts_per_query` → OOM | Set `work_mem` per role or per transaction for known heavy queries; keep global default at 4–16MB |
 
 ---
 

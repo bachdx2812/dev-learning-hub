@@ -41,6 +41,10 @@ mindmap
       Latency Overhead
 ```
 
+:::info Prerequisites
+This chapter assumes you understand storage engine fundamentals, B-tree vs LSM trade-offs ([Ch01](/database/part-1-foundations/ch01-database-landscape)), and MVCC/isolation levels ([Ch04](/database/part-1-foundations/ch04-transactions-concurrency-control)). Review those first if needed.
+:::
+
 ---
 
 ## InnoDB Internals
@@ -428,6 +432,17 @@ Shopify runs one of the world's largest MySQL deployments. By 2014, their monoli
 | [Ch05 — PostgreSQL in Production](/database/part-2-engines/ch05-postgresql-in-production) | PostgreSQL vs MySQL internals comparison |
 | [Ch07 — NoSQL at Scale](/database/part-2-engines/ch07-nosql-at-scale) | When to move off SQL entirely |
 | [System Design Ch09](/system-design/part-2-building-blocks/ch09-databases-sql) | SQL database selection framework |
+
+---
+
+## Common Mistakes
+
+| Mistake | Why It Happens | Impact | Fix |
+|---------|---------------|--------|-----|
+| Using UUID as InnoDB primary key | UUIDs are globally unique and familiar | Random inserts cause B-tree page fragmentation; secondary index double-reads become expensive | Use auto-increment integer or ordered UUID v7 as clustered index primary key |
+| Ignoring Group Replication flow control | "Multi-primary is better" | Flow control throttles writes unpredictably when a node falls behind | Monitor `performance_schema.replication_group_member_stats`; tune `group_replication_flow_control_mode` |
+| Choosing NewSQL without measuring single-row latency overhead | "Distributed ACID solves everything" | CockroachDB/TiDB add 10–50ms per cross-shard transaction; unacceptable for OLTP | Benchmark p99 latency for your critical queries before migrating; single-region sharded MySQL may be faster |
+| Not using Vitess for horizontal MySQL scaling | "We'll shard the application manually" | Manual sharding creates cross-shard JOIN complexity and schema change pain | Vitess provides transparent sharding with online resharding and schema change tooling |
 
 ---
 

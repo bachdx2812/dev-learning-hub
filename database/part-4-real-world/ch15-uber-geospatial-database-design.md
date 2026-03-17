@@ -40,6 +40,10 @@ mindmap
       TTL for stale drivers
 ```
 
+:::info Prerequisites
+This chapter assumes familiarity with specialized database types ([Ch08](/database/part-2-engines/ch08-specialized-databases)) and sharding strategies ([Ch10](/database/part-3-operations/ch10-sharding-partitioning)). Review those first if needed.
+:::
+
 ## The Core Data Challenge
 
 Uber's primary database challenge is deceptively simple to state: **every few seconds, find all available drivers within 3km of a rider's location**. At scale, the numbers make this extraordinary:
@@ -341,6 +345,15 @@ Trip data flows from Docstore (OLTP source of truth) through Kafka CDC to ClickH
 | TTL is mandatory for ephemeral data | Location data without TTL accumulates unboundedly; 30-second TTL keeps the working set small and fast |
 | Separate current from historical | Current driver location (Redis, 8s TTL) and historical trip data (Docstore, permanent) are different data classes with different storage requirements |
 | Schema flexibility at app layer | Docstore's JSON body eliminated MySQL schema migrations; the cost is loss of strict type enforcement at the DB layer |
+
+## Common Mistakes
+
+| Mistake | Why It Happens | Impact | Fix |
+|---------|---------------|--------|-----|
+| Using geohash when H3 is available | Geohash is well-known and widely documented | Geohash cells vary in size and shape; diagonal neighbors are farther than cardinal neighbors | Use H3 hexagonal indexing for uniform adjacency and consistent distance calculations |
+| Storing location data without TTL | "We might need history" | Current-location table grows unboundedly; queries slow as working set exceeds RAM | Separate current-location (Redis/in-memory with 30s TTL) from historical-trip (permanent storage) |
+| Building custom geo-index instead of PostGIS | "PostGIS is complex" | Reinventing spatial indexing with hand-rolled bounding box queries is slower and buggier | Use PostGIS `ST_DWithin` with a GiST index for radius searches under 10M points; custom only at Uber-scale |
+| Not partitioning location data by time | "Location is location" | Write-heavy location table grows to billions of rows; backfill and maintenance become impossible | Partition current-location by city or region; partition historical-location by date |
 
 ## Related Chapters
 

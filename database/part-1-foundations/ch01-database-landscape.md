@@ -384,6 +384,18 @@ Shopify processes $75+ billion in annual merchant sales and serves millions of c
 
 ---
 
+## Common Mistakes
+
+| Mistake | Why It Happens | Impact | Fix |
+|---------|---------------|--------|-----|
+| Choosing DB by popularity instead of access pattern | "Everyone uses X" mentality | Mismatched performance characteristics from day one | Map your access patterns first, then evaluate databases |
+| Treating NoSQL as "better SQL" | Marketing and hype | Surprised by lack of JOINs, transactions, secondary indexes | Understand what each NoSQL type trades away before adopting |
+| Using graph DB for simple hierarchical data | "Graphs are good for relationships" | Unnecessary operational complexity for simple parent-child trees | Use PostgreSQL recursive CTEs or `ltree` for hierarchy depth < 10 |
+| Ignoring WAL level until replication is needed | Set-it-and-forget-it config | Switching from `minimal` to `replica` requires a restart | Set `wal_level = replica` from the start; the overhead is minimal |
+| Consolidating onto PostgreSQL-as-Platform without isolation | Simplicity is appealing | OLTP and analytical/vector workloads compete for CPU and I/O | Use dedicated read replicas or separate instances for workload isolation |
+
+---
+
 ## Practice Questions
 
 ### Beginner

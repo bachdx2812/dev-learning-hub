@@ -52,6 +52,10 @@ mindmap
       ProxySQL
 ```
 
+:::info Prerequisites
+This chapter assumes understanding of WAL mechanics ([Ch01](/database/part-1-foundations/ch01-database-landscape)) and replication fundamentals ([Ch09](/database/part-3-operations/ch09-replication-high-availability)). Review those first if needed.
+:::
+
 ## Overview
 
 Partitioning and sharding are related but distinct concepts. **Partitioning** divides a single large table into smaller physical segments within the same database server. **Sharding** distributes data across multiple independent database servers (shards), each owning a subset of the data. You should almost always try partitioning before sharding — it provides many of the same benefits (query pruning, partition-level vacuuming, parallel scans) without the operational complexity of a distributed system.
@@ -93,6 +97,10 @@ EXPLAIN SELECT * FROM events WHERE created_at >= '2024-01-15';
 ALTER TABLE events DETACH PARTITION events_2024_01;
 -- Now events_2024_01 is an independent table — attach to cold storage
 ```
+
+:::info Version Note
+PostgreSQL examples verified against PostgreSQL 16/17. Autovacuum defaults and some `pg_stat_*` views changed in PostgreSQL 17 — check the [release notes](https://www.postgresql.org/docs/17/release-17.html) for your version.
+:::
 
 ### LIST Partitioning (Category/Region)
 
@@ -613,6 +621,17 @@ Pin follows (user A → pin B):
 | [Ch11 — Query Optimization](/database/part-3-operations/ch11-query-optimization-performance) | Cross-shard query performance and EXPLAIN |
 | [Ch02 — Data Modeling for Scale](/database/part-1-foundations/ch02-data-modeling-for-scale) | Schema design that avoids cross-shard joins |
 | [System Design Ch10 — NoSQL Databases](/system-design/part-2-building-blocks/ch10-databases-nosql) | Consistent hashing and sharding in distributed systems |
+
+---
+
+## Common Mistakes
+
+| Mistake | Why It Happens | Impact | Fix |
+|---------|---------------|--------|-----|
+| Choosing shard key without analyzing query patterns | "user_id is always the right key" | Most queries require scatter-gather across all shards | List every query first; choose the key that keeps the top 80% of queries on a single shard |
+| Sharding too early | "We might need it someday" | Enormous operational complexity for a problem that doesn't exist yet | Try read replicas, vertical scaling, and table partitioning first; shard only when those are exhausted |
+| Cross-shard JOINs in application code | "We'll just query both shards and merge" | O(shards × rows) work; latency dominated by slowest shard | Denormalize data needed for common JOINs into the primary shard table at write time |
+| Using `created_at` as shard key | Range sharding is simple | All new writes land on the most recent shard; other shards are idle | Use consistent hash of user_id or tenant_id for uniform distribution |
 
 ---
 

@@ -47,6 +47,10 @@ mindmap
       Mixed storage
 ```
 
+:::info Prerequisites
+This chapter assumes familiarity with PostgreSQL production concepts ([Ch05](/database/part-2-engines/ch05-postgresql-in-production)) and sharding strategies ([Ch10](/database/part-3-operations/ch10-sharding-partitioning)). Review those first if needed.
+:::
+
 ## The Starting Point (2010–2012)
 
 Instagram launched in October 2010 with a remarkably simple stack: a single PostgreSQL 9.0 instance running on a dedicated server, with Django as the application framework and a custom Python backend. The founding engineers — Kevin Systrom and Mike Krieger — were not database specialists. They chose PostgreSQL because it was the best general-purpose relational database available and because they knew SQL.
@@ -396,6 +400,15 @@ Key architectural facts from Instagram engineering blog posts (2019–2023):
 | Partitioned tables for ephemeral data | Dropping a partition is 1,000× faster than deleting rows for TTL data |
 | Connection pooling is non-negotiable | PgBouncer in transaction mode is required at any scale above ~100 application servers |
 | Fan-out strategy must handle celebrity accounts | Pure fan-out-on-write fails when some users have 100M+ followers |
+
+## Common Mistakes
+
+| Mistake | Why It Happens | Impact | Fix |
+|---------|---------------|--------|-----|
+| Copying Instagram's sharding strategy without their scale | "They shard by user_id, so should we" | Sharding at 10K users adds massive complexity with no benefit | Only shard when you have exhausted read replicas, vertical scaling, and partitioning — Instagram didn't shard until 100M+ users |
+| Fan-out-on-write without capping follower count | "Push model is simpler for feed reads" | Posting for a celebrity with 100M followers fans out 100M writes | Use hybrid model: fan-out for users < 1M followers, pull for high-follower accounts at read time |
+| Storing like counts only in the aggregate column | "Counting is expensive, cache it" | Concurrent likes on viral posts cause lost-update races under extreme load | Buffer hot counters in Redis with `INCR`; flush to PostgreSQL periodically |
+| Not adapting Django ORM queries to shard-aware routing | ORM generates standard SQL | Cross-shard queries silently scatter; performance degrades | Implement a custom Django database router that enforces shard-key-aware queries |
 
 ## Related Chapters
 

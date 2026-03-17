@@ -47,6 +47,10 @@ mindmap
       Idempotency
 ```
 
+:::info Prerequisites
+This chapter assumes you understand WAL mechanics ([Ch01](/database/part-1-foundations/ch01-database-landscape)) and the schema design patterns that drive concurrency requirements ([Ch02](/database/part-1-foundations/ch02-data-modeling-for-scale)). Review those first if needed.
+:::
+
 ## Overview
 
 Most application developers interact with transactions through a simple mental model: `BEGIN`, do some work, `COMMIT`. If something goes wrong, `ROLLBACK`. This model is correct for simple cases, but it breaks down when multiple transactions run concurrently — which is the normal state of any production database.
@@ -159,6 +163,10 @@ SSI detects the conflict by tracking that both transactions read the on-call cou
 
 :::warning Handle Serialization Failures
 Applications using SERIALIZABLE must handle `SQLSTATE 40001` (serialization failure) by retrying the transaction. This is not optional — SSI will abort transactions with detected conflicts. Libraries like `psycopg2` expose this as `TransactionRollbackError`.
+:::
+
+:::info Version Note
+PostgreSQL examples verified against PostgreSQL 16/17. Autovacuum defaults and some `pg_stat_*` views changed in PostgreSQL 17 — check the [release notes](https://www.postgresql.org/docs/17/release-17.html) for your version.
 :::
 
 ---
@@ -501,6 +509,17 @@ sequenceDiagram
 | [Ch03 — Indexing Strategies](/database/part-1-foundations/ch03-indexing-strategies) | How MVCC dead tuples interact with index maintenance |
 | [Ch09 — Replication & High Availability](/database/part-3-operations/ch09-replication-high-availability) | How transaction isolation interacts with replication lag |
 | [System Design Ch15 — Data Replication & Consistency](/system-design/part-3-architecture-patterns/ch15-data-replication-consistency) | CAP theorem and consistency models at the distributed level |
+
+---
+
+## Common Mistakes
+
+| Mistake | Why It Happens | Impact | Fix |
+|---------|---------------|--------|-----|
+| Using SERIALIZABLE for all transactions | "Maximum safety = always correct" | Unnecessary abort rate; every transaction incurs SSI tracking overhead | Use READ COMMITTED (default) for most; upgrade to SERIALIZABLE only for complex business invariants with write skew risk |
+| Holding locks during external API calls | Transaction wraps an HTTP call to payment provider | Lock held for seconds; timeouts cascade to deadlocks | Acquire data, close transaction, make external call, open new transaction to record result |
+| Ignoring deadlock retry logic | "Deadlocks are rare" | Unhandled `SQLSTATE 40P01` crashes the request | Retry on `serialization_failure` (40001) and `deadlock_detected` (40P01) with exponential backoff |
+| Using SELECT FOR UPDATE on high-contention rows without SKIP LOCKED | Unfamiliar with SKIP LOCKED | Job queue serializes — only one worker processes at a time | Use `FOR UPDATE SKIP LOCKED` for queue-style workloads |
 
 ---
 

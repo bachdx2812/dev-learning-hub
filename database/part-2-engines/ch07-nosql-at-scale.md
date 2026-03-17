@@ -43,6 +43,10 @@ mindmap
       Hinted Handoff
 ```
 
+:::info Prerequisites
+This chapter assumes familiarity with the NoSQL category overview from [Ch01](/database/part-1-foundations/ch01-database-landscape) and access-pattern-driven design from [Ch02](/database/part-1-foundations/ch02-data-modeling-for-scale). Review those first if needed.
+:::
+
 ---
 
 ## DynamoDB: Single-Table Design
@@ -615,6 +619,18 @@ Netflix's Chaos Engineering (randomly killing production instances) regularly va
 | [Ch02 — Data Modeling for Scale](/database/part-1-foundations/ch02-data-modeling-for-scale) | Access-pattern-driven design (applies to NoSQL) |
 | [Ch08 — Specialized Databases](/database/part-2-engines/ch08-specialized-databases) | When NoSQL is still not specialized enough |
 | [System Design Ch10](/system-design/part-2-building-blocks/ch10-databases-nosql) | NoSQL selection in system design interviews |
+
+---
+
+## Common Mistakes
+
+| Mistake | Why It Happens | Impact | Fix |
+|---------|---------------|--------|-----|
+| Using DynamoDB `Scan` instead of `Query` | "I need all records matching X" without setting up a GSI | Consumes all provisioned capacity; 100× more expensive than a Query | Design every access pattern as a `Query` on PK or a GSI before going live |
+| Using Cassandra `ALLOW FILTERING` in production | "It works in dev" | Full partition scan on every query; degrades to O(N) regardless of cardinality | Redesign the table with the filter column in the partition key or clustering key |
+| MongoDB unbounded array growth in embedded documents | "Embed for simplicity" | Document hits 16MB limit; index on the array grows without bound | Use the Outlier pattern — cap embedded array at N items, overflow to separate collection |
+| Redis without `maxmemory` policy | Default Redis config has no eviction | Memory exhausts; Redis crashes or becomes unresponsive | Set `maxmemory` + `maxmemory-policy allkeys-lru` in every production Redis config |
+| Cassandra tombstone accumulation from frequent deletes | Using DELETE for TTL-like cleanup | Read latency degrades 10-100× as tombstone scans grow | Replace explicit DELETEs with TTL (`USING TTL`) and TWCS compaction strategy |
 
 ---
 

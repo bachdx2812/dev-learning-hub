@@ -41,6 +41,10 @@ mindmap
       Edge Turso D1
 ```
 
+:::info Prerequisites
+This chapter synthesizes concepts from the entire guide. You should be familiar with the full database taxonomy from [Ch01](/database/part-1-foundations/ch01-database-landscape) and consistency models from [Ch04](/database/part-1-foundations/ch04-transactions-concurrency-control). The real-world case studies ([Ch13](/database/part-4-real-world/ch13-instagram-postgresql-at-scale)–[Ch15](/database/part-4-real-world/ch15-uber-geospatial-database-design)) illustrate the consequences of selection decisions made under this framework.
+:::
+
 ## The Decision Framework
 
 Database selection is an architectural decision that is expensive to reverse. A startup that chooses MongoDB in year 1 and needs to migrate to PostgreSQL in year 3 faces weeks of engineering time, significant risk, and possible downtime — exactly the pattern Discord experienced in [Chapter 14](/database/part-4-real-world/ch14-discord-data-layer-evolution).
@@ -473,6 +477,15 @@ Before finalizing any database selection decision:
 - [ ] Have you tried to solve the problem with PostgreSQL + extensions first?
 - [ ] If choosing a specialized database, what is the migration path back if requirements change?
 
+## Common Mistakes
+
+| Mistake | Why It Happens | Impact | Fix |
+|---------|---------------|--------|-----|
+| Choosing technology before defining access patterns | Engineers have database preferences; requirements feel vague early on | Schema, indexes, and sharding strategy all become wrong for the actual query shape | Write out the top 5 queries and their expected QPS before evaluating any database |
+| Adding databases to the stack without consolidation analysis | Specialized DBs feel exciting; each team picks their own | Polyglot sprawl — operational burden grows faster than the benefit, cross-DB consistency impossible | Apply the consolidation checklist: can PostgreSQL + an extension solve this? Only add a DB if the answer is clearly no |
+| Treating the framework as a one-time decision | Selection happens at project start and is never revisited | Database is kept past its useful life even after requirements shift | Re-evaluate the top decision factor every 6 months or after a major scale change |
+| Underestimating operational burden of self-hosted distributed databases | Benchmarks and demos show only the happy path | Cassandra or CockroachDB self-hosted requires dedicated expertise; teams without it face silent data loss and unavailability | Use managed services unless the team has already operated the database in production |
+
 ## Related Chapters
 
 | Chapter | Relevance |
@@ -484,6 +497,50 @@ Before finalizing any database selection decision:
 | [Ch13 — Instagram: PostgreSQL at Scale](/database/part-4-real-world/ch13-instagram-postgresql-at-scale) | PostgreSQL sharding in production |
 | [Ch14 — Discord: Data Layer Evolution](/database/part-4-real-world/ch14-discord-data-layer-evolution) | Case study of a migration driven by wrong initial choice |
 | [Ch15 — Uber: Geospatial Design](/database/part-4-real-world/ch15-uber-geospatial-database-design) | Custom database engineering for geospatial requirements |
+
+## Quick Reference Card
+
+A one-page summary of database selection criteria across all categories covered in this guide.
+
+### Database Categories at a Glance
+
+| Category | Examples | Consistency | Max Write QPS (single node) | Query Flexibility | Operational Complexity | Best For |
+|----------|---------|-------------|---------------------------|-------------------|----------------------|---------|
+| **RDBMS** | PostgreSQL, MySQL | Strong (ACID) | 10K–100K† | Any SQL query, JOINs | Medium | General-purpose, OLTP |
+| **Document** | MongoDB, CouchDB | Configurable | 20K–50K | Flexible JSON queries | Low–Medium | Variable schema, rapid dev |
+| **Key-Value** | Redis, DynamoDB | Eventual/Strong | 100K+ (Redis in-memory) | GET/SET by key only | Low | Caching, sessions, counters |
+| **Wide-Column** | Cassandra, ScyllaDB | Tunable | 50K–500K | Partition key required | High | Write-heavy, time-series |
+| **Graph** | Neo4j, TigerGraph | Strong | 5K–20K | Traversal queries | Medium | Social graphs, fraud, recommendations |
+| **Time-Series** | ClickHouse, TimescaleDB | Strong/Eventual | 1M–4M (ClickHouse) | SQL + time functions | Medium–High | Metrics, IoT, analytics |
+| **Search** | Elasticsearch, Meilisearch | Near real-time | 10K–50K (indexing) | Full-text, faceted | High (Elasticsearch) | Full-text search, logs |
+| **NewSQL** | CockroachDB, TiDB, Spanner | Distributed ACID | 10K–50K per node | Full SQL | High | Global ACID at scale |
+| **Vector** | pgvector, Pinecone, Qdrant | Eventual | N/A (batch indexed) | ANN similarity | Low (managed) | Semantic search, RAG, ML |
+
+†Highly workload-dependent. See [Ch01](/database/part-1-foundations/ch01-database-landscape) for nuance.
+
+### Decision Cheat Sheet
+
+| Question | If Yes → | If No → |
+|----------|---------|---------|
+| Need ACID transactions? | RDBMS or NewSQL | Consider NoSQL |
+| Need JOINs across entities? | RDBMS | Document or Key-Value |
+| Write-heavy (>50K writes/sec)? | Wide-Column or Time-Series | RDBMS handles it |
+| Need global distribution? | NewSQL (CockroachDB, Spanner) | Single-region RDBMS |
+| Schema changes frequently? | Document DB or RDBMS + JSONB | Strict RDBMS schema |
+| Need full-text search? | Elasticsearch (large scale) or PostgreSQL GIN (moderate) | Skip search engine |
+| Need vector similarity? | pgvector (<10M) or Pinecone (>10M) | Not applicable |
+| Team < 5 engineers? | Managed service (RDS, Atlas, DynamoDB) | Self-hosted is viable |
+| Budget-constrained? | PostgreSQL (free, extensible) | Evaluate managed options |
+
+### Cost Quick Reference (1TB, 1K writes/sec, single region)
+
+| Option | Monthly Cost | Ops Burden |
+|--------|-------------|-----------|
+| RDS PostgreSQL (db.r6g.xlarge) | ~$300–500 | Low |
+| Aurora PostgreSQL Serverless v2 | ~$400–1,200 | Very Low |
+| DynamoDB on-demand | ~$500–1,500 | None |
+| CockroachDB Cloud | ~$800–1,500 | Very Low |
+| Self-hosted Cassandra (3 nodes) | ~$600 + ops time | High |
 
 ## Practice Questions
 

@@ -26,9 +26,9 @@ Storage engines, data models, indexes, and transactions. The non-negotiable bedr
 | # | Chapter | Difficulty | ~Time |
 |---|---------|-----------|-------|
 | 01 | [The Database Landscape](/database/part-1-foundations/ch01-database-landscape) | Beginner | 30 min |
-| 02 | [Data Modeling for Scale](/database/part-1-foundations/ch02-data-modeling-for-scale) | Intermediate | 40 min |
-| 03 | [Indexing Strategies](/database/part-1-foundations/ch03-indexing-strategies) | Intermediate | 45 min |
-| 04 | [Transactions & Concurrency Control](/database/part-1-foundations/ch04-transactions-concurrency-control) | Advanced | 50 min |
+| 02 | [Data Modeling for Scale](/database/part-1-foundations/ch02-data-modeling-for-scale) | Intermediate | 35 min |
+| 03 | [Indexing Strategies](/database/part-1-foundations/ch03-indexing-strategies) | Intermediate | 40 min |
+| 04 | [Transactions & Concurrency Control](/database/part-1-foundations/ch04-transactions-concurrency-control) | Advanced | 45 min |
 
 ---
 
@@ -38,10 +38,10 @@ Under the hood of PostgreSQL, MySQL, the major NoSQL families, and specialized e
 
 | # | Chapter | Difficulty | ~Time |
 |---|---------|-----------|-------|
-| 05 | [PostgreSQL in Production](/database/part-2-engines/ch05-postgresql-in-production) | Intermediate | 45 min |
-| 06 | [MySQL & Distributed SQL](/database/part-2-engines/ch06-mysql-distributed-sql) | Intermediate | 40 min |
-| 07 | [NoSQL at Scale](/database/part-2-engines/ch07-nosql-at-scale) | Intermediate | 40 min |
-| 08 | [Specialized Databases](/database/part-2-engines/ch08-specialized-databases) | Intermediate | 35 min |
+| 05 | [PostgreSQL in Production](/database/part-2-engines/ch05-postgresql-in-production) | Intermediate | 40 min |
+| 06 | [MySQL & Distributed SQL](/database/part-2-engines/ch06-mysql-distributed-sql) | Intermediate | 35 min |
+| 07 | [NoSQL at Scale](/database/part-2-engines/ch07-nosql-at-scale) | Intermediate | 45 min |
+| 08 | [Specialized Databases](/database/part-2-engines/ch08-specialized-databases) | Intermediate | 50 min |
 
 ---
 
@@ -51,10 +51,10 @@ How to keep databases alive, fast, and consistent when they grow beyond a single
 
 | # | Chapter | Difficulty | ~Time |
 |---|---------|-----------|-------|
-| 09 | [Replication & High Availability](/database/part-3-operations/ch09-replication-high-availability) | Advanced | 45 min |
-| 10 | [Sharding & Partitioning](/database/part-3-operations/ch10-sharding-partitioning) | Advanced | 50 min |
-| 11 | [Query Optimization & Performance](/database/part-3-operations/ch11-query-optimization-performance) | Advanced | 45 min |
-| 12 | [Backup, Migration & Disaster Recovery](/database/part-3-operations/ch12-backup-migration-disaster-recovery) | Intermediate | 35 min |
+| 09 | [Replication & High Availability](/database/part-3-operations/ch09-replication-high-availability) | Advanced | 50 min |
+| 10 | [Sharding & Partitioning](/database/part-3-operations/ch10-sharding-partitioning) | Advanced | 45 min |
+| 11 | [Query Optimization & Performance](/database/part-3-operations/ch11-query-optimization-performance) | Advanced | 50 min |
+| 12 | [Backup, Migration & Disaster Recovery](/database/part-3-operations/ch12-backup-migration-disaster-recovery) | Intermediate | 55 min |
 
 ---
 
@@ -64,10 +64,10 @@ Full case studies from companies that solved hard database problems at scale. Sp
 
 | # | Chapter | Difficulty | ~Time |
 |---|---------|-----------|-------|
-| 13 | [Instagram: PostgreSQL at Scale](/database/part-4-real-world/ch13-instagram-postgresql-at-scale) | Advanced | 45 min |
-| 14 | [Discord: Data Layer Evolution](/database/part-4-real-world/ch14-discord-data-layer-evolution) | Advanced | 40 min |
-| 15 | [Uber: Geospatial Database Design](/database/part-4-real-world/ch15-uber-geospatial-database-design) | Advanced | 40 min |
-| 16 | [Database Selection Framework](/database/part-4-real-world/ch16-database-selection-framework) | Intermediate | 30 min |
+| 13 | [Instagram: PostgreSQL at Scale](/database/part-4-real-world/ch13-instagram-postgresql-at-scale) | Advanced | 30 min |
+| 14 | [Discord: Data Layer Evolution](/database/part-4-real-world/ch14-discord-data-layer-evolution) | Advanced | 30 min |
+| 15 | [Uber: Geospatial Database Design](/database/part-4-real-world/ch15-uber-geospatial-database-design) | Advanced | 30 min |
+| 16 | [Database Selection Framework](/database/part-4-real-world/ch16-database-selection-framework) | Intermediate | 35 min |
 
 ---
 
@@ -92,13 +92,13 @@ If you want the big-picture view of database selection first, read [System Desig
 4. **Attempt the practice questions** — each chapter has three difficulty tiers
 5. **Return to case studies** — Part 4 is most valuable after completing Parts 1–3
 
-**Total estimated time: ~10 hours across 16 chapters**
+**Total estimated time: ~11 hours across 16 chapters**
 
 ```
 $ cat handbook --sections
   database/
-    part-1-foundations/    4 chapters  (~2.8 hrs)
-    part-2-engines/        4 chapters  (~2.7 hrs)
-    part-3-operations/     4 chapters  (~2.9 hrs)
-    part-4-real-world/     4 chapters  (~2.6 hrs)
+    part-1-foundations/    4 chapters  (~2.5 hrs)
+    part-2-engines/        4 chapters  (~2.8 hrs)
+    part-3-operations/     4 chapters  (~3.3 hrs)
+    part-4-real-world/     4 chapters  (~2.1 hrs)
 ```

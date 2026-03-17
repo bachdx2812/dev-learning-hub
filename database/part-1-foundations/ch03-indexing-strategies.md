@@ -49,6 +49,10 @@ mindmap
       Unused Indexes
 ```
 
+:::info Prerequisites
+This chapter assumes familiarity with PostgreSQL's B-tree storage model from [Ch01](/database/part-1-foundations/ch01-database-landscape) and the schema design patterns from [Ch02](/database/part-1-foundations/ch02-data-modeling-for-scale). Review those first if needed.
+:::
+
 ## Overview
 
 Indexes are the single most impactful lever for query performance in relational databases. A query that takes 30 seconds without an index can take 3 milliseconds with the right one — a 10,000× improvement without changing a line of application code. But indexes are not free: every index doubles or triples the write amplification on the indexed table, consumes disk space, and must be maintained by autovacuum. This chapter teaches you to make every index decision deliberately.
@@ -134,6 +138,10 @@ EXPLAIN SELECT name FROM users WHERE email = 'alice@example.com';
 ```
 
 Index-only scans require the heap's visibility map to be current (updated by `VACUUM`). Tables with high churn may not benefit from index-only scans if the visibility map is stale.
+
+:::info Version Note
+PostgreSQL examples verified against PostgreSQL 16/17. Autovacuum defaults and some `pg_stat_*` views changed in PostgreSQL 17 — check the [release notes](https://www.postgresql.org/docs/17/release-17.html) for your version.
+:::
 
 ---
 
@@ -533,6 +541,18 @@ GitHub runs weekly jobs to identify indexes with `idx_scan < 10` over a 30-day w
 | [Ch02 — Data Modeling for Scale](/database/part-1-foundations/ch02-data-modeling-for-scale) | Schema design decisions that determine which indexes are needed |
 | [Ch04 — Transactions & Concurrency Control](/database/part-1-foundations/ch04-transactions-concurrency-control) | How MVCC and locking interact with index maintenance |
 | [Ch11 — Query Optimization & Performance](/database/part-3-operations/ch11-query-optimization-performance) | Advanced EXPLAIN ANALYZE, planner hints, query rewriting |
+
+---
+
+## Common Mistakes
+
+| Mistake | Why It Happens | Impact | Fix |
+|---------|---------------|--------|-----|
+| Indexing every foreign key by default | ORM/framework convention (Rails, Django) | Doubles write overhead on tables with 5+ FKs | Only index FKs you actually query by; check `pg_stat_user_indexes` |
+| Creating composite index in wrong column order | Not understanding the prefix rule | Index unused for most queries despite existing | Equality columns first, then range, then sort direction |
+| Never checking for unused indexes | "More indexes = faster reads" mindset | Bloated storage, slower writes on every INSERT/UPDATE | Query `pg_stat_user_indexes` monthly; drop indexes with `idx_scan = 0` after 30 days |
+| Using partial index without matching `WHERE` in queries | Forgot to replicate the filter in application code | Partial index never used; full table scan continues | The query's WHERE clause must exactly match the partial index predicate |
+| Rebuilding indexes with `REINDEX` instead of `REINDEX CONCURRENTLY` | Unfamiliar with the concurrent option | Exclusive lock blocks all writes for the duration | Use `REINDEX INDEX CONCURRENTLY` on PostgreSQL 12+ to rebuild without downtime |
 
 ---
 

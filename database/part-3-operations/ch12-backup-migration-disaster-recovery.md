@@ -52,6 +52,10 @@ mindmap
       Chaos engineering
 ```
 
+:::info Prerequisites
+This chapter assumes understanding of WAL mechanics ([Ch01](/database/part-1-foundations/ch01-database-landscape)) and streaming replication ([Ch09](/database/part-3-operations/ch09-replication-high-availability)). Review those first if needed.
+:::
+
 ## Overview
 
 Backup and disaster recovery are the unglamorous foundation of production database operations. Nobody talks about them until the moment they are needed, at which point the entire business is waiting. This chapter covers every layer of the DR stack: backup strategies with concrete RPO/RTO numbers, point-in-time recovery mechanics, zero-downtime migration patterns, and change data capture pipelines.
@@ -127,6 +131,10 @@ pgbackrest --stanza=myapp check
 # List available backups
 pgbackrest --stanza=myapp info
 ```
+
+:::info Version Note
+PostgreSQL examples verified against PostgreSQL 16/17. Autovacuum defaults and some `pg_stat_*` views changed in PostgreSQL 17 — check the [release notes](https://www.postgresql.org/docs/17/release-17.html) for your version.
+:::
 
 ### pg_dump: Logical Backups
 
@@ -755,6 +763,17 @@ flowchart TD
 | [Ch09 — Replication & HA](/database/part-3-operations/ch09-replication-high-availability) | Replication slots shared by Debezium and streaming standbys |
 | [Ch10 — Sharding & Partitioning](/database/part-3-operations/ch10-sharding-partitioning) | Sharding migrations require CDC or double-write patterns |
 | [Ch11 — Query Optimization](/database/part-3-operations/ch11-query-optimization-performance) | pg_stat_statements to validate query performance post-migration |
+
+---
+
+## Common Mistakes
+
+| Mistake | Why It Happens | Impact | Fix |
+|---------|---------------|--------|-----|
+| Never testing backup restoration | "We have backups, we're fine" | Backup is corrupted or incomplete; RTO is 10× longer than planned | Schedule quarterly PITR drills to a separate server; measure actual recovery time |
+| Using `pg_dump` for large database disaster recovery | "It's the standard backup tool" | `pg_dump` of a 5TB database takes 6–8 hours; far exceeds RTO | Use pgBackRest with incremental backups for databases > 100GB; reserve `pg_dump` for selective restores |
+| CDC without idempotent consumers | "Messages are processed once" | Network retries cause duplicate events; downstream data corrupted | Design all CDC consumers to be idempotent using the `txId` and `lsn` in the Debezium event as a deduplication key |
+| Skipping the expand-contract pattern for schema changes | "It's a quick ALTER TABLE" | Table lock blocks production traffic for minutes on large tables | Always use expand-contract for column renames, type changes, and NOT NULL additions on large tables |
 
 ---
 

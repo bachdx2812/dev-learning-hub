@@ -42,6 +42,10 @@ mindmap
       Embeds as columns
 ```
 
+:::info Prerequisites
+This chapter assumes familiarity with NoSQL data models ([Ch07](/database/part-2-engines/ch07-nosql-at-scale)), particularly Cassandra tombstones and compaction. Review that first if needed.
+:::
+
 ## Phase 1: MongoDB (2015–2017)
 
 Discord launched in May 2015 and chose MongoDB for the same reason many startups do: flexible schema, fast iteration, and a document model that matched the early mental model of "a message is a document."
@@ -362,6 +366,15 @@ This denormalization avoids secondary index lookups for the common case (display
 | Rust for data migration pipelines | No GC and controlled memory achieved 3.2M msg/sec throughput; Python or Java migrators would GC under this load |
 | Monitor compaction health, not just query latency | Cassandra's compaction falling behind was a leading indicator 30 minutes before query latency degraded |
 | Shard-per-core eliminates JVM as the bottleneck | ScyllaDB's architecture shift — not just a language change — reduced node count by 59% |
+
+## Common Mistakes
+
+| Mistake | Why It Happens | Impact | Fix |
+|---------|---------------|--------|-----|
+| Choosing Cassandra for small datasets | "It scales to petabytes" | Complex operational model, tombstone management, and eventual consistency with no benefit below 100GB | Use PostgreSQL or MongoDB for datasets under 1TB; Cassandra's strengths emerge at massive write volume |
+| Not testing with production tombstone patterns | Dev data has no deletes | Tombstone accumulation not discovered until production read latency spikes | Load test with realistic delete rates; set `tombstone_warn_threshold` monitoring before go-live |
+| Skipping dual-write validation before full cutover | "Migration tool was tested" | Subtle data transformation bugs only appear on edge-case documents | Run shadow reads comparing old vs new for at least 48 hours across all access patterns before cutover |
+| Underestimating JVM GC impact on tail latency | "Average latency is fine" | p99 latency spikes during GC pauses invisible in average metrics | Monitor p99/p999 latency, not average; GC pauses show up only in tail percentiles |
 
 ## Related Chapters
 

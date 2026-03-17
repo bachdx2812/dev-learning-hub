@@ -46,6 +46,10 @@ mindmap
       Aurora Global Database
 ```
 
+:::info Prerequisites
+This chapter assumes understanding of WAL mechanics ([Ch01](/database/part-1-foundations/ch01-database-landscape)) and PostgreSQL internals ([Ch05](/database/part-2-engines/ch05-postgresql-in-production)). Review those first if needed.
+:::
+
 ## Overview
 
 Replication serves two purposes: durability (your data survives hardware failure) and availability (your database survives node failure without downtime). These are related but distinct goals, and the architecture decisions you make optimize for one or both.
@@ -104,6 +108,10 @@ Rather than setting `synchronous_commit = on` globally (which adds latency to ev
 
 :::warning Synchronous Standby Failure Blocks Writes
 If `synchronous_standby_names` requires confirmation from a standby that goes down, the primary will block all commits. Always use `ANY 1 (standby1, standby2)` across two standbys so that losing one does not stop the primary.
+:::
+
+:::info Version Note
+PostgreSQL examples verified against PostgreSQL 16/17. Autovacuum defaults and some `pg_stat_*` views changed in PostgreSQL 17 — check the [release notes](https://www.postgresql.org/docs/17/release-17.html) for your version.
 :::
 
 ---
@@ -673,6 +681,17 @@ flowchart TD
 | [Ch10 — Sharding & Partitioning](/database/part-3-operations/ch10-sharding-partitioning) | When replication alone is not enough for write scaling |
 | [Ch12 — Backup & Disaster Recovery](/database/part-3-operations/ch12-backup-migration-disaster-recovery) | RPO/RTO planning and PITR for complete DR strategy |
 | [System Design Ch09 — SQL Databases](/system-design/part-2-building-blocks/ch09-databases-sql) | Replication and read replicas in system design interviews |
+
+---
+
+## Common Mistakes
+
+| Mistake | Why It Happens | Impact | Fix |
+|---------|---------------|--------|-----|
+| Assuming replicas are instantly consistent after a write | "Replication is fast" | Read-your-writes bugs: user posts content, refreshes, sees empty result | Implement session stickiness or LSN-based routing for reads following writes |
+| Not testing failover regularly | "Patroni handles it automatically" | Failover that has never been tested fails in unexpected ways during an actual incident | Run quarterly failover drills; verify Patroni promotes in < 40s and application reconnects |
+| Replication slots without monitoring (disk fill) | Slot created, standby goes offline | Primary's `pg_wal/` fills completely; database crashes | Alert when `pg_wal_lsn_diff(pg_current_wal_lsn(), restart_lsn) > 10GB`; set `max_slot_wal_keep_size` |
+| Using synchronous replication without `ANY 1` across two standbys | "I only have one standby" | Standby failure blocks all primary writes indefinitely | Always use `synchronous_standby_names = 'ANY 1 (s1, s2)'` across two standbys |
 
 ---
 

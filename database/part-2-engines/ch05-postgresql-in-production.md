@@ -50,6 +50,10 @@ mindmap
       PostGIS
 ```
 
+:::info Prerequisites
+This chapter assumes you understand WAL mechanics ([Ch01](/database/part-1-foundations/ch01-database-landscape)) and transaction isolation ([Ch04](/database/part-1-foundations/ch04-transactions-concurrency-control)). Review those first if needed.
+:::
+
 ---
 
 ## Architecture Internals
@@ -94,6 +98,10 @@ At startup, PostgreSQL allocates a single large shared memory segment that all b
 
 :::tip Shared Buffers and the OS Page Cache
 PostgreSQL operates a double-buffering system: data pages live in shared_buffers (PostgreSQL's own cache), and the same data also lives in the OS page cache. `effective_cache_size` tells the planner how much OS cache is available for index scans — it does not allocate memory, it only influences plan choices.
+:::
+
+:::info Version Note
+PostgreSQL examples verified against PostgreSQL 16/17. Autovacuum defaults and some `pg_stat_*` views changed in PostgreSQL 17 — check the [release notes](https://www.postgresql.org/docs/17/release-17.html) for your version.
 :::
 
 ---
@@ -545,6 +553,18 @@ Instagram scaled PostgreSQL from a single EC2 instance (2010) to thousands of sh
 | [Ch04 — Transactions & Concurrency](/database/part-1-foundations/ch04-transactions-concurrency-control) | MVCC driving the need for VACUUM |
 | [Ch06 — MySQL & Distributed SQL](/database/part-2-engines/ch06-mysql-distributed-sql) | PostgreSQL vs MySQL production trade-offs |
 | [System Design Ch09](/system-design/part-2-building-blocks/ch09-databases-sql) | SQL database selection in system design interviews |
+
+---
+
+## Common Mistakes
+
+| Mistake | Why It Happens | Impact | Fix |
+|---------|---------------|--------|-----|
+| Setting `shared_buffers` to 50%+ of RAM | "More cache = better" | OS page cache starved; kernel swapping at high connection counts | Keep `shared_buffers` at 25% of RAM; `effective_cache_size` at 75% (hint only, no allocation) |
+| Not monitoring XID age | "Autovacuum handles it" | Database refuses all writes when age exceeds limit | Alert when `age(datfrozenxid) > 1B`; investigate long-running transactions that block autovacuum |
+| Using PgBouncer session mode with prepared statements in transaction mode | Misread documentation | Prepared statements fail unpredictably across pool connections | Use protocol-level parameterized queries instead of SQL PREPARE/EXECUTE with transaction pooling |
+| Keeping `autovacuum_vacuum_scale_factor` at 20% on large tables | Default config left unchanged | Table with 100M rows only vacuumed after 20M dead tuples — bloat accumulates | Set per-table `autovacuum_vacuum_scale_factor = 0.01` for high-churn tables |
+| Not running `ANALYZE` after large bulk loads | "Autovacuum will handle it" | Planner uses stale statistics; bad query plans until autoanalyze triggers | Run `ANALYZE table_name` explicitly after loading millions of rows |
 
 ---
 

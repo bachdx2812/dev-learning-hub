@@ -40,6 +40,10 @@ mindmap
       Zero-Downtime Migrations
 ```
 
+:::info Prerequisites
+This chapter assumes familiarity with database categories from [Ch01](/database/part-1-foundations/ch01-database-landscape). Review SQL basics from [System Design Ch09](/system-design/part-2-building-blocks/ch09-databases-sql) if needed.
+:::
+
 ## Overview
 
 Most engineers design schemas by mapping their application's domain objects to tables: `User` becomes `users`, `Order` becomes `orders`. This is a reasonable starting point for small applications, but it fails at scale because it optimizes for the data shape, not the data access pattern.
@@ -498,6 +502,17 @@ Stripe never hard-deletes records. A deleted payment method has `deleted_at TIME
 | [Ch01 — The Database Landscape](/database/part-1-foundations/ch01-database-landscape) | Storage engine fundamentals that constrain schema choices |
 | [Ch03 — Indexing Strategies](/database/part-1-foundations/ch03-indexing-strategies) | How to index the schemas designed in this chapter |
 | [Ch04 — Transactions & Concurrency Control](/database/part-1-foundations/ch04-transactions-concurrency-control) | How MVCC and locking interact with schema design |
+
+---
+
+## Common Mistakes
+
+| Mistake | Why It Happens | Impact | Fix |
+|---------|---------------|--------|-----|
+| Denormalizing without measuring read/write ratio | "Denormalization = performance" heuristic | Write overhead grows unexpectedly on high-write tables | Measure actual read:write ratio first; denormalize only when reads dominate by 10:1+ |
+| Using JSON columns for queryable structured data | "Flexible schema is easier" | JSON queries are slow without expression indexes; schema is invisible to ORM | Use typed columns for frequently queried fields; reserve JSONB for truly variable attributes |
+| Skipping schema migration testing on production-size data | Dev database is tiny | `ALTER TABLE` that takes 1ms in dev takes 30 minutes on a 500M-row production table | Test every migration against a production-size copy before deploying |
+| Modeling all relationships as nullable foreign keys | Rails-style polymorphic pattern | Cannot enforce referential integrity; queries require `IS NOT NULL` filters | Use separate join tables or exclusive arc patterns for polymorphic associations |
 
 ---
 

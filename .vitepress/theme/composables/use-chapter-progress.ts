@@ -1,7 +1,7 @@
 import { ref, computed, onMounted } from 'vue'
 
 const STORAGE_KEY = 'handbook-progress'
-const TOTAL_CHAPTERS = 31
+const TOTAL_CHAPTERS = 47
 
 export function useChapterProgress() {
   const completed = ref<Record<string, boolean>>({})
