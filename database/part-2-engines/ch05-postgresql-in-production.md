@@ -530,6 +530,8 @@ FROM pg_stat_replication;
 
 ## Case Study: Instagram's PostgreSQL Journey
 
+*This is a brief operational summary. For the full deep dive into Instagram's sharding strategy, ID generation, and schema design, see [Ch13 — Instagram: PostgreSQL at Scale](/database/part-4-real-world/ch13-instagram-postgresql-at-scale).*
+
 Instagram launched in 2010 with a single PostgreSQL instance on a single EC2 server — a pattern that worked until they hit 1M users in 12 weeks.
 
 **Phase 1 — Single Primary (2010):** One PostgreSQL master, Django ORM, basic indexes. Handled 1M users before showing strain. Key optimization: aggressive `EXPLAIN ANALYZE` to eliminate sequential scans on the media and user tables.
@@ -569,14 +571,14 @@ Instagram launched in 2010 with a single PostgreSQL instance on a single EC2 ser
 1. **Shared Buffers Sizing:** A new 32GB RAM server will run PostgreSQL for a web application. What value would you set `shared_buffers` to, and why? What value would you set `effective_cache_size` to, and what does that parameter actually control?
 
    <details>
-   <summary>Hint</summary>
+   <summary>Model Answer</summary>
    `shared_buffers = 8GB` (25% of 32GB). `effective_cache_size = 24GB` (75% of 32GB). The critical distinction: `shared_buffers` allocates real memory at startup. `effective_cache_size` is only a hint to the planner about total available cache (PostgreSQL + OS) — it does not allocate any memory.
    </details>
 
 2. **VACUUM vs ANALYZE:** What is the difference between `VACUUM` and `ANALYZE` in PostgreSQL? Why would you run one without the other? Give a scenario where each is appropriate.
 
    <details>
-   <summary>Hint</summary>
+   <summary>Model Answer</summary>
    `VACUUM` reclaims space from dead tuples and updates the free space map. `ANALYZE` collects statistics about column distributions for the planner. Run `VACUUM` alone after a large DELETE/UPDATE to reclaim bloat. Run `ANALYZE` alone after a bulk INSERT — there are no dead tuples but the data distribution has changed, so planner statistics need refreshing.
    </details>
 
@@ -585,14 +587,14 @@ Instagram launched in 2010 with a single PostgreSQL instance on a single EC2 ser
 3. **PgBouncer Mode Selection:** Your application uses PostgreSQL advisory locks to prevent concurrent job execution, and `LISTEN/NOTIFY` for real-time push notifications. A colleague suggests deploying PgBouncer in transaction mode to reduce connection overhead. What problems would this cause?
 
    <details>
-   <summary>Hint</summary>
+   <summary>Model Answer</summary>
    Advisory locks held across transactions break in transaction mode — the lock is released when the connection returns to the pool between transactions. `LISTEN/NOTIFY` breaks entirely because notifications are tied to server sessions, not transactions. Recommendation: session mode for these workloads, or separate PgBouncer pools (transaction mode for regular OLTP, session mode for workers using advisory locks/NOTIFY).
    </details>
 
 4. **XID Wraparound Prevention:** Your DBA reports `age(datfrozenxid)` is at 1.2 billion for your main database. Autovacuum is enabled. Why is this still happening, and what steps would you take immediately?
 
    <details>
-   <summary>Hint</summary>
+   <summary>Model Answer</summary>
    Most common cause: a long-running transaction blocking autovacuum from freezing tuples. Check `pg_stat_activity` for old transactions. Immediate actions: (1) Kill long-running idle transactions. (2) Run `VACUUM FREEZE ANALYZE` manually on the oldest tables from `pg_class`. (3) Check if autovacuum is being blocked by lock contention (`pg_locks` + `pg_stat_activity`). (4) Consider increasing `autovacuum_freeze_max_age` to give more runway.
    </details>
 
@@ -601,7 +603,7 @@ Instagram launched in 2010 with a single PostgreSQL instance on a single EC2 ser
 5. **Production Tuning:** A 64GB RAM / NVMe SSD server runs PostgreSQL for order processing (20K writes/second, 5K reads/second). Autovacuum consumes 60% of disk I/O blocking queries. Checkpoints fire every 2 minutes. `work_mem = 256MB` causing OOM errors. Design a tuning plan addressing all three problems.
 
    <details>
-   <summary>Hint</summary>
+   <summary>Model Answer</summary>
    Autovacuum I/O: increase `autovacuum_vacuum_cost_delay = 10ms`, `autovacuum_vacuum_cost_limit = 400` (slows burst I/O). Alternatively, use per-table settings for the high-churn tables only. Frequent checkpoints: at 20K writes/sec × ~500 bytes each = 10MB/s WAL, a 2-min checkpoint accumulates only 1.2GB — increase `max_wal_size = 8GB` and `checkpoint_timeout = 15min`. OOM from work_mem: reduce to 16–32MB; with 16 cores × 200 connections × 256MB = 800GB potential allocation, even 32MB can be dangerous under heavy concurrent sorts. Accept occasional disk spills for rare complex queries rather than OOM risk.
    </details>
 

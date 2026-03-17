@@ -543,14 +543,14 @@ GitHub runs weekly jobs to identify indexes with `idx_scan < 10` over a 30-day w
 1. **Index Selection:** An orders table has columns `(id, customer_id, status, total_amount, created_at)`. You run this query frequently: `SELECT * FROM orders WHERE customer_id = $1 AND status = 'pending'`. What index would you create? Would you change your answer if only 2% of orders are pending vs if 60% of orders are pending?
 
    <details>
-   <summary>Hint</summary>
+   <summary>Model Answer</summary>
    With 2% pending: a partial index `ON orders (customer_id) WHERE status = 'pending'` is very selective and tiny. With 60% pending: the partial index loses value (too many rows match); a composite index `ON orders (customer_id, status)` is better since the status column filters effectively from the customer_id prefix.
    </details>
 
 2. **EXPLAIN ANALYZE:** You run `EXPLAIN ANALYZE SELECT * FROM users WHERE email = 'test@example.com'` and see `Seq Scan on users (rows=1 actual rows=0)`. What does this mean and what would you do?
 
    <details>
-   <summary>Hint</summary>
+   <summary>Model Answer</summary>
    A sequential scan means no usable index was found. `actual rows=0` means the query returned no results. Create `CREATE INDEX ON users (email)` or `CREATE UNIQUE INDEX ON users (email)` if emails are unique. Run `ANALYZE users` to update statistics. Then re-run EXPLAIN to verify it switches to Index Scan.
    </details>
 
@@ -559,14 +559,14 @@ GitHub runs weekly jobs to identify indexes with `idx_scan < 10` over a 30-day w
 3. **Composite Index Design:** A search query filters on `(tenant_id = $1 AND category_id = $2 AND price BETWEEN $3 AND $4)` and sorts by `price ASC`. The table has 50M rows, 1000 tenants, 200 categories, and price ranging from $1–$10,000. Design the optimal composite index and explain the column ordering.
 
    <details>
-   <summary>Hint</summary>
+   <summary>Model Answer</summary>
    Equality columns first: `tenant_id, category_id` (both equality predicates). Range column last: `price`. Sort direction matches: `ASC`. Final: `CREATE INDEX ON products (tenant_id, category_id, price ASC)`. This also satisfies the ORDER BY without a separate sort step.
    </details>
 
 4. **GIN vs B-Tree:** A product catalog stores product attributes as JSONB. Two common queries: (a) `WHERE attributes->>'brand' = 'Apple'` run 10K times/day, (b) `WHERE attributes @> '{"brand":"Apple","color":"silver"}'` run 1K times/day. Would you create a GIN index on the entire `attributes` column, an expression index on `attributes->>'brand'`, or both? Justify.
 
    <details>
-   <summary>Hint</summary>
+   <summary>Model Answer</summary>
    For (a) alone: expression index `ON products ((attributes->>'brand'))` is smaller and faster than GIN for single-key lookups. For (b) alone: GIN index on `attributes` is required for containment queries. With both query types at these volumes: add the expression index for (a)'s performance + GIN for (b)'s correctness. The expression index will be used for the exact key match, GIN for the containment query.
    </details>
 
@@ -575,7 +575,7 @@ GitHub runs weekly jobs to identify indexes with `idx_scan < 10` over a 30-day w
 5. **Index Maintenance Strategy:** A SaaS application has a `user_events` table receiving 200K inserts/minute. The table grows at 500GB/month. Operations team reports that `INSERT` latency has grown from 5ms to 85ms over 6 months. The table currently has 12 indexes. How would you diagnose the problem, and what index maintenance strategy would you implement? Include specific SQL.
 
    <details>
-   <summary>Hint</summary>
+   <summary>Model Answer</summary>
    Diagnosis: (1) Query `pg_stat_user_indexes` for `idx_scan` counts — likely 3–4 indexes have zero or near-zero scans. (2) Check index bloat. (3) Check `pg_stat_user_tables.n_dead_tup` for autovacuum health. Strategy: (1) Drop unused indexes with `DROP INDEX CONCURRENTLY`. (2) Convert full indexes to partial indexes covering only the last 30 days of events. (3) Implement time-based partitioning so old partitions (and their indexes) can be dropped cheaply. Target: 4–6 indexes maximum.
    </details>
 

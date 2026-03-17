@@ -623,14 +623,14 @@ Pin follows (user A → pin B):
 1. **Partitioning Basics:** An e-commerce database has an `orders` table with 500 million rows. 90% of queries filter by `created_at` within the last 30 days. The DBA wants to archive and delete data older than 2 years. How should they partition this table, and what SQL would they use to delete all orders from 2021?
 
    <details>
-   <summary>Hint</summary>
+   <summary>Model Answer</summary>
    RANGE partition by created_at with monthly or yearly partitions. To "delete" 2021 data without a slow DELETE: `ALTER TABLE orders DETACH PARTITION orders_2021;` — this is instantaneous because it only removes the partition from the parent table's catalog, not the data. Then `DROP TABLE orders_2021;` or move it to cold storage.
    </details>
 
 2. **Hot Shard Problem:** A sharded user database uses `created_at` as the shard key. After launch, nearly all new user registrations go to shard 3 (the most recent shard). The DBA observes shard 3 at 95% CPU while shards 0–2 are idle. Explain why this happened and what shard key would have prevented it.
 
    <details>
-   <summary>Hint</summary>
+   <summary>Model Answer</summary>
    created_at is monotonically increasing — all new users land on the most recent shard range. `user_id` (with consistent hashing) would distribute uniformly because the hash function maps sequential IDs to different positions on the ring. Alternatively, hash(user_id) % num_shards distributes new users evenly regardless of their sequential ID.
    </details>
 
@@ -644,14 +644,14 @@ Pin follows (user A → pin B):
    Design a sharding strategy that keeps the most common queries on a single shard. What trade-offs does your choice make?
 
    <details>
-   <summary>Hint</summary>
+   <summary>Model Answer</summary>
    Shard key: `user_id` for users and tasks, `owner_user_id` for projects (the user who created the project). Collocate `projects` and `tasks` with their owning user on the same shard. This makes "all projects for a user" and "all tasks for a user" single-shard queries. The trade-off: "all tasks for a project" requires knowing the project's owner_user_id first (or doing a cross-shard lookup for tasks not owned by the current user). For Citus, use `colocate_with` to ensure related tables land on the same shard.
    </details>
 
 4. **Online Resharding:** A Pinterest-style application is running 8 MySQL shards and needs to expand to 16 shards without downtime. Describe the Vitess online resharding process step by step. What is the maximum acceptable downtime during the cutover phase?
 
    <details>
-   <summary>Hint</summary>
+   <summary>Model Answer</summary>
    Vitess steps: (1) Create 8 new shards alongside existing 8. (2) Copy all data from old shards to new shards in background (no traffic impact, takes hours for large datasets). (3) Start replicating new writes from old to new shards via binlog streaming. (4) Wait until new shards are < 1 second behind. (5) VTGate atomically switches reads then writes to new shards (~1 second of write blocking). (6) Verify and clean up old shards. Maximum downtime: < 5 seconds in practice for the write cutover. The data copy phase has zero downtime.
    </details>
 
@@ -660,7 +660,7 @@ Pin follows (user A → pin B):
 5. **Cross-Shard Social Graph:** Design a sharding strategy for a Twitter-like follow graph with 500 million users and 50 billion follow relationships. The two critical read paths are: (a) "who does user X follow" and (b) "who follows user X" (followers). How do you avoid scatter-gather for both paths? What is the write cost of this design?
 
    <details>
-   <summary>Hint</summary>
+   <summary>Model Answer</summary>
    Use the "double write" or "fan-out" pattern: store each follow relationship twice — once on the follower's shard (for "who does X follow") and once on the followee's shard (for "who follows X"). This doubles storage and makes writes more expensive (two shards must be written per follow), but both reads are single-shard. For users with 50M+ followers (celebrities), fan-out-on-write to all followers' shards on each tweet is impractical — switch to fan-out-on-read for these accounts (computed at read time). This is exactly Twitter's architecture: regular users get push-model feed, celebrities get pull-model feed.
    </details>
 

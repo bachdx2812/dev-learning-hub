@@ -415,14 +415,14 @@ Key architectural facts from Instagram engineering blog posts (2019–2023):
 1. **ID Generation:** Instagram's ID scheme uses 41 bits for timestamp, 13 for shard ID, and 10 for sequence. How many IDs per millisecond can a single shard generate? What is the maximum number of logical shards the scheme supports? When will IDs overflow the 64-bit integer?
 
    <details>
-   <summary>Hint</summary>
+   <summary>Model Answer</summary>
    10 sequence bits = 2^10 = 1,024 IDs per millisecond per shard. 13 shard ID bits = 2^13 = 8,192 logical shards. 41 timestamp bits in milliseconds = 2^41 ms ≈ 69 years from the custom epoch (set to 2011, so overflow around 2080).
    </details>
 
 2. **Read Replicas:** A user posts a photo and immediately reloads their profile. Their new photo does not appear. What is the likely cause, and how would you fix it in the application routing layer?
 
    <details>
-   <summary>Hint</summary>
+   <summary>Model Answer</summary>
    The profile read was routed to a replica that had not yet replicated the new photo row. The fix: read-your-own-writes routing — for a short window after a write (or permanently for the posting user), route profile reads to the primary.
    </details>
 
@@ -431,14 +431,14 @@ Key architectural facts from Instagram engineering blog posts (2019–2023):
 3. **Fan-Out Design:** A new social platform has 95% of users with fewer than 1,000 followers, and 5% of users ("influencers") with more than 1 million followers. Design a hybrid feed system that uses fan-out-on-write for regular users and fan-out-on-read for influencers. What threshold would you use, and how does the application know which strategy to apply at read time?
 
    <details>
-   <summary>Hint</summary>
+   <summary>Model Answer</summary>
    Store follower_count on the user row, updated on every follow/unfollow. At feed generation time, check if the followee is "celebrity" (follower_count > threshold, e.g., 50,000). Fetch celebrity posts inline at read time and merge with the pre-materialized feed. The threshold is a tuning parameter: lower reduces storage for pre-materialized feeds, higher increases read-time fan-out cost.
    </details>
 
 4. **Sharding Key Analysis:** Instagram chose `user_id` as the sharding key. What queries become efficient? What queries become expensive or impossible without cross-shard joins? Give three examples of each.
 
    <details>
-   <summary>Hint</summary>
+   <summary>Model Answer</summary>
    Efficient: fetch all photos by user, fetch user profile + followers, load user's feed (if feed is stored by user_id). Expensive: "find all photos tagged #sunset" (cross-shard full scan), "find all users who liked photo X" (likes distributed by photo's user shard, not liker's shard), "recommended follows based on mutual friends" (graph traversal across shards).
    </details>
 
@@ -447,7 +447,7 @@ Key architectural facts from Instagram engineering blog posts (2019–2023):
 5. **Migration Planning:** Instagram had 100M rows in the `photos` table on a single PostgreSQL instance and needed to migrate to a sharded system with 2,000 logical shards. Design the migration process: how do you move data without downtime? How do you handle writes that come in during the migration? How do you validate that all rows were migrated correctly?
 
    <details>
-   <summary>Hint</summary>
+   <summary>Model Answer</summary>
    Phase 1: Dual-write — all new writes go to both old DB and new shard. Phase 2: Backfill — copy historical data shard by shard, using a cursor on photo_id to avoid re-processing. Phase 3: Validation — compare row counts and checksums per logical shard. Phase 4: Read cut-over — gradually shift read traffic to shards, starting with lowest traffic shards. Phase 5: Stop writing to old DB. The trickiest part is handling updates to rows still being backfilled — use a replication lag check or a "migration_complete" flag per logical shard.
    </details>
 

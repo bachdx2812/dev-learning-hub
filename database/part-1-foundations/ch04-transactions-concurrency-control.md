@@ -511,14 +511,14 @@ sequenceDiagram
 1. **Isolation Level Selection:** A bank transfer system deducts $500 from account A and adds $500 to account B. Which isolation level should you use, and what anomaly are you specifically protecting against? Show the SQL with the correct isolation level.
 
    <details>
-   <summary>Hint</summary>
+   <summary>Model Answer</summary>
    For a simple two-row update like a bank transfer, READ COMMITTED with `SELECT FOR UPDATE` on both rows is sufficient (prevents lost updates). SERIALIZABLE protects against more complex write skew scenarios. The SQL: `BEGIN; SELECT * FROM accounts WHERE id IN (A, B) FOR UPDATE; UPDATE accounts SET balance = balance - 500 WHERE id = A; UPDATE accounts SET balance = balance + 500 WHERE id = B; COMMIT;`
    </details>
 
 2. **MVCC Basics:** A row has `xmin=100, xmax=0`. Transaction 200 runs a SELECT. What does it see? Now transaction 300 updates the row (xmax=300, a new tuple has xmin=300, xmax=0). Transaction 200 runs SELECT again. What does it see under REPEATABLE READ vs READ COMMITTED? Why?
 
    <details>
-   <summary>Hint</summary>
+   <summary>Model Answer</summary>
    Under REPEATABLE READ: transaction 200 took a snapshot at its start (before txn 300 committed). It still sees the old version (xmin=100, xmax=0) — snapshot isolation prevents the non-repeatable read. Under READ COMMITTED: each SELECT takes a new snapshot; the second SELECT sees the new version (xmin=300, xmax=0) because txn 300 committed before the second SELECT ran.
    </details>
 
@@ -527,14 +527,14 @@ sequenceDiagram
 3. **Write Skew:** A hospital application tracks which doctors are on call. The rule is: at least one doctor must be on call at all times. Two doctors both query "how many doctors are on call" (answer: 1) and both decide to go off call. Design a solution that prevents this using each of: (a) application-level locking, (b) optimistic concurrency control, (c) SERIALIZABLE isolation.
 
    <details>
-   <summary>Hint</summary>
+   <summary>Model Answer</summary>
    (a) Advisory lock: `SELECT pg_advisory_lock(hashtext('on_call_update'))` before any read-modify-write on the on_call table. (b) OCC: add a version column on a `on_call_schedule` row; both doctors read version=5, first commit sets version=6, second commit sees version mismatch and retries with fresh count. (c) SERIALIZABLE: use `BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE`; SSI detects the read-write dependency and aborts one transaction.
    </details>
 
 4. **Deadlock Prevention:** An order processing system updates two tables in every transaction: `orders` and `line_items`. Occasionally, deadlocks occur. The code currently updates `line_items` first, then `orders`. What is causing the deadlocks and what is the fix?
 
    <details>
-   <summary>Hint</summary>
+   <summary>Model Answer</summary>
    Deadlocks occur when two transactions acquire locks in different orders. If Transaction A updates order_id=1 line items then order_id=1 header, and Transaction B updates order_id=1 header then order_id=1 line items, they deadlock. Fix: always acquire locks in the same order — always update `orders` first, then `line_items`. Or: use `SELECT ... FOR UPDATE` on the `orders` row first to serialize all access at the beginning of the transaction.
    </details>
 
@@ -543,7 +543,7 @@ sequenceDiagram
 5. **Distributed Transaction Design:** An e-commerce checkout flow spans three services: (a) InventoryService decrements stock, (b) PaymentService charges the credit card, (c) OrderService creates the order record. Design a Saga implementation (choreography or orchestration) that handles: successful checkout, payment failure (must release inventory), order creation failure (must refund payment + release inventory). Include the compensating transactions and how you ensure each step is idempotent.
 
    <details>
-   <summary>Hint</summary>
+   <summary>Model Answer</summary>
    Use orchestration (simpler failure tracking). Saga states: STARTED → INVENTORY_RESERVED → PAYMENT_CHARGED → ORDER_CREATED → COMPLETED. Compensating transactions: ORDER_FAILED → refund_payment → PAYMENT_REFUNDED → release_inventory → SAGA_FAILED. Idempotency: each step takes a saga_id as idempotency key; InventoryService checks if `saga_id` already has a reservation before decrementing. PaymentService checks if `saga_id` already has a charge. This ensures retries are safe.
    </details>
 

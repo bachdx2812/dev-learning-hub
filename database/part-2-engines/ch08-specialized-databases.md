@@ -645,14 +645,14 @@ flowchart LR
 1. **ClickHouse vs PostgreSQL for Analytics:** Your application stores order data in PostgreSQL (50M rows). Business intelligence queries like "total revenue by product category per month for the last 2 years" take 45 seconds. A colleague suggests moving the orders table to ClickHouse. What would you expect the query time to be in ClickHouse, and what are the trade-offs of maintaining a separate ClickHouse instance?
 
    <details>
-   <summary>Hint</summary>
+   <summary>Model Answer</summary>
    ClickHouse would likely reduce this query to 1–5 seconds (10–45× speedup) due to columnar storage (only reading category, revenue, date columns), vectorized execution, and efficient compression. Trade-offs: (1) operational overhead of a second database system; (2) data synchronization (need to stream changes from PostgreSQL to ClickHouse via CDC/Debezium or Kafka); (3) analytics queries run on slightly stale data (minutes lag). For a team without ClickHouse expertise, consider TimescaleDB (PostgreSQL extension) as a lower-overhead alternative.
    </details>
 
 2. **Vector Database Selection:** A startup building a customer support chatbot wants to add semantic search over 50,000 support articles. They currently use PostgreSQL. Should they add pgvector or deploy a dedicated vector database like Pinecone?
 
    <details>
-   <summary>Hint</summary>
+   <summary>Model Answer</summary>
    pgvector is the correct choice at this scale. 50,000 vectors at 1536 dimensions = ~300MB of embedding data — trivially fits in PostgreSQL shared_buffers. pgvector's HNSW index will return results in < 10ms with > 95% recall. Benefits: no additional system to operate, vectors stored alongside metadata in same database, ACID transactions, full SQL filtering. Pinecone is warranted at 10M+ embeddings with strict latency SLAs (< 10ms p99) or when you need zero operational overhead.
    </details>
 
@@ -661,14 +661,14 @@ flowchart LR
 3. **Cassandra Tombstone Investigation:** A Cassandra cluster's read latency has increased from 5ms to 500ms over 3 months on the `user_activity` table. The table tracks user actions with frequent deletes (expired sessions, privacy deletions). Diagnose and fix the problem.
 
    <details>
-   <summary>Hint</summary>
+   <summary>Model Answer</summary>
    Tombstone accumulation is the most likely cause. Diagnosis: `nodetool tablehistograms keyspace.user_activity` — look for high tombstone counts (> 100 per read is problematic). Fix: (1) Switch to TTL-based expiration instead of explicit DELETEs — this removes tombstones at compaction time after `gc_grace_seconds`. (2) Use TWCS (TimeWindowCompactionStrategy) which naturally expires old time windows. (3) Reduce `gc_grace_seconds` to match your compaction schedule (risky: must ensure all replicas have received the tombstone before it's GC'd). (4) Run a full compaction immediately to clear existing tombstones: `nodetool compact keyspace user_activity`.
    </details>
 
 4. **Search Engine Selection:** You are building a SaaS product catalog search for a B2B marketplace with 2M products. Requirements: typo tolerance, faceted filtering (category, price, brand), sub-100ms p99, and the ability to tune relevance per customer. Compare Elasticsearch vs Typesense vs Meilisearch for this use case.
 
    <details>
-   <summary>Hint</summary>
+   <summary>Model Answer</summary>
    At 2M products: all three are viable. Meilisearch: easiest setup, excellent typo tolerance, sub-50ms out of the box. Limitation: less flexible relevance tuning, per-customer configuration requires multi-tenancy design. Typesense: similar simplicity, Raft replication for HA, good multi-tenancy. Elasticsearch: most flexible relevance tuning (per-customer boosting, scripted scoring), best for complex B2B requirements. More operational complexity. Recommendation: if per-customer relevance tuning is critical, Elasticsearch. If simplicity and instant search are the priority and relevance is uniform, Meilisearch or Typesense.
    </details>
 
@@ -677,7 +677,7 @@ flowchart LR
 5. **Hybrid Search Architecture:** Your e-commerce platform needs to implement search that combines keyword search (exact product codes, brand names) with semantic search (natural language queries like "affordable laptop for students"). Design a hybrid search architecture using both an inverted index and vector search, handling re-ranking and explaining latency trade-offs at 10M products.
 
    <details>
-   <summary>Hint</summary>
+   <summary>Model Answer</summary>
    Hybrid search (reciprocal rank fusion): (1) Run BM25 keyword search (Elasticsearch or pgvector full-text) → get top 100 results with BM25 scores. (2) Run ANN vector search (pgvector HNSW or Weaviate) → get top 100 results with cosine similarity scores. (3) Merge via Reciprocal Rank Fusion: score = 1/(k + rank_bm25) + 1/(k + rank_ann), where k=60 is standard. (4) Return top 20 merged results. Latency budget at 10M products: BM25 query = 20ms, ANN query = 30ms (run in parallel) → merge = 2ms → total = ~52ms. For sub-50ms p99, pre-filter by in-stock status before ANN (pgvector WHERE clause filters before HNSW traversal if selectivity is high). Weaviate natively supports hybrid search with RRF built-in.
    </details>
 

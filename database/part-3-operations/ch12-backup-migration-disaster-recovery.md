@@ -765,14 +765,14 @@ flowchart TD
 1. **Backup Type Selection:** A startup has a 50GB PostgreSQL database and needs to meet these requirements: restore within 4 hours, recover data up to any point in the last 7 days, and keep operational cost low. Which backup strategy would you choose? Describe the specific tools and schedule.
 
    <details>
-   <summary>Hint</summary>
+   <summary>Model Answer</summary>
    pgBackRest with WAL archiving to S3 is the right tool. Schedule: weekly full backup + daily incremental backups. Configure `repo1-retention-archive = 7` for 7 days of PITR capability. The full backup runs weekly (during lowest traffic, e.g., Sunday 2am). Incrementals run nightly. WAL archiving (`archive_command` pointing to pgBackRest) runs continuously, providing sub-minute RPO. RTO of 4 hours is achievable for a 50GB database — restoration takes 20-40 minutes plus WAL replay time.
    </details>
 
 2. **PITR Scenario:** A developer accidentally runs `DELETE FROM orders WHERE status = 'pending'` without a WHERE clause at 14:32 on Tuesday, deleting 50,000 active orders. The database has daily pg_dump backups (last one at 02:00 Tuesday) and WAL archiving enabled. Describe the recovery steps and what data is recoverable.
 
    <details>
-   <summary>Hint</summary>
+   <summary>Model Answer</summary>
    With WAL archiving: restore base backup from 02:00, configure `recovery_target_time = '2024-MM-DD 14:31:59'` (one minute before the deletion), replay WAL from archive until that timestamp, promote. The 50K orders are fully recovered — only the ~5 hours of new orders after 14:32 would be lost if you need to restore to a different server. If the original server is intact and you just need to recover the deleted rows, restore to a separate recovery server, extract the deleted rows, and reinsert them into the production server.
    </details>
 
@@ -781,14 +781,14 @@ flowchart TD
 3. **Zero-Downtime Migration:** Your application has a `users` table with a `name TEXT` column. You need to split it into `first_name TEXT` and `last_name TEXT`. The table has 10 million rows and the application cannot have downtime. Describe each phase of the expand-contract migration, the SQL for each phase, and how the application code changes between phases.
 
    <details>
-   <summary>Hint</summary>
+   <summary>Model Answer</summary>
    Phase 1 (Expand): `ALTER TABLE users ADD COLUMN first_name TEXT; ADD COLUMN last_name TEXT;` — deploy new code that writes to all three columns and reads COALESCE(first_name, split_part(name, ' ', 1)). Phase 2 (Backfill): batch UPDATE to parse name into first_name/last_name for all existing rows. Phase 3 (Contract): once all code reads first_name/last_name directly and backfill is complete, `ALTER TABLE users DROP COLUMN name;` — this is the final breaking change, requires all old code to be retired first. The total window where old code still works is the entire duration of phases 1 and 2.
    </details>
 
 4. **CDC Pipeline Design:** An e-commerce company wants to sync their PostgreSQL orders table to both an Elasticsearch index (for customer order search) and a Snowflake data warehouse (for analytics). Both must stay within 5 seconds of the source. Design the full architecture using Debezium and Kafka. What PostgreSQL configuration is required?
 
    <details>
-   <summary>Hint</summary>
+   <summary>Model Answer</summary>
    Architecture: PostgreSQL (wal_level=logical) → Debezium Kafka Connector → Kafka topic `ecommerce.public.orders` → (a) Kafka Connector for Elasticsearch using the Elasticsearch Sink Connector, (b) Kafka Connector for Snowflake using the Snowflake Kafka Connector. PostgreSQL config: wal_level=logical, create a replication role for Debezium, create a publication for the orders table. The 5-second latency requirement is achievable — Debezium's typical end-to-end latency from commit to Kafka is < 1 second. Monitor the Debezium replication slot lag to ensure it doesn't grow unbounded.
    </details>
 
@@ -797,7 +797,7 @@ flowchart TD
 5. **Large-Scale Database Migration:** You need to migrate a 10TB MySQL database to PostgreSQL with zero downtime. The migration must validate data integrity, and you can tolerate a maximum 30-second write pause during cutover. Design the migration architecture and timeline.
 
    <details>
-   <summary>Hint</summary>
+   <summary>Model Answer</summary>
    Phase 1 (Setup, week 1): Set up empty PostgreSQL with migrated schema (using pgloader for schema conversion, manual fixes for unsupported features). Phase 2 (Initial load, week 2): Use pgloader to copy the 10TB — this takes ~48 hours for 10TB. During this time, MySQL continues serving all traffic. Phase 3 (CDC sync, week 3): Once initial load is complete, set up Debezium to capture all changes from MySQL's binlog since the pgloader snapshot LSN and apply them to PostgreSQL. Monitor lag daily. Phase 4 (Validation, week 4): Run validation queries comparing row counts and checksums. Fix discrepancies. Phase 5 (Double-write, week 5): Switch application to write to both MySQL and PostgreSQL. Verify PostgreSQL receives all writes. Phase 6 (Cutover, day 1 of week 6): Set maintenance mode (blocks writes), verify PostgreSQL is fully caught up (zero lag), update application config to read+write only PostgreSQL, disable maintenance mode. Total write pause: < 30 seconds. Stop MySQL after 48-hour validation period.
    </details>
 

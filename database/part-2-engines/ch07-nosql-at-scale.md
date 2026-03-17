@@ -213,6 +213,8 @@ The time-bucketing strategy limits partition size while keeping related data co-
 
 In Cassandra, `DELETE` does not remove data — it writes a **tombstone** marker. During reads, Cassandra must scan all tombstones in a partition before returning live rows. Heavy delete workloads cause tombstone accumulation that severely degrades read performance.
 
+**Concrete thresholds:** Cassandra's default `tombstone_warn_threshold` is 1,000 and `tombstone_failure_threshold` is 100,000 tombstones per query. In practice, read latency degrades noticeably at ~10K tombstones per partition (p99 jumps 5–10×). At 100K+, queries time out or fail. Discord's migration post documented partitions with millions of tombstones causing cascading GC pauses — this was a primary driver for their move to ScyllaDB.
+
 ```sql
 -- Check tombstone count per partition (Cassandra nodetool)
 -- nodetool tablehistograms keyspace.table
@@ -594,14 +596,14 @@ Netflix's Chaos Engineering (randomly killing production instances) regularly va
 1. **DynamoDB Access Pattern:** You are designing a DynamoDB table for a messaging app. Users send messages to conversations. Access patterns: (1) get all messages in a conversation, sorted by time; (2) get all conversations for a user. Design the PK/SK structure and explain what entity types you would store in a single table.
 
    <details>
-   <summary>Hint</summary>
+   <summary>Model Answer</summary>
    PK: `CONV#{conversation_id}`, SK: `MSG#{timestamp}#{message_id}` for messages. For the user's conversations list: PK: `USER#{user_id}`, SK: `CONV#{last_message_timestamp}#{conversation_id}`. Both entity types in one table. For access pattern (2), a GSI where GSI1PK = `USER#{user_id}` and GSI1SK = `CONV#{last_message_timestamp}` gives conversations sorted by most recent activity.
    </details>
 
 2. **Cassandra Partition Design:** A Cassandra table stores IoT temperature readings with schema `PRIMARY KEY (device_id, timestamp)`. After 6 months, queries for popular devices take 5+ seconds. What is the problem and how would you fix it?
 
    <details>
-   <summary>Hint</summary>
+   <summary>Model Answer</summary>
    Wide partition problem: all readings for a popular device accumulate in one partition (potentially billions of rows). Fix: add a time-bucket component to the partition key — `PRIMARY KEY ((device_id, month), timestamp)`. Now each partition holds at most one month of readings. The trade-off: queries spanning multiple months must hit multiple partitions and merge results in the application.
    </details>
 
@@ -610,14 +612,14 @@ Netflix's Chaos Engineering (randomly killing production instances) regularly va
 3. **MongoDB Embedding Decision:** A blog platform stores posts and comments. Posts average 5–20 comments, but viral posts can have 50,000+ comments. Should you embed comments in the post document or reference them? Design a schema that handles both cases.
 
    <details>
-   <summary>Hint</summary>
+   <summary>Model Answer</summary>
    Use the Outlier Pattern: embed the first N comments (e.g., 50) in the post document for normal posts. Add `has_overflow: true` flag when comments exceed 50 and store additional comments in a separate `comment_overflow` collection keyed by `post_id`. Application fetches overflow conditionally. This keeps the common case (< 50 comments) fast with no extra queries, while handling viral posts without hitting MongoDB's 16MB document size limit.
    </details>
 
 4. **Redis vs Cassandra for Session Storage:** Your authentication service needs to store user sessions. Requirements: 10M active sessions, each ~2KB, 100K reads/second, 20K writes/second, sessions expire after 24 hours, must survive a Redis restart. Compare Redis vs Cassandra for this use case.
 
    <details>
-   <summary>Hint</summary>
+   <summary>Model Answer</summary>
    Redis: 10M × 2KB = 20GB — fits comfortably in memory. With AOF `everysec` persistence, survives restart with at most 1 second of session loss (acceptable for session tokens that can be re-authenticated). Read at 100K/s at sub-millisecond latency. TTL handles expiration automatically — no DELETE needed. Cassandra: overkill for this use case — better for petabyte scale. The 24-hour TTL and sub-millisecond latency requirement favor Redis. Use Redis with RDB + AOF persistence and a standby replica for failover.
    </details>
 
@@ -626,7 +628,7 @@ Netflix's Chaos Engineering (randomly killing production instances) regularly va
 5. **DynamoDB Hot Partition:** Your DynamoDB table stores product inventory. During a flash sale, product `SKU-IPHONE-15` receives 50,000 reads/second. A single DynamoDB partition supports ~3,000 RCU/second. DynamoDB auto-scaling cannot respond fast enough. Design a solution without changing the application's API.
 
    <details>
-   <summary>Hint</summary>
+   <summary>Model Answer</summary>
    Write sharding + caching: (1) For the hot item, create N copies in DynamoDB with keys `PRODUCT#SKU-IPHONE-15#shard-{0..9}`. Reads randomly pick a shard, distributing load across 10 partitions (effective 30,000 RCU). Writes update all N shards (fan-out). (2) More practical at flash sale scale: cache the inventory in ElastiCache (Redis) with a short TTL (1–5 seconds). The application checks Redis first; cache miss triggers a DynamoDB read and repopulates cache. Redis can handle 100K+ reads/second at sub-millisecond latency. (3) Use DynamoDB DAX (in-memory cache layer) which is transparent to the application.
    </details>
 

@@ -383,7 +383,7 @@ Use Vitess when:
 | **CTEs** | Yes (MySQL 8.0+) | Yes, with `RECURSIVE` |
 | **Replication** | Binlog (async/semi-sync), Group Replication | WAL streaming (sync/async), logical replication |
 | **Sharding** | Via Vitess (external) | Via Citus (extension) |
-| **Vector search** | Limited (MySQL 9.0 preview) | pgvector (HNSW, IVFFlat, mature) |
+| **Vector search** | Native VECTOR type (MySQL 9.0+, GA June 2024) | pgvector (HNSW, IVFFlat, mature ecosystem) |
 | **Extensions** | Limited | Rich ecosystem (300+ extensions) |
 | **License** | GPL (dual-license) | PostgreSQL License (permissive) |
 | **Default storage** | InnoDB (clustered index) | Heap files + B-tree indexes |
@@ -438,14 +438,14 @@ Shopify runs one of the world's largest MySQL deployments. By 2014, their monoli
 1. **InnoDB Clustered Index:** A developer creates a MySQL table with no explicit primary key. InnoDB creates a hidden 6-byte `rowid` column as the primary key. What performance consequences does this have compared to a meaningful integer primary key? How does this affect secondary index lookups?
 
    <details>
-   <summary>Hint</summary>
+   <summary>Model Answer</summary>
    Without a meaningful primary key, secondary index lookups carry a 6-byte hidden rowid pointer — functionally the same overhead as any other primary key. The real problem: the hidden rowid is not exposed to the application, making it impossible to build covering indexes that include the PK for common access patterns. Also, UUID primary keys cause random B-tree insertions and fragmentation — use auto-increment integers or ordered UUIDs.
    </details>
 
 2. **Replication Lag:** A MySQL replica reports 30-second replication lag during peak traffic. The primary is writing 5000 rows/second. What are the three most likely causes, and how would you diagnose each?
 
    <details>
-   <summary>Hint</summary>
+   <summary>Model Answer</summary>
    (1) Single-threaded SQL thread: MySQL 5.6 replicas apply events serially. Fix: enable parallel replication (`slave_parallel_workers = 8`, `slave_parallel_type = LOGICAL_CLOCK`). (2) Large transactions: a single 1M-row UPDATE creates a large binlog event that blocks the SQL thread. (3) Network/disk I/O bottleneck on replica: check `SHOW REPLICA STATUS` for `Seconds_Behind_Source` vs IO thread vs SQL thread lag separately to isolate.
    </details>
 
@@ -454,14 +454,14 @@ Shopify runs one of the world's largest MySQL deployments. By 2014, their monoli
 3. **Vitess Scatter-Gather:** Your team shards a `messages` table by `user_id` across 16 Vitess shards. A product manager requests a "global inbox" feature that shows all unread messages across all users, sorted by timestamp. What does Vitess do with this query, and what is your recommendation?
 
    <details>
-   <summary>Hint</summary>
+   <summary>Model Answer</summary>
    Vitess scatter-gathers this query to all 16 shards, merges 16 sorted result sets in VTGate memory, and returns the merged result. This is 16× the work of a single-shard query and does not scale with shard count. Recommendation: maintain a separate `global_inbox` denormalized table on a dedicated keyspace with `(timestamp, message_id)` as the access key, written via application-level fan-out on message creation. Or route analytics queries to a ClickHouse replica fed by binlog CDC.
    </details>
 
 4. **NewSQL Latency Trade-off:** Your fintech application processes cross-account transfers. Currently using sharded MySQL + Vitess where accounts can be on different shards. A transaction moving $100 from account A (shard 1) to account B (shard 3) requires a distributed XA transaction, which fails 0.1% of the time and requires manual reconciliation. A colleague proposes migrating to CockroachDB. What are the trade-offs?
 
    <details>
-   <summary>Hint</summary>
+   <summary>Model Answer</summary>
    CockroachDB pros: native distributed ACID transactions with no XA failures, simpler application code. CockroachDB cons: +10–20ms latency per transaction vs <1ms for single-shard Vitess queries; operational complexity of a new system; less mature ecosystem; cost (CockroachDB cloud vs self-managed MySQL). At 0.1% failure rate, evaluate: is the reconciliation cost higher than the engineering cost of migrating + the latency budget cost? For a fintech system where correctness is paramount, CockroachDB's native distributed transactions are worth the latency if your SLA allows it.
    </details>
 
@@ -470,7 +470,7 @@ Shopify runs one of the world's largest MySQL deployments. By 2014, their monoli
 5. **Vitess Resharding Design:** You run 4 Vitess shards for a social media platform sharded by `user_id`. Shard 0 (users 0–25%) is overloaded because it contains your top influencers (Pareto distribution — top 1% of users generate 40% of writes). You cannot reshard by user_id alone. Design a solution.
 
    <details>
-   <summary>Hint</summary>
+   <summary>Model Answer</summary>
    The Pareto distribution problem: hash-based sharding distributes users evenly by count but not by write volume. Options: (1) Custom vindex in Vitess — map hot user IDs to dedicated shards (lookup vindex), keeping normal users on hash vindex. (2) Separate keyspace for "power users" with finer-grained sharding. (3) Application-level write buffering for influencer writes (rate-limit writes to MySQL, buffer in Redis, flush in batches). (4) Move influencer post fanout to an async queue (Kafka → separate write path). The real lesson: shard key choice assumes uniform distribution — for power-law distributions, you need tiered sharding or application-level isolation of hot entities.
    </details>
 

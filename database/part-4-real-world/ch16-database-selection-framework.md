@@ -490,14 +490,14 @@ Before finalizing any database selection decision:
 1. **Framework Application:** A startup is building a recipe sharing app. Users can search recipes by ingredient, cuisine, and dietary restriction. Recipes have a flexible set of tags. The team has 2 engineers and expects 50,000 active users in year 1. Walk through the decision framework and choose a database (or combination). Justify each step.
 
    <details>
-   <summary>Hint</summary>
+   <summary>Model Answer</summary>
    Step 1 (Data model): Recipes are structured but have flexible tags — JSONB in PostgreSQL handles this. Step 2 (Consistency): Saving a recipe must be consistent but like counts can be eventual. Step 3 (Scale): 50K users is Tier 1 — a single PostgreSQL instance easily handles this. Step 4 (Ops): 2 engineers should use managed RDS. Result: PostgreSQL on RDS, with a tsvector index or pg_search for ingredient search. No separate Elasticsearch — you'd add it only if search performance becomes a measurable problem.
    </details>
 
 2. **Cost Trade-off:** A 3-engineer startup uses self-hosted Cassandra (3 nodes on EC2) at $600/month. The team spends 12 hours/month on Cassandra operations (upgrades, incidents, tuning). Their senior engineers bill at $200/hour. What is the true monthly TCO? How does this compare to CockroachDB Cloud at $1,500/month?
 
    <details>
-   <summary>Hint</summary>
+   <summary>Model Answer</summary>
    TCO = $600 (infrastructure) + 12 × $200 (engineering time) = $600 + $2,400 = $3,000/month. CockroachDB Cloud at $1,500/month is 50% cheaper in true TCO and frees 12 engineering hours for product development. The infrastructure line item is misleading; always include operations time.
    </details>
 
@@ -506,14 +506,14 @@ Before finalizing any database selection decision:
 3. **Polyglot Decision:** An e-commerce team runs PostgreSQL for orders and user data. They want to add: (a) product search with faceting and typo-tolerance, (b) session management for 1M concurrent users, (c) real-time inventory counts visible across all users within 1 second. Design a polyglot architecture. For each addition, choose a database and justify. What consistency model does each use?
 
    <details>
-   <summary>Hint</summary>
+   <summary>Model Answer</summary>
    (a) Elasticsearch or Typesense for product search — synced via CDC from PostgreSQL. Eventual consistency (search index lags writes by 100–500ms). (b) Redis for sessions — in-memory key-value at sub-millisecond latency. Eventual (Redis replication is asynchronous). (c) Inventory is trickier — requires strong consistency to prevent oversell. Keep inventory in PostgreSQL with row-level locking or optimistic concurrency (`WHERE inventory > 0`). Cache the display count in Redis with short TTL (5–10 seconds) — riders see "available" while true count is in PostgreSQL.
    </details>
 
 4. **Migration Planning:** A team runs a MongoDB-backed application with 500M documents in a `messages` collection. They need to migrate to Cassandra for write throughput. Design the dual-write migration: what does the application code change look like during migration? How do you handle documents that exist in MongoDB but haven't been migrated to Cassandra yet? How do you validate completeness?
 
    <details>
-   <summary>Hint</summary>
+   <summary>Model Answer</summary>
    Phase 1 (dual-write): Application writes to both MongoDB (old) and Cassandra (new). Read from Cassandra first; fall back to MongoDB if missing. Phase 2 (backfill): A background job reads all MongoDB documents in chunks and writes to Cassandra. Track progress with a cursor on `_id`. Phase 3 (validate): Sample 1% of documents, compare checksums in both stores. Alert if mismatch > 0.01%. Phase 4 (cut-over): Stop writing to MongoDB. Phase 5 (decommission): After 2 weeks of successful operation, delete MongoDB collection. Edge case: updates to documents during backfill — dual-write ensures Cassandra always has the latest version; the backfill can overwrite with the MongoDB version safely since dual-write already sent the latest version.
    </details>
 
@@ -522,7 +522,7 @@ Before finalizing any database selection decision:
 5. **Comprehensive Architecture:** Design the full database architecture for a global ride-sharing startup planning to launch in 5 cities, targeting 500K rides in year 1 and 10M rides in year 3. Include: user accounts, driver accounts, trip records, real-time driver locations, analytics, and event notifications. For each data type: choose a database, justify the choice, identify the partition/shard key, and describe the consistency model. Show how data flows between the databases.
 
    <details>
-   <summary>Hint</summary>
+   <summary>Model Answer</summary>
    Year 1 (MVP): Single PostgreSQL for user/driver/trip data (ACID required). Redis for driver locations (key = driver_id, TTL = 8s). No analytics DB yet — query PostgreSQL with read replica. Year 3 (Scale): Add H3-based location lookup in Redis (partition by H3 cell). Shard trips table by city_id (5 shards). Add ClickHouse for analytics (CDC from PostgreSQL shards via Debezium + Kafka). Add PostgreSQL read replicas per region for driver/user profile reads. The data flow: App → PostgreSQL (OLTP) → Kafka (CDC) → ClickHouse (OLAP) + Elasticsearch (search). Driver pings → Kafka (location.updates) → Redis (H3 cells, TTL 8s). Key insight: the architecture at year 1 and year 3 differ significantly — don't build year 3 architecture at year 1. The transition points are measurable (specific latency thresholds, QPS ceilings) not arbitrary timelines.
    </details>
 

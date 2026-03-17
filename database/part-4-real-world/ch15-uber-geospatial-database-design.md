@@ -360,14 +360,14 @@ Trip data flows from Docstore (OLTP source of truth) through Kafka CDC to ClickH
 1. **H3 Basics:** A driver is at latitude 37.7749, longitude -122.4194 (San Francisco). Their H3 cell at resolution 9 is `8928308280fffff`. A rider at the same resolution is in cell `8928308281fffff`. How do you determine if these two cells are adjacent (within 1 hex of each other)? Why does hexagonal adjacency matter for "find nearby drivers"?
 
    <details>
-   <summary>Hint</summary>
+   <summary>Model Answer</summary>
    Use `h3.h3_indexes_are_neighbors(cell_a, cell_b)` or compute the grid distance with `h3.h3_distance(cell_a, cell_b)` — if the result is 1, they are adjacent. Hexagonal adjacency matters because all 6 neighboring hexes are equidistant from the center hex. In a square grid, diagonal neighbors are ~41% farther — causing inconsistent coverage in a "find nearby" query. With hexagons, "k_ring(cell, k=1)" always returns exactly 7 equidistant cells.
    </details>
 
 2. **TTL Design:** Why does Uber set a TTL of ~8 seconds on driver location data in Redis? What would happen if there was no TTL? What would happen if the TTL was too short (e.g., 1 second)?
 
    <details>
-   <summary>Hint</summary>
+   <summary>Model Answer</summary>
    Without TTL: drivers who go offline would remain in the cache indefinitely, causing requests to be dispatched to offline drivers. Too-short TTL: frequent cache misses force every lookup to hit Docstore; at 1M queries/second this overwhelms the persistent database. 8 seconds (2× the driver ping interval) ensures a driver's cell entry is refreshed before it expires during normal operation, but expires quickly if the driver goes offline.
    </details>
 
@@ -376,14 +376,14 @@ Trip data flows from Docstore (OLTP source of truth) through Kafka CDC to ClickH
 3. **Geohash vs H3 Edge Case:** Two Uber drivers are 200 meters apart, standing on opposite sides of a geohash cell boundary. Their geohash strings diverge at the 4th character: driver A is `9q8y` and driver B is `9q8z`. A rider queries for drivers in `9q8y` and all cells with that prefix. Will driver B appear in the results? How does H3 handle this case differently?
 
    <details>
-   <summary>Hint</summary>
+   <summary>Model Answer</summary>
    Driver B will NOT appear in the geohash query — despite being 200m away, their cell prefix differs. This is the geohash edge effect. With H3, both drivers would be in adjacent cells. The query `k_ring(rider_cell, k=1)` would return both cells, capturing driver B correctly. This is why Uber chose H3: consistent adjacency eliminates false negatives at cell boundaries.
    </details>
 
 4. **Schemaless Design Trade-offs:** Uber built Schemaless to avoid MySQL schema migration pain. What did they gain? What did they give up? If you were designing Uber's trip storage today (2025), what would you use instead of building a custom document store?
 
    <details>
-   <summary>Hint</summary>
+   <summary>Model Answer</summary>
    Gained: schema flexibility (add new trip fields without ALTER TABLE), horizontal scaling via consistent hashing over MySQL shards. Given up: secondary index efficiency, strict typing, native aggregations. Today's alternatives: (1) PostgreSQL with JSONB columns + GIN indexes — has secondary indexes, strict typing for non-JSON fields, ACID. (2) CockroachDB — distributed SQL with JSON support. (3) PlanetScale — sharded MySQL with schema change tooling that eliminates the original problem. Uber's 2014 problem (schema changes on locked MySQL) is largely solved in 2025 by pt-online-schema-change, gh-ost, or PlanetScale's branching model.
    </details>
 
@@ -392,7 +392,7 @@ Trip data flows from Docstore (OLTP source of truth) through Kafka CDC to ClickH
 5. **Scale Calculation:** Uber has 5 million active drivers updating location every 4 seconds. Each location update: (a) writes to Kafka, (b) is consumed and upserts a Redis H3 cell entry, (c) is consumed and upserts a Docstore row. Estimate the sustained write throughput in messages/second for each step. If Redis uses 100 bytes per driver entry and 5% of drivers are in any given H3 cell, how many H3 cells at resolution 9 cover Uber's active areas? What is the total Redis memory footprint for driver locations?
 
    <details>
-   <summary>Hint</summary>
+   <summary>Model Answer</summary>
    Write rate: 5M drivers / 4 seconds = 1.25M location writes/second to each system. Redis memory: 5M active drivers × 100 bytes = 500MB for driver data. H3 cells: if 5% of drivers per cell = 250,000 drivers per cell average, then 5M / 250,000 = 200 cells needed — but this assumes unrealistic uniformity. In reality, Uber's active H3 cells at resolution 9 number in the tens of thousands (major cities). A more realistic estimate: 50,000 active cells × average 100 drivers per cell × 100 bytes = 500MB for cell→driver list indexes plus the 500MB for driver→cell data. Total: ~1GB, easily fits in a single Redis node. This is why H3's discretization is powerful — it transforms a hard geospatial problem into a simple key-value lookup.
    </details>
 

@@ -243,7 +243,7 @@ Without proper locking, concurrent `like_count` updates cause lost updates:
 -- WRONG: race condition
 UPDATE posts SET like_count = like_count + 1 WHERE id = $1;
 ```
-This is actually safe in PostgreSQL because the row-level lock is held during the update. The dangerous pattern is read-modify-write in application code:
+This single SQL statement is safe in PostgreSQL — the row-level lock is acquired and released within the statement. However, under extreme contention (thousands of concurrent likes on the same viral post), lock contention itself becomes the bottleneck: each `UPDATE` must wait for the previous one to release the row lock, serializing all writes. At that scale, buffer the counter in Redis (`INCR`) and periodically flush to PostgreSQL. The truly dangerous pattern is read-modify-write in application code:
 ```python
 # WRONG: read then write in application
 post = db.query("SELECT like_count FROM posts WHERE id = $1")
@@ -508,14 +508,14 @@ Stripe never hard-deletes records. A deleted payment method has `deleted_at TIME
 1. **Normalization vs Denormalization:** An e-commerce site displays a product listing page showing each product's name, price, category name, and average review score. Design a normalized schema first. Then identify which fields, if any, should be denormalized for a catalog with 5M products receiving 10K page views/second.
 
    <details>
-   <summary>Hint</summary>
+   <summary>Model Answer</summary>
    The category name can be joined from a `categories` table (small table, fits in cache). The average review score requires a query over the `reviews` table — with 5M products and 10K QPS, a real-time AVG query is too expensive; denormalize `avg_score` and update it via trigger or scheduled job.
    </details>
 
 2. **Access Pattern Analysis:** A blog platform needs to support: (a) display blog post with author name and comment count, (b) list all posts by author sorted by newest, (c) search posts by title keyword. List the indexes needed for each query and explain why.
 
    <details>
-   <summary>Hint</summary>
+   <summary>Model Answer</summary>
    (a) `post_id` primary key + denormalized `author_name` and `comment_count` on posts. (b) Index on `(author_id, created_at DESC)`. (c) GIN index on `to_tsvector(title)` for full-text search, or `ILIKE` with a trigram index (`pg_trgm`).
    </details>
 
@@ -524,14 +524,14 @@ Stripe never hard-deletes records. A deleted payment method has `deleted_at TIME
 3. **Hierarchical Data:** You need to store a company's organizational chart (employees with managers, up to 10 levels deep) and support: (a) find all direct reports of a manager, (b) find the full chain of command from an employee to the CEO, (c) find all employees in a department subtree. Compare the adjacency list, materialized path, and nested sets patterns for this use case.
 
    <details>
-   <summary>Hint</summary>
+   <summary>Model Answer</summary>
    (a) Adjacency list is sufficient. (b) Recursive CTE on adjacency list, or O(1) string prefix on materialized path. (c) Subtree query — adjacency list requires recursive CTE (expensive for 10 levels), materialized path with `ltree` is O(log n) with GiST index. For read-heavy org charts, `ltree` wins.
    </details>
 
 4. **Schema Migration:** A users table has a `name VARCHAR(255)` column. You need to split it into `first_name` and `last_name` on a live system serving 50K QPS without downtime. Walk through the exact expand-contract steps including the SQL DDL for each phase.
 
    <details>
-   <summary>Hint</summary>
+   <summary>Model Answer</summary>
    Phase 1: ADD COLUMN first_name / last_name (nullable). Deploy app to write both old and new columns. Phase 2: Backfill in batches (UPDATE ... WHERE first_name IS NULL LIMIT 1000). Phase 3: After backfill, add NOT NULL constraints, deploy app to read only new columns, drop old name column.
    </details>
 
@@ -540,7 +540,7 @@ Stripe never hard-deletes records. A deleted payment method has `deleted_at TIME
 5. **Payment Schema Design:** Design a complete schema for a subscription billing system where: users have subscriptions, subscriptions have billing cycles, each cycle generates an invoice, invoices have line items, and payments can be partial (user pays $50 of a $100 invoice). Requirements: every state change must be auditable, partial payments must be tracked, the system must handle retries idempotently. Design the schema, including idempotency key handling.
 
    <details>
-   <summary>Hint</summary>
+   <summary>Model Answer</summary>
    Key tables: `subscriptions`, `subscription_events` (audit log), `billing_cycles`, `invoices`, `invoice_line_items`, `payments`, `payment_events`, `idempotency_keys`. Store amounts as integers (cents). Use `invoice_payments` join table to handle partial payments. The idempotency key should hash the operation + user + timestamp window to prevent double-charges on retry.
    </details>
 

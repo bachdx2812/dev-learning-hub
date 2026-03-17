@@ -683,14 +683,14 @@ flowchart TD
 1. **Sync vs Async Trade-off:** A fintech startup processes bank transfers and cannot tolerate any data loss if their primary database server fails. Should they use synchronous or asynchronous replication? What is the latency cost, and how does `synchronous_standby_names = 'ANY 1 (standby1, standby2)'` improve resilience?
 
    <details>
-   <summary>Hint</summary>
+   <summary>Model Answer</summary>
    Synchronous replication guarantees RPO = 0 — the primary waits for one standby to acknowledge before returning success to the client. The latency cost is one round-trip to the standby per commit (typically 1–5ms in the same DC, 50–100ms cross-region). ANY 1 with two standbys means losing one standby doesn't block the primary, but losing both does. For a fintech use case the data loss risk of async is unacceptable; sync with dual standbys is correct.
    </details>
 
 2. **Replication Slot Risk:** A DBA creates a replication slot for a standby but the standby goes offline for three days during maintenance. The primary's disk fills up and crashes. Explain the failure chain and two ways it could have been prevented.
 
    <details>
-   <summary>Hint</summary>
+   <summary>Model Answer</summary>
    The replication slot prevented PostgreSQL from recycling WAL files the standby had not yet consumed. After 3 days of writes, pg_wal/ grew until disk was exhausted and the primary crashed. Prevention options: (1) Monitor slot lag with an alert at 10GB — drop the slot when the standby is intentionally offline. (2) Set `max_slot_wal_keep_size = '20GB'` in PG 13+ — PostgreSQL will invalidate the slot (losing replication state) rather than filling the disk.
    </details>
 
@@ -699,14 +699,14 @@ flowchart TD
 3. **Read-Your-Writes Bug:** A social media application routes all reads to a PostgreSQL standby. A user posts a new tweet and immediately refreshes their feed — the tweet doesn't appear for 2 seconds. Describe three solutions to this read-your-writes problem and the trade-offs of each.
 
    <details>
-   <summary>Hint</summary>
+   <summary>Model Answer</summary>
    (1) Session stickiness: route to primary for N seconds after a write — simple but wastes primary capacity. (2) LSN tracking: record write LSN, check if standby has applied it before reading — precise but requires a coordination layer. (3) Synchronous commit for the write (`SET LOCAL synchronous_commit = 'remote_apply'`) — guarantees standby is current before commit returns but adds latency to every post operation. Option 2 is best for high-traffic sites; option 3 is best for low-frequency critical writes.
    </details>
 
 4. **Patroni Cluster Design:** Design a Patroni cluster that: (a) survives primary failure without manual intervention, (b) survives losing one etcd node, (c) prevents split-brain, and (d) provides read replicas for analytics. How many PostgreSQL nodes and etcd nodes are required at minimum?
 
    <details>
-   <summary>Hint</summary>
+   <summary>Model Answer</summary>
    Minimum: 3 etcd nodes (quorum = 2, can lose 1 without losing consensus), 1 primary + 2 standbys (need at least one standby to promote, and another to keep HA after promotion). Total: 6 servers minimum, or etcd can run co-located on the PostgreSQL nodes. Split-brain prevention is etcd's responsibility — the leader lock in etcd ensures only one Patroni agent holds the primary role at any time via compare-and-swap.
    </details>
 
@@ -715,7 +715,7 @@ flowchart TD
 5. **Multi-Region Write Latency:** A SaaS company serves customers in the US (60%) and Europe (40%). EU write latency is currently 180ms (US-East primary round-trip). Design an architecture that reduces EU write latency to < 20ms while maintaining consistency. What are the failure modes and conflict handling strategy?
 
    <details>
-   <summary>Hint</summary>
+   <summary>Model Answer</summary>
    The cleanest solution is geo-partitioning: EU customers' data lives in an EU primary; US customers' data in a US primary. No cross-region writes are needed because each row is owned by exactly one region. On failure, each region falls over to a local standby. Conflicts don't exist because writes are partitioned. The complexity is routing — the application must know which region owns each customer's data (typically stored in a metadata table). For data that must be global (e.g., a shared product catalog), replicate it read-only to all regions with async replication + LWW conflict resolution for rare updates.
    </details>
 

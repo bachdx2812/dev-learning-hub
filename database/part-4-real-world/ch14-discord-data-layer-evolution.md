@@ -381,14 +381,14 @@ This denormalization avoids secondary index lookups for the common case (display
 1. **Tombstone Behavior:** A Discord channel has 1 million messages of which 50,000 have been moderated (deleted) using CQL `DELETE`. How does this affect read performance when loading the most recent 50 messages? What alternative data model avoids this problem?
 
    <details>
-   <summary>Hint</summary>
+   <summary>Model Answer</summary>
    Cassandra and ScyllaDB mark deleted rows with tombstones. Reads must scan past tombstones to find live rows. With 50,000 tombstones scattered across the partition, reading 50 live messages requires scanning many more entries. Alternative: use a `deleted BOOLEAN` column and `UPDATE messages SET deleted = true WHERE ...` — this writes a regular value update, not a tombstone, so compaction handles it efficiently.
    </details>
 
 2. **Time Bucketing:** Discord uses 10-day time buckets for message partitions. What happens when you load the last 50 messages in a channel and the most recent bucket has only 20 messages? Describe the query behavior step by step.
 
    <details>
-   <summary>Hint</summary>
+   <summary>Model Answer</summary>
    The application calculates the current bucket from the most recent message_id, queries that bucket and gets 20 messages. Since fewer than 50 were returned, it decrements the bucket number and queries again — getting up to 30 more messages from the previous bucket. Each bucket query is a single Cassandra partition read. This continues until 50 total messages are found or the earliest bucket is reached.
    </details>
 
@@ -397,14 +397,14 @@ This denormalization avoids secondary index lookups for the common case (display
 3. **Hot Partition Mitigation:** A large Discord server has 2 million members and one main channel that receives 10,000 messages per minute during live events. How would you detect this hot partition, and what options exist to mitigate it without changing the data model?
 
    <details>
-   <summary>Hint</summary>
+   <summary>Model Answer</summary>
    Detection: monitor per-partition write rate using ScyllaDB's shard-level metrics or Cassandra's nodetool tablestats. Mitigation options: (1) Read replicas with LOCAL_QUORUM reads to distribute read load across 3 nodes. (2) Application-level rate limiting on writes per channel. (3) Token-aware driver so each write goes directly to the correct replica without coordinator overhead. (4) Increase replication factor so writes land on more nodes.
    </details>
 
 4. **Dual-Write Migration Risk:** During the Cassandra→ScyllaDB migration, a user edits a message. The edit lands in ScyllaDB but the async write to Cassandra fails due to a network partition. An hour later, the migration completes and Cassandra is decommissioned. Was any data lost? What if the failure was reversed (Cassandra succeeds, ScyllaDB fails)?
 
    <details>
-   <summary>Hint</summary>
+   <summary>Model Answer</summary>
    If ScyllaDB (new DB) gets the write and Cassandra (old DB) does not: no data is lost — ScyllaDB is the source of truth. If Cassandra gets the write and ScyllaDB does not: the edit is lost in ScyllaDB. The message shows the pre-edit version. This is why the migration framework must treat the new DB as the primary write target — new DB success is required; old DB failure is acceptable.
    </details>
 
@@ -413,7 +413,7 @@ This denormalization avoids secondary index lookups for the common case (display
 5. **ScyllaDB vs Cassandra Architecture:** Discord reduced from 177 Cassandra nodes to 72 ScyllaDB nodes while handling the same workload. Explain the architectural reasons why ScyllaDB requires fewer nodes. What does the shard-per-core model eliminate that Cassandra's JVM thread pool cannot? Under what conditions might ScyllaDB's advantage shrink?
 
    <details>
-   <summary>Hint</summary>
+   <summary>Model Answer</summary>
    Three factors: (1) No JVM overhead — ScyllaDB's C++ uses less memory per operation, so more CPU budget goes to actual work vs. GC bookkeeping. (2) Shard-per-core eliminates cross-core synchronization — each core handles its partitions without locks. (3) Predictable compaction — no GC pauses mean compaction runs continuously at steady state rather than bursty. ScyllaDB's advantage shrinks with very low concurrency (a single-threaded workload doesn't benefit from shard-per-core) and with workloads that are network-bound rather than CPU-bound.
    </details>
 

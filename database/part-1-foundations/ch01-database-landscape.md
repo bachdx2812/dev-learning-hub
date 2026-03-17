@@ -17,42 +17,22 @@ mindmap
       MySQL
       SQLite
     NoSQL
-      Document
-        MongoDB
-        CouchDB
-      Key-Value
-        Redis
-        DynamoDB
-      Wide-Column
-        Cassandra
-        HBase
-      Graph
-        Neo4j
-        TigerGraph
+      Document: MongoDB, CouchDB
+      Key-Value: Redis, DynamoDB
+      Wide-Column: Cassandra, HBase
+      Graph: Neo4j, TigerGraph
     NewSQL
       CockroachDB
       Spanner
       TiDB
     Specialized
-      TimeSeries
-        InfluxDB
-        TimescaleDB
-      Search
-        Elasticsearch
-        Typesense
-      Vector
-        Pgvector
-        Pinecone
+      Time-Series: InfluxDB, TimescaleDB
+      Search: Elasticsearch, Typesense
+      Vector: pgvector, Pinecone
     Storage Engines
-      Page-Oriented
-        B-Tree
-        InnoDB
-      Log-Structured
-        LSM-Tree
-        RocksDB
-      WAL
-        Crash Recovery
-        Durability
+      Page-Oriented: B-Tree, InnoDB
+      Log-Structured: LSM-Tree, RocksDB
+      WAL: Crash Recovery, Durability
 ```
 
 ## Overview
@@ -60,6 +40,10 @@ mindmap
 Every database in production today was designed around a specific set of trade-offs made decades ago. PostgreSQL was designed in 1986 to maximize correctness. Cassandra was designed in 2007 to maximize write throughput across data centers. Redis was designed in 2009 to maximize speed by keeping everything in memory. Understanding *why* each system made its original trade-offs is the prerequisite for choosing the right one for your workload.
 
 This chapter maps the landscape: nine categories of databases, the two dominant storage engine architectures, how the Write-Ahead Log makes durability possible, and why PostgreSQL is quietly becoming the platform of choice for workloads it was never originally designed for.
+
+:::info A Note on PostgreSQL Focus
+This guide uses PostgreSQL as the primary reference implementation for relational database concepts. This is an intentional design choice — PostgreSQL's open architecture makes internals observable and educational. However, every concept (WAL, MVCC, indexing, replication) has equivalents in MySQL, SQL Server, and Oracle. If your shop runs MySQL or DynamoDB, the principles apply — translate the specifics. Part 2 covers MySQL, NoSQL, and specialized engines in dedicated chapters.
+:::
 
 ---
 
@@ -83,7 +67,11 @@ Nine categories cover almost every workload you will encounter in production.
 
 Relational databases remain the default for most applications because they handle the widest variety of queries correctly. An RDBMS stores data in tables (relations), enforces referential integrity with foreign keys, and executes any ad-hoc SQL query the application sends — including JOINs across multiple tables that were not anticipated when the schema was designed.
 
-The cost is predictability. RDBMSes scale vertically easily but horizontal scaling (sharding, distributed transactions) requires significant engineering. The classic RDBMS ceiling is around 10–50K write QPS on a single primary — after that, you are sharding or considering alternatives.
+The cost is predictability. RDBMSes scale vertically easily but horizontal scaling (sharding, distributed transactions) requires significant engineering.
+
+:::info Write QPS Varies Enormously by Workload
+A common rule of thumb is "10–50K write QPS on a single primary" but this is highly workload-dependent. Simple `INSERT`s with no secondary indexes on NVMe SSDs can exceed 100K/sec. Complex transactions with multiple indexes and foreign keys may plateau at 5K/sec. The ceiling depends on: row size, index count, transaction complexity, fsync behavior, and hardware. Use this range as a conversation starter, not a hard limit — always benchmark your specific workload before deciding to shard.
+:::
 
 ### NoSQL: Designed for Specific Access Patterns
 
@@ -288,8 +276,8 @@ PostgreSQL's extension system has matured to the point where a single PostgreSQL
 
 | Extension | Adds to PostgreSQL | Replaces |
 |-----------|--------------------|---------|
-| **pgvector** | Vector similarity search, ANN indexes | Pinecone, Weaviate |
-| **TimescaleDB** | Time-series hypertables, compression, continuous aggregates | InfluxDB, TimescaleDB standalone |
+| **pgvector** | Vector similarity search, ANN indexes | Pinecone, Weaviate (at moderate scale†) |
+| **TimescaleDB** | Time-series hypertables, compression, continuous aggregates | InfluxDB (at moderate ingest rates†) |
 | **PostGIS** | Geospatial types, spatial indexes, geographic queries | Specialized geo DBs |
 | **pg_partman** | Automated table partitioning management | Manual partition scripts |
 | **Citus** | Horizontal sharding, distributed queries | Standalone sharding middleware |
@@ -303,9 +291,11 @@ The strategy works well when:
 - Workload volumes are moderate (vector search under 10M embeddings, time-series under 50GB/day)
 - You want ACID consistency across multiple data types in one transaction
 
+†**Performance caveat:** pgvector at >5M vectors shows measurably worse recall and p99 latency compared to purpose-built HNSW implementations (Qdrant, Weaviate). TimescaleDB compression ratios are 20–50× worse than InfluxDB IOx at high cardinality. The extensions are "good enough" for many workloads but are not drop-in replacements at the high end. See [Ch08 — Specialized Databases](/database/part-2-engines/ch08-specialized-databases) for benchmarks.
+
 The strategy breaks down when:
-- You need sub-millisecond vector ANN at scale (dedicated vector DB wins)
-- You need petabyte-scale time-series ingest (dedicated TSDB with LSM wins)
+- You need sub-millisecond vector ANN at >10M embeddings (dedicated vector DB wins)
+- You need petabyte-scale time-series ingest at >1M points/sec (dedicated TSDB with LSM wins)
 - You need deep Elasticsearch-style relevance scoring and faceting (dedicated search wins)
 
 :::warning Do Not Over-Consolidate
@@ -388,14 +378,14 @@ Shopify processes $75+ billion in annual merchant sales and serves millions of c
 1. **Storage Engine Choice:** A startup is building a task management application where each task has a flexible set of custom fields (different for each organization). They expect 100K reads/day and 10K writes/day. Should they use PostgreSQL with JSONB columns, MongoDB, or a key-value store? Justify your answer with reference to the access patterns.
 
    <details>
-   <summary>Hint</summary>
+   <summary>Model Answer</summary>
    Consider: do they need ACID transactions across tasks? Do they need to query by custom field values? What is the write/read ratio? JSONB in PostgreSQL handles schema flexibility while keeping SQL expressiveness — a good default unless you have a specific reason for a document store.
    </details>
 
 2. **WAL Recovery:** A PostgreSQL server crashes immediately after a transaction commits. When the server restarts, how does PostgreSQL ensure the committed data is not lost? What role does the WAL play, and why is it sufficient even if the data page was not yet written to the main data file?
 
    <details>
-   <summary>Hint</summary>
+   <summary>Model Answer</summary>
    The WAL is fsync'd before the commit returns. On restart, PostgreSQL replays all WAL records since the last checkpoint. A committed transaction's WAL record contains all the information needed to reconstruct the data page change.
    </details>
 
@@ -404,14 +394,14 @@ Shopify processes $75+ billion in annual merchant sales and serves millions of c
 3. **Database Selection:** An e-commerce company wants to add three features: (a) "customers who bought this also bought" recommendations, (b) product inventory tracking with sub-millisecond reads, (c) full-text product search with faceting. For each feature, choose a database category and justify. Can any two features share a database?
 
    <details>
-   <summary>Hint</summary>
+   <summary>Model Answer</summary>
    (a) Graph DB or collaborative filtering in Redis. (b) Redis for the hot path, backed by PostgreSQL for durability. (c) Elasticsearch or PostgreSQL with tsvector for moderate scale. Redis + PostgreSQL could share infrastructure for (a) and (b).
    </details>
 
 4. **LSM vs B-Tree:** A metrics collection service ingests 500K events per second from IoT sensors, retains data for 30 days, and answers range queries like "average temperature for sensor X over the last 24 hours." Would you use a B-tree based PostgreSQL or an LSM-based time-series database? What are the specific technical reasons?
 
    <details>
-   <summary>Hint</summary>
+   <summary>Model Answer</summary>
    LSM wins: 500K writes/sec would cause severe B-tree page split contention and WAL pressure. LSM's sequential append model handles write-heavy workloads much better. TimescaleDB (PostgreSQL extension) uses chunk-based partitioning to give PostgreSQL LSM-like write characteristics for time-series.
    </details>
 
@@ -420,7 +410,7 @@ Shopify processes $75+ billion in annual merchant sales and serves millions of c
 5. **PostgreSQL-as-Platform Analysis:** A team is considering consolidating their current stack (PostgreSQL + Redis + Elasticsearch + Pinecone) onto a single PostgreSQL instance with pgvector, full-text search, and pg_cron. They process 50K transactions/day, 5M vector searches/day, and 2M full-text searches/day. Analyze the trade-offs of consolidation vs. separation. What would you recommend and why?
 
    <details>
-   <summary>Hint</summary>
+   <summary>Model Answer</summary>
    5M vector searches/day is ~58/sec, and 2M full-text searches/day is ~23/sec. At this scale, consolidation is feasible with proper connection pooling and read replicas. The risk is resource contention between OLTP (CPU + I/O for row fetches) and vector search (CPU-intensive ANN computation). A read replica dedicated to search + vector workloads solves this. Pinecone is only necessary above ~50M embeddings at sub-100ms p99 — below that, pgvector with an HNSW index is comparable.
    </details>
 

@@ -693,14 +693,14 @@ ALTER TABLE files SET (
 1. **EXPLAIN Reading:** You run `EXPLAIN ANALYZE` on a query and see `Seq Scan on orders (actual rows=4000000 loops=1)` followed by a filter that removes 3,990,000 rows, leaving 10,000. What does this tell you about the query, and what action should you take?
 
    <details>
-   <summary>Hint</summary>
+   <summary>Model Answer</summary>
    The planner is scanning 4 million rows to return 10,000 — 0.25% selectivity on a full table scan. This means either (a) there is no index on the filtered column(s), or (b) the planner chose not to use an existing index (possible if it thinks the table is small or statistics are stale). Action: check if an index exists on the WHERE clause columns, create one with CREATE INDEX CONCURRENTLY if not, then run EXPLAIN again to see if the plan changes.
    </details>
 
 2. **Connection Pooling Math:** A Node.js application runs on 10 servers, each with 100 concurrent async connections to PostgreSQL. The PostgreSQL server has 16 CPU cores. What problems would you expect without a connection pooler? How many PostgreSQL connections should PgBouncer maintain in the pool?
 
    <details>
-   <summary>Hint</summary>
+   <summary>Model Answer</summary>
    Without pooling: 1,000 PostgreSQL backend processes consuming ~5-10GB RAM just for connection overhead, plus severe lock contention. Optimal pool size formula: (16 cores × 2) + 1 = 33. PgBouncer should maintain ~33 real PostgreSQL connections and multiplex 1,000 application connections to those 33, returning connections to the pool after each transaction completes. The application sees 1,000 available connections but PostgreSQL only handles 33 concurrent workers.
    </details>
 
@@ -709,14 +709,14 @@ ALTER TABLE files SET (
 3. **Antipattern Fix:** A GraphQL API resolver fetches 20 posts, then for each post fetches the author details and comment count in separate queries. Rewrite this as a single SQL query that returns all the data needed, and explain how the EXPLAIN ANALYZE output would differ between the N+1 version and the fixed version.
 
    <details>
-   <summary>Hint</summary>
+   <summary>Model Answer</summary>
    Single query: `SELECT p.id, p.title, p.body, u.name AS author, u.avatar_url, count(c.id) AS comment_count FROM posts p JOIN users u ON u.id = p.author_id LEFT JOIN comments c ON c.post_id = p.id WHERE p.id = ANY($1) GROUP BY p.id, u.id ORDER BY p.created_at DESC`. The N+1 EXPLAIN would show 21 separate plans each with an Index Scan (fast individually but 21 round trips). The fixed version shows one Hash Join plan with one round trip and a single HashAggregate for the count.
    </details>
 
 4. **PgBouncer Mode Selection:** A Django application uses `LISTEN/NOTIFY` for real-time notifications and also uses database-level session variables (`SET my.tenant_id = '...'`) for row-level security. The team wants to add PgBouncer. Which pool mode should they choose and why? What code changes are required?
 
    <details>
-   <summary>Hint</summary>
+   <summary>Model Answer</summary>
    Session pooling mode is required. Transaction pooling would break LISTEN/NOTIFY (the LISTEN is tied to a specific connection that gets returned to the pool after the transaction) and would break session variables (SET is lost when the connection is returned). Session pooling keeps one PostgreSQL connection per application session, which is less efficient but maintains all session state. The trade-off: session pooling only helps by capping max connections and reusing idle connections — it doesn't provide the full multiplexing benefit of transaction pooling.
    </details>
 
@@ -725,7 +725,7 @@ ALTER TABLE files SET (
 5. **Query Planner Failure:** A query on a `users` table with 10 million rows is choosing a Seq Scan even though there is an index on the `status` column. The query is `SELECT * FROM users WHERE status = 'trial'`. You run `ANALYZE users` but the planner still chooses Seq Scan. What are three possible explanations, and how would you diagnose each?
 
    <details>
-   <summary>Hint</summary>
+   <summary>Model Answer</summary>
    (1) Planner correctly assessed that 'trial' covers >5-10% of rows (low selectivity) — index scan + heap fetch would be slower than sequential scan. Diagnose: `SELECT count(*) FROM users WHERE status = 'trial'` — if it's >500K rows out of 10M, Seq Scan may be correct. (2) Statistics are misleading — if 'trial' rows are clustered in a narrow range, a correlated index+heap scan is actually faster but the planner's correlation estimate is wrong. Diagnose: check `pg_stats` for the status column's `correlation` value. (3) `random_page_cost` is too high relative to `seq_page_cost` — on SSDs, set `random_page_cost = 1.1` to reflect that random and sequential reads have similar cost. The planner then more aggressively favors index scans.
    </details>
 
