@@ -10,42 +10,29 @@ description: "A complete map of the database world — RDBMS, NoSQL families, Ne
 ## Mind Map
 
 ```mermaid
-flowchart TD
-    Root["🗄️ Database Landscape"]
-
-    Root --> R["Relational"]
-    Root --> N["NoSQL"]
-    Root --> NS["NewSQL"]
-    Root --> S["Specialized"]
-    Root --> SE["Storage Engines"]
-
-    R --> R1["PostgreSQL"]
-    R --> R2["MySQL"]
-    R --> R3["SQLite"]
-
-    N --> N1["Document\nMongoDB, CouchDB"]
-    N --> N2["Key-Value\nRedis, DynamoDB"]
-    N --> N3["Wide-Column\nCassandra, HBase"]
-    N --> N4["Graph\nNeo4j, TigerGraph"]
-
-    NS --> NS1["CockroachDB"]
-    NS --> NS2["Spanner"]
-    NS --> NS3["TiDB"]
-
-    S --> S1["Time-Series\nInfluxDB, TimescaleDB"]
-    S --> S2["Search\nElasticsearch, Typesense"]
-    S --> S3["Vector\npgvector, Pinecone"]
-
-    SE --> SE1["Page-Oriented\nB-Tree, InnoDB"]
-    SE --> SE2["Log-Structured\nLSM-Tree, RocksDB"]
-    SE --> SE3["WAL\nCrash Recovery"]
-
-    style Root fill:#bd93f9,color:#282a36
-    style R fill:#50fa7b,color:#282a36
-    style N fill:#ff5555,color:#f8f8f2
-    style NS fill:#ffb86c,color:#282a36
-    style S fill:#6272a4,color:#f8f8f2
-    style SE fill:#f1fa8c,color:#282a36
+mindmap
+  root((Database Landscape))
+    Relational
+      PostgreSQL
+      MySQL
+      SQLite
+    NoSQL
+      Document — MongoDB, CouchDB
+      Key-Value — Redis, DynamoDB
+      Wide-Column — Cassandra, HBase
+      Graph — Neo4j, TigerGraph
+    NewSQL
+      CockroachDB
+      Spanner
+      TiDB
+    Specialized
+      Time-Series — InfluxDB, TimescaleDB
+      Search — Elasticsearch, Typesense
+      Vector — pgvector, Pinecone
+    Storage Engines
+      Page-Oriented — B-Tree, InnoDB
+      Log-Structured — LSM-Tree, RocksDB
+      WAL — Crash Recovery
 ```
 
 ## Overview

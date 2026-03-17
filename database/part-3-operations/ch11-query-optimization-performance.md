@@ -626,6 +626,78 @@ WHERE cardinality(pg_blocking_pids(blocked.pid)) > 0;
 
 ---
 
+## MySQL Query Optimization Toolkit
+
+While this chapter focuses on PostgreSQL, MySQL has its own powerful optimization tools. If your stack includes MySQL (covered in [Ch06](/database/part-2-engines/ch06-mysql-distributed-sql)), these are the equivalents.
+
+### EXPLAIN FORMAT=JSON
+
+MySQL's JSON EXPLAIN output provides cost estimates, access types, and optimizer decisions in a structured format.
+
+```sql
+-- MySQL EXPLAIN with cost breakdown
+EXPLAIN FORMAT=JSON
+SELECT u.name, count(o.id)
+FROM users u
+JOIN orders o ON o.user_id = u.id
+WHERE u.created_at > '2024-01-01'
+GROUP BY u.id\G
+
+-- Key fields to check:
+-- "query_cost": total estimated cost
+-- "access_type": ALL (full scan), ref (index), eq_ref (unique index), range
+-- "rows_examined_per_scan": compare to "rows_produced_per_join"
+-- "used_key_parts": which index columns are actually used
+```
+
+### Performance Schema & SHOW PROFILE
+
+```sql
+-- Enable profiling for the session
+SET profiling = 1;
+SELECT * FROM orders WHERE status = 'pending';
+SHOW PROFILE FOR QUERY 1;
+-- Shows: Sending data, Creating sort index, etc. with time per stage
+
+-- Performance Schema: find top queries by total latency
+SELECT
+    DIGEST_TEXT AS query,
+    COUNT_STAR AS calls,
+    ROUND(SUM_TIMER_WAIT / 1e12, 2) AS total_sec,
+    ROUND(AVG_TIMER_WAIT / 1e12, 4) AS avg_sec
+FROM performance_schema.events_statements_summary_by_digest
+ORDER BY SUM_TIMER_WAIT DESC
+LIMIT 10;
+```
+
+### pt-query-digest (Percona Toolkit)
+
+The industry-standard tool for analyzing MySQL slow query logs.
+
+```bash
+# Analyze slow query log — top queries by total time
+pt-query-digest /var/log/mysql/slow.log
+
+# Key output columns:
+# Rank  Query ID           Response time  Calls  R/Call
+# 1     0x3A89C5F24B7E...  45.2s  32.1%   1.2K   0.0377s
+# Shows: fingerprinted query, total time, percentage of all query time, call count
+```
+
+### MySQL vs PostgreSQL Optimization Comparison
+
+| Capability | PostgreSQL | MySQL (InnoDB) |
+|-----------|-----------|----------------|
+| Query plan analysis | `EXPLAIN (ANALYZE, BUFFERS)` | `EXPLAIN FORMAT=JSON` / `EXPLAIN ANALYZE` (8.0.18+) |
+| Slow query logging | `log_min_duration_statement` | `slow_query_log` + `long_query_time` |
+| Query statistics | `pg_stat_statements` extension | `performance_schema.events_statements_summary_by_digest` |
+| Automatic plan logging | `auto_explain` extension | `performance_schema` (always on in 8.0+) |
+| Log analysis tool | `pgbadger` | `pt-query-digest` (Percona Toolkit) |
+| Connection pooling | PgBouncer (external) | ProxySQL (external), MySQL Router |
+| Index hints | Rarely needed (planner is strong) | `USE INDEX`, `FORCE INDEX` (sometimes necessary) |
+
+---
+
 ## Case Study: How Figma Reduced Query Latency by 10x
 
 Figma is a browser-based design tool. Every multiplayer cursor move, object drag, and property change triggers database reads and writes. At scale, query performance is directly tied to product feel.

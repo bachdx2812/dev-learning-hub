@@ -321,11 +321,15 @@ By 2025, PostgreSQL with extensions handles use cases that previously required s
 
 | Extension | Replaces | Limitation |
 |-----------|----------|-----------|
-| **pgvector** + HNSW index | Pinecone, Weaviate (< 50M vectors) | ANN recall drops at > 50M; Pinecone wins above that |
-| **TimescaleDB** | InfluxDB (< 50GB/day ingest) | InfluxDB 3.0 with Apache Arrow beats PG at high ingest rates |
+| **pgvector** + HNSW index | Pinecone, Weaviate (< 50M vectors) | ANN recall degrades above ~5–10M vectors (as of pgvector 0.7, 2024); purpose-built indexes (Pinecone, Qdrant) maintain recall at 50M+ — see [ANN Benchmarks](https://ann-benchmarks.com/) |
+| **TimescaleDB** | InfluxDB (< 50GB/day ingest) | InfluxDB 3.0 (Apache Arrow engine, 2024) benchmarks higher at sustained >1M points/sec ingest |
 | **PostGIS** | Dedicated geo DBs | Uber-scale real-time location still needs H3 + custom |
-| **pg_search** (ParadeDB) | Elasticsearch (< 100M documents) | Elasticsearch still wins for complex relevance scoring |
+| **pg_search** (ParadeDB) | Elasticsearch (< 100M documents) | Elasticsearch still wins for complex relevance scoring at scale (100M+ docs, as of 2024); ParadeDB is pre-1.0 |
 | **Citus** | Custom sharding middleware | CockroachDB has better distributed transaction story |
+
+:::info Benchmarks Last Verified: Early 2025
+The thresholds above (pgvector recall at >5M vectors, pg_search at >100M documents, TimescaleDB ingest rates) are approximate crossover points observed in benchmarks as of early 2025. These numbers shift with every release — pgvector 0.8 added parallel index builds, ParadeDB is rapidly improving. Always benchmark your specific workload before making a database selection based on published thresholds.
+:::
 
 The implication: **start with PostgreSQL + extensions**. Only migrate to a specialized system when you hit a measurable limit.
 
@@ -351,13 +355,13 @@ Every major database is adding vector support in 2024–2025:
 
 | Database | Vector Support | Index Type | Notes |
 |----------|---------------|-----------|-------|
-| PostgreSQL + pgvector | Native extension | HNSW, IVFFlat | Best for < 50M vectors with ACID |
+| PostgreSQL + pgvector | Native extension | HNSW, IVFFlat | Best for < 5–10M vectors with ACID (as of 0.7/0.8, 2024) |
 | MongoDB Atlas | Atlas Vector Search | HNSW | Combines document + vector in one system |
 | Cassandra | DataStax Astra | SAI (Storage-Attached Index) | Cassandra-scale vector search |
 | Redis | Redis Vector Similarity | HNSW, FLAT | In-memory; low latency |
 | DynamoDB | Not native | — | Requires separate vector layer |
 
-The trend: **vector search is becoming a primitive** in every database, not a specialized system. For new applications, start with PostgreSQL + pgvector unless you project > 50 million embeddings with < 100ms p99 ANN latency.
+The trend: **vector search is becoming a primitive** in every database, not a specialized system. For new applications, start with PostgreSQL + pgvector unless you project > 5–10 million embeddings with < 100ms p99 ANN latency.
 
 ### Trend 4: Edge Databases
 
@@ -514,9 +518,10 @@ A one-page summary of database selection criteria across all categories covered 
 | **Time-Series** | ClickHouse, TimescaleDB | Strong/Eventual | 1M–4M (ClickHouse) | SQL + time functions | Medium–High | Metrics, IoT, analytics |
 | **Search** | Elasticsearch, Meilisearch | Near real-time | 10K–50K (indexing) | Full-text, faceted | High (Elasticsearch) | Full-text search, logs |
 | **NewSQL** | CockroachDB, TiDB, Spanner | Distributed ACID | 10K–50K per node | Full SQL | High | Global ACID at scale |
-| **Vector** | pgvector, Pinecone, Qdrant | Eventual | N/A (batch indexed) | ANN similarity | Low (managed) | Semantic search, RAG, ML |
+| **Vector** | pgvector, Pinecone, Qdrant | Eventual | Varies‡ | ANN similarity | Low (managed) | Semantic search, RAG, ML |
 
 †Highly workload-dependent. See [Ch01](/database/part-1-foundations/ch01-database-landscape) for nuance.
+‡Vector DB QPS depends on index type, dimensions, and recall target. pgvector HNSW at 768 dimensions: ~500–2,000 QPS per core (as of 0.7, 2024).
 
 ### Decision Cheat Sheet
 
@@ -528,7 +533,7 @@ A one-page summary of database selection criteria across all categories covered 
 | Need global distribution? | NewSQL (CockroachDB, Spanner) | Single-region RDBMS |
 | Schema changes frequently? | Document DB or RDBMS + JSONB | Strict RDBMS schema |
 | Need full-text search? | Elasticsearch (large scale) or PostgreSQL GIN (moderate) | Skip search engine |
-| Need vector similarity? | pgvector (<10M) or Pinecone (>10M) | Not applicable |
+| Need vector similarity? | pgvector (<5M) or dedicated vector DB (>5M) — thresholds shift with releases | Not applicable |
 | Team < 5 engineers? | Managed service (RDS, Atlas, DynamoDB) | Self-hosted is viable |
 | Budget-constrained? | PostgreSQL (free, extensible) | Evaluate managed options |
 

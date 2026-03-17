@@ -40,19 +40,21 @@ import { useChapterProgress } from '../composables/use-chapter-progress'
 const route = useRoute()
 const { toggle, isCompleted, completedCount, progressPercent, TOTAL_CHAPTERS } = useChapterProgress()
 
-// Extract chapter ID from path: /system-design/.../ch01-introduction → "ch01"
+// Extract section-prefixed chapter ID from path: /database/.../ch01-introduction → "database-ch01"
 const chapterId = computed(() => {
-  const match = route.path.match(/\/(ch\d{2})-/)
-  return match ? match[1] : null
+  const match = route.path.match(/\/(system-design|database|design-patterns)\/.*\/(ch\d{2})-/)
+  return match ? `${match[1]}-${match[2]}` : null
 })
 
-// Render on chapter pages or system-design index
-const isSystemDesignIndex = computed(() =>
-  route.path === '/system-design/' || route.path.endsWith('/system-design/index.html')
-)
+// Render on chapter pages or any section index
+const isSectionIndex = computed(() => {
+  const p = route.path
+  return p === '/system-design/' || p === '/database/' || p === '/design-patterns/' ||
+    p.endsWith('/system-design/index.html') || p.endsWith('/database/index.html') || p.endsWith('/design-patterns/index.html')
+})
 
 const shouldRender = computed(() =>
-  chapterId.value !== null || isSystemDesignIndex.value
+  chapterId.value !== null || isSectionIndex.value
 )
 </script>
 
