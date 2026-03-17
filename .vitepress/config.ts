@@ -71,6 +71,60 @@ const systemDesignSidebar = [
   }
 ]
 
+// Database Engineering sidebar — 4 parts, 16 chapters
+const databaseSidebar = [
+  {
+    text: '🗄️ Database Engineering',
+    link: '/database/',
+    items: [
+      {
+        text: 'Part 1: Foundations',
+        link: '/database/part-1-foundations/',
+        collapsed: false,
+        items: [
+          { text: 'Ch 01 — The Database Landscape', link: '/database/part-1-foundations/ch01-database-landscape' },
+          { text: 'Ch 02 — Data Modeling for Scale', link: '/database/part-1-foundations/ch02-data-modeling-for-scale' },
+          { text: 'Ch 03 — Indexing Strategies', link: '/database/part-1-foundations/ch03-indexing-strategies' },
+          { text: 'Ch 04 — Transactions & Concurrency Control', link: '/database/part-1-foundations/ch04-transactions-concurrency-control' },
+        ]
+      },
+      {
+        text: 'Part 2: Engine Deep Dives',
+        link: '/database/part-2-engines/',
+        collapsed: true,
+        items: [
+          { text: 'Ch 05 — PostgreSQL in Production', link: '/database/part-2-engines/ch05-postgresql-in-production' },
+          { text: 'Ch 06 — MySQL & Distributed SQL', link: '/database/part-2-engines/ch06-mysql-distributed-sql' },
+          { text: 'Ch 07 — NoSQL at Scale', link: '/database/part-2-engines/ch07-nosql-at-scale' },
+          { text: 'Ch 08 — Specialized Databases', link: '/database/part-2-engines/ch08-specialized-databases' },
+        ]
+      },
+      {
+        text: 'Part 3: Scaling & Operations',
+        link: '/database/part-3-operations/',
+        collapsed: true,
+        items: [
+          { text: 'Ch 09 — Replication & High Availability', link: '/database/part-3-operations/ch09-replication-high-availability' },
+          { text: 'Ch 10 — Sharding & Partitioning', link: '/database/part-3-operations/ch10-sharding-partitioning' },
+          { text: 'Ch 11 — Query Optimization & Performance', link: '/database/part-3-operations/ch11-query-optimization-performance' },
+          { text: 'Ch 12 — Backup, Migration & Disaster Recovery', link: '/database/part-3-operations/ch12-backup-migration-disaster-recovery' },
+        ]
+      },
+      {
+        text: 'Part 4: Real-World Design',
+        link: '/database/part-4-real-world/',
+        collapsed: true,
+        items: [
+          { text: 'Ch 13 — Instagram: PostgreSQL at Scale', link: '/database/part-4-real-world/ch13-instagram-postgresql-at-scale' },
+          { text: 'Ch 14 — Discord: Data Layer Evolution', link: '/database/part-4-real-world/ch14-discord-data-layer-evolution' },
+          { text: 'Ch 15 — Uber: Geospatial Database Design', link: '/database/part-4-real-world/ch15-uber-geospatial-database-design' },
+          { text: 'Ch 16 — Database Selection Framework', link: '/database/part-4-real-world/ch16-database-selection-framework' },
+        ]
+      },
+    ]
+  }
+]
+
 // Design Patterns sidebar — 6 chapters
 const designPatternsSidebar = [
   {
@@ -91,7 +145,7 @@ export default withMermaid(
   defineConfig({
     title: "The Engineer's Handbook",
     titleTemplate: ':title',
-    description: "A comprehensive guide for software engineers — master system design and design patterns, one concept at a time.",
+    description: "A comprehensive guide for software engineers — master system design, design patterns, and database engineering, one concept at a time.",
 
     // Force dark mode only, no toggle
     appearance: 'dark',
@@ -153,28 +207,28 @@ export default withMermaid(
       }],
       ['meta', { name: 'theme-color', content: '#282a36' }],
       // Meta description
-      ['meta', { name: 'description', content: 'Master system design and design patterns with 31 hands-on chapters — scalability, distributed systems, GoF patterns, Go code examples, and interview prep.' }],
+      ['meta', { name: 'description', content: 'Master system design, design patterns & database engineering with 47 hands-on chapters — scalability, distributed systems, GoF patterns, indexing, transactions, and interview prep.' }],
       // Open Graph
-      ['meta', { property: 'og:title', content: "The Engineer's Handbook — System Design & Design Patterns" }],
-      ['meta', { property: 'og:description', content: '31 hands-on chapters covering system design fundamentals, architecture patterns, real-world case studies, and 27 design patterns with practical Go code.' }],
+      ['meta', { property: 'og:title', content: "The Engineer's Handbook — System Design, Design Patterns & Database Engineering" }],
+      ['meta', { property: 'og:description', content: '47 hands-on chapters covering system design fundamentals, architecture patterns, real-world case studies, 27 design patterns, and database engineering from indexing to sharding.' }],
       ['meta', { property: 'og:type', content: 'website' }],
       ['meta', { property: 'og:url', content: 'https://bachdx-learning-hub.vercel.app/' }],
       ['meta', { property: 'og:site_name', content: "The Engineer's Handbook" }],
       // Twitter Card
       ['meta', { name: 'twitter:card', content: 'summary_large_image' }],
-      ['meta', { name: 'twitter:title', content: "The Engineer's Handbook — System Design & Design Patterns" }],
-      ['meta', { name: 'twitter:description', content: '31 hands-on chapters covering system design fundamentals, architecture patterns, real-world case studies, and 27 design patterns with practical Go code.' }],
+      ['meta', { name: 'twitter:title', content: "The Engineer's Handbook — System Design, Design Patterns & Database Engineering" }],
+      ['meta', { name: 'twitter:description', content: '47 hands-on chapters covering system design fundamentals, architecture patterns, real-world case studies, 27 design patterns, and database engineering from indexing to sharding.' }],
       // JSON-LD structured data
       ['script', { type: 'application/ld+json' }, JSON.stringify({
         "@context": "https://schema.org",
         "@type": "Course",
         "name": "The Engineer's Handbook",
-        "description": "Master system design and design patterns with 31 hands-on chapters — scalability, distributed systems, 27 GoF & modern patterns with Go code, and interview prep.",
+        "description": "Master system design, design patterns & database engineering with 47 hands-on chapters — scalability, distributed systems, 27 GoF & modern patterns, indexing, transactions, and interview prep.",
         "provider": {
           "@type": "Person",
           "name": "Bach Duong"
         },
-        "numberOfCredits": 31,
+        "numberOfCredits": 47,
         "educationalLevel": "Intermediate",
         "isAccessibleForFree": true,
         "inLanguage": "en"
@@ -199,6 +253,7 @@ export default withMermaid(
       nav: [
         { text: 'System Design', link: '/system-design/' },
         { text: 'Design Patterns', link: '/design-patterns/' },
+        { text: 'Database', link: '/database/' },
         { text: 'AI Skills', link: '/skills' },
         { text: 'About', link: '/about' },
       ],
@@ -207,6 +262,7 @@ export default withMermaid(
       sidebar: {
         '/system-design/': systemDesignSidebar,
         '/design-patterns/': designPatternsSidebar,
+        '/database/': databaseSidebar,
       },
 
       // Outline depth in right sidebar

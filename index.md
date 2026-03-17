@@ -3,7 +3,7 @@ layout: home
 
 hero:
   name: "The Engineer's Handbook"
-  text: "System Design, Design Patterns & more to come"
+  text: "System Design, Design Patterns & Database Engineering"
   tagline: "master engineering, one concept at a time."
   actions:
     - theme: brand
@@ -25,20 +25,27 @@ features:
     details: "6 chapters · ~4 hours — Creational, structural, behavioral, modern application, and distributed system patterns. Practical Go examples with BEFORE/AFTER code."
     link: /design-patterns/
     linkText: Learn patterns
+
+  - icon: 🗄️
+    title: Database Engineering
+    details: "16 chapters · ~10 hours — How big systems design their databases. PostgreSQL internals, sharding strategies, query optimization, and real-world case studies from Instagram, Discord, and Uber."
+    link: /database/
+    linkText: Master databases
 ---
 
 <div style="text-align: center; margin: 3em auto; max-width: 640px; color: #6272a4; font-family: 'JetBrains Mono', monospace; font-size: 0.85em; line-height: 1.8;">
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│          THE ENGINEER'S HANDBOOK v2.0.0                 │
+│          THE ENGINEER'S HANDBOOK v3.0.0                 │
 │                                                         │
-│  > 31 chapters    > 27 patterns    > 1 objective        │
+│  > 47 chapters    > 27 patterns    > 1 objective        │
 │  > Think like a senior engineer at scale                │
 │                                                         │
 │  $ cat handbook --sections                              │
 │    system-design/     25 chapters                       │
 │    design-patterns/    6 chapters                       │
+│    database/          16 chapters                       │
 └─────────────────────────────────────────────────────────┘
 ```
 
