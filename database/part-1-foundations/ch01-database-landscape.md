@@ -10,29 +10,42 @@ description: "A complete map of the database world — RDBMS, NoSQL families, Ne
 ## Mind Map
 
 ```mermaid
-mindmap
-  root((Database Landscape))
-    Relational
-      PostgreSQL
-      MySQL
-      SQLite
-    NoSQL
-      Document: MongoDB, CouchDB
-      Key-Value: Redis, DynamoDB
-      Wide-Column: Cassandra, HBase
-      Graph: Neo4j, TigerGraph
-    NewSQL
-      CockroachDB
-      Spanner
-      TiDB
-    Specialized
-      Time-Series: InfluxDB, TimescaleDB
-      Search: Elasticsearch, Typesense
-      Vector: pgvector, Pinecone
-    Storage Engines
-      Page-Oriented: B-Tree, InnoDB
-      Log-Structured: LSM-Tree, RocksDB
-      WAL: Crash Recovery, Durability
+flowchart TD
+    Root["🗄️ Database Landscape"]
+
+    Root --> R["Relational"]
+    Root --> N["NoSQL"]
+    Root --> NS["NewSQL"]
+    Root --> S["Specialized"]
+    Root --> SE["Storage Engines"]
+
+    R --> R1["PostgreSQL"]
+    R --> R2["MySQL"]
+    R --> R3["SQLite"]
+
+    N --> N1["Document\nMongoDB, CouchDB"]
+    N --> N2["Key-Value\nRedis, DynamoDB"]
+    N --> N3["Wide-Column\nCassandra, HBase"]
+    N --> N4["Graph\nNeo4j, TigerGraph"]
+
+    NS --> NS1["CockroachDB"]
+    NS --> NS2["Spanner"]
+    NS --> NS3["TiDB"]
+
+    S --> S1["Time-Series\nInfluxDB, TimescaleDB"]
+    S --> S2["Search\nElasticsearch, Typesense"]
+    S --> S3["Vector\npgvector, Pinecone"]
+
+    SE --> SE1["Page-Oriented\nB-Tree, InnoDB"]
+    SE --> SE2["Log-Structured\nLSM-Tree, RocksDB"]
+    SE --> SE3["WAL\nCrash Recovery"]
+
+    style Root fill:#bd93f9,color:#282a36
+    style R fill:#50fa7b,color:#282a36
+    style N fill:#ff5555,color:#f8f8f2
+    style NS fill:#ffb86c,color:#282a36
+    style S fill:#6272a4,color:#f8f8f2
+    style SE fill:#f1fa8c,color:#282a36
 ```
 
 ## Overview
@@ -291,7 +304,7 @@ The strategy works well when:
 - Workload volumes are moderate (vector search under 10M embeddings, time-series under 50GB/day)
 - You want ACID consistency across multiple data types in one transaction
 
-†**Performance caveat:** pgvector at >5M vectors shows measurably worse recall and p99 latency compared to purpose-built HNSW implementations (Qdrant, Weaviate). TimescaleDB compression ratios are 20–50× worse than InfluxDB IOx at high cardinality. The extensions are "good enough" for many workloads but are not drop-in replacements at the high end. See [Ch08 — Specialized Databases](/database/part-2-engines/ch08-specialized-databases) for benchmarks.
+†**Performance caveat:** pgvector at >5M vectors shows measurably worse recall and p99 latency compared to purpose-built HNSW implementations (Qdrant, Weaviate) based on [ANN Benchmarks](https://ann-benchmarks.com/) data. TimescaleDB compression ratios are worse than InfluxDB IOx at high cardinality per [TimescaleDB vs InfluxDB benchmarks](https://www.timescale.com/blog/timescaledb-vs-influxdb/). The thresholds above (10M embeddings, 50GB/day) are rough rules of thumb — always benchmark your specific workload and query patterns. See [Ch08 — Specialized Databases](/database/part-2-engines/ch08-specialized-databases) for detailed benchmarks.
 
 The strategy breaks down when:
 - You need sub-millisecond vector ANN at >10M embeddings (dedicated vector DB wins)

@@ -530,25 +530,9 @@ FROM pg_stat_replication;
 
 ## Case Study: Instagram's PostgreSQL Journey
 
-*This is a brief operational summary. For the full deep dive into Instagram's sharding strategy, ID generation, and schema design, see [Ch13 — Instagram: PostgreSQL at Scale](/database/part-4-real-world/ch13-instagram-postgresql-at-scale).*
+Instagram scaled PostgreSQL from a single EC2 instance (2010) to thousands of shards serving 2B+ users — without ever migrating away from PostgreSQL. Their journey through read replicas, functional sharding, and horizontal sharding by `user_id` demonstrates every concept in this chapter: WAL-based streaming replication, PgBouncer connection pooling, per-table autovacuum tuning, and `pg_stat_statements`-driven query optimization.
 
-Instagram launched in 2010 with a single PostgreSQL instance on a single EC2 server — a pattern that worked until they hit 1M users in 12 weeks.
-
-**Phase 1 — Single Primary (2010):** One PostgreSQL master, Django ORM, basic indexes. Handled 1M users before showing strain. Key optimization: aggressive `EXPLAIN ANALYZE` to eliminate sequential scans on the media and user tables.
-
-**Phase 2 — Read Replicas (2011):** Added streaming replicas for read traffic. PostgreSQL's WAL-based streaming replication allowed synchronous standbys with near-zero read lag. Feed reads, profile reads, and explore queries moved to replicas. Instagram added database routing middleware to the Django ORM to direct reads to replicas and writes to the primary.
-
-**Phase 3 — Functional Sharding (2012–2013):** Split the monolithic database by feature domain: users, media, relationships. Each domain got its own PostgreSQL cluster. Cross-domain joins moved to the application layer. This extended the architecture to 100M users.
-
-**Phase 4 — Horizontal Sharding (2014+):** Built a custom sharding layer hashing user_id to 1024 logical shards mapped to physical PostgreSQL instances. Django ORM continued to work because all queries included user_id.
-
-**Key Technical Lessons:**
-- Django ORM's lazy loading caused severe N+1 queries at scale — fixed with `select_related()` and `prefetch_related()`
-- Streaming replication handled read scaling longer than expected (to ~300M users)
-- Per-table autovacuum tuning was essential for the high-churn media table (millions of uploads/day)
-- Sharding key (user_id) was chosen before sharding was implemented — this made the migration feasible without an application rewrite
-
-**2024 status:** Instagram runs thousands of PostgreSQL instances, custom connection pooling, and pgvector for ML-based Explore recommendations — all on PostgreSQL without migrating to a different database.
+**For the full deep dive** — sharding architecture, Snowflake-inspired ID generation, feed fan-out design, and Django ORM at scale — see [Ch13 — Instagram: PostgreSQL at Scale](/database/part-4-real-world/ch13-instagram-postgresql-at-scale).
 
 ---
 

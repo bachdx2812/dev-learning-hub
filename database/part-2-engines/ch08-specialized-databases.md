@@ -584,6 +584,35 @@ Use this table to choose a specialized database for your workload:
 
 ---
 
+## Monitoring Specialized Databases
+
+Specialized databases have unique failure modes. Monitor these engine-specific metrics.
+
+| Engine | Key Metrics | Tool | Critical Alert |
+|--------|------------|------|----------------|
+| **ClickHouse** | MergeTree parts count, Query duration p99, Delayed inserts, Replication queue | `system.metrics`, `system.query_log` | Parts > 300 per partition (merge backlog) |
+| **Elasticsearch** | Cluster health (green/yellow/red), JVM heap %, Search latency p99, Unassigned shards | `_cluster/health`, `_cat/nodes` | Cluster status != green or JVM heap > 85% |
+| **Neo4j** | Page cache hit ratio, Transaction count, Bolt connections, Store size | Neo4j Metrics API, Prometheus exporter | Page cache hit ratio < 95% |
+| **pgvector** | Index build time, Recall rate, Probes per query | `pg_stat_user_indexes`, `EXPLAIN ANALYZE` | Recall < 95% at target latency (increase `ef_search`) |
+
+```sql
+-- ClickHouse: check merge health
+SELECT table, count() AS parts, sum(rows) AS total_rows
+FROM system.parts
+WHERE active AND database = 'default'
+GROUP BY table
+ORDER BY parts DESC;
+
+-- Elasticsearch: cluster health (via curl)
+-- curl -s localhost:9200/_cluster/health?pretty
+```
+
+:::warning Specialized DB Failure Modes
+ClickHouse: too many parts = merge can't keep up with inserts → insert delays. Elasticsearch: JVM GC pauses cause cluster instability → size heap to 50% of RAM, max 31GB. Neo4j: cold page cache after restart → warm with traversal queries before accepting traffic.
+:::
+
+---
+
 ## Case Study: Cloudflare's Analytics Pipeline with ClickHouse
 
 Cloudflare operates one of the world's largest CDN networks, handling 50+ million HTTP requests per second across 300+ data centers. Every HTTP request generates a log event.

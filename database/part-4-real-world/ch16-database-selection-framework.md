@@ -309,6 +309,8 @@ flowchart TD
 
 ## 2025 Database Trends
 
+These four trends have concrete engineering implications for database selection decisions you are making today. Each trend includes specific adoption thresholds so you can assess whether it applies to your workload.
+
 ### Trend 1: PostgreSQL Extensions Replace 80% of Specialized DBs
 
 By 2025, PostgreSQL with extensions handles use cases that previously required separate databases:

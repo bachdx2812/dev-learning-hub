@@ -530,6 +530,35 @@ stmt = SimpleStatement(
 
 ---
 
+## Monitoring & Observability
+
+Each NoSQL engine requires different monitoring approaches. Here are the essential metrics and tools per engine.
+
+| Engine | Key Metrics | Primary Tool | Critical Alert |
+|--------|------------|-------------|----------------|
+| **DynamoDB** | ConsumedReadCapacity, ConsumedWriteCapacity, ThrottledRequests, SuccessfulRequestLatency | AWS CloudWatch | ThrottledRequests > 0 (capacity exceeded) |
+| **Cassandra** | Read/Write latency (p99), Tombstone scans/query, Pending compactions, Dropped mutations | `nodetool tablestats`, `nodetool tpstats` | Pending compactions > 50 or dropped mutations > 0 |
+| **MongoDB** | OpCounters, Replication lag, WiredTiger cache hit ratio, Connections current | `mongosh db.serverStatus()`, MongoDB Atlas metrics | Replication lag > 10s or cache hit ratio < 90% |
+| **Redis** | Used memory vs maxmemory, Connected clients, Keyspace hits/misses, Evicted keys | `redis-cli INFO`, Redis Sentinel | Evicted keys > 0 (memory pressure) or hit ratio < 80% |
+
+```bash
+# Cassandra: check compaction and tombstone health
+nodetool compactionstats
+nodetool tablestats keyspace.table | grep -E "Tombstones|Partition"
+
+# Redis: quick health check
+redis-cli INFO stats | grep -E "keyspace_hits|keyspace_misses|evicted_keys"
+
+# MongoDB: replication lag
+mongosh --eval "rs.printSecondaryReplicationInfo()"
+```
+
+:::tip Monitoring Rule of Thumb
+For any NoSQL engine: track **p99 latency** (not average), **error/rejection rate**, and **capacity headroom** (disk, memory, connections). Alert on thresholds, not anomalies — NoSQL workloads are inherently spiky.
+:::
+
+---
+
 ## Case Study: Netflix's Cassandra Deployment
 
 Netflix is one of the world's largest Cassandra operators, running thousands of Cassandra nodes across multiple AWS regions.
